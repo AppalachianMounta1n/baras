@@ -47,6 +47,7 @@ display_text = "Updraft"
 trigger = { type = "combat_start" }
 duration_secs = 30.0
 color = [219, 110, 32, 255]
+icon_ability_id = 3134548736999424
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -63,6 +64,7 @@ name = "Updraft"
 trigger = { type = "ability_cast", abilities = [3134548736999424] }
 duration_secs = 30.0
 color = [219, 110, 32, 255]
+icon_ability_id = 3134548736999424
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -113,6 +115,7 @@ name = "Reposition"
 trigger = { type = "ability_cast", abilities = [3152269772062720] }
 duration_secs = 16.5
 color = [37, 216, 219, 255]
+icon_ability_id = 3152269772062720
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -127,7 +130,9 @@ cancel_trigger = { type = "phase_entered", phase_id = "titan_6_burn" }
 duration_secs = 45.0
 color = [169, 194, 25, 255]
 difficulties = ["veteran", "master"]
+icon_ability_id = 3064205762625536
 phase = ["titan_6_main"]
+show_at_secs = 10.0
 
 [[boss.timer]]
 id = "titan_6_airstrike"
@@ -139,8 +144,10 @@ trigger = { type = "any_of", conditions = [
 cancel_trigger = { type = "phase_entered", phase_id = "titan_6_burn" }
 duration_secs = 35.0
 color = [219, 28, 32, 255]
+icon_ability_id = 3064197172690944
 difficulties = ["veteran", "master"]
 phase = ["titan_6_main"]
+show_at_secs = 10.0
 
 [[boss.timer]]
 id = "titan_6_lots_of_missiles"
@@ -156,8 +163,9 @@ trigger = { type = "any_of", conditions = [
 cancel_trigger = { type = "phase_entered", phase_id = "titan_6_burn" }
 duration_secs = 40.0
 color = [224, 98, 24, 255]
+icon_ability_id = 3153901859635200
 difficulties = ["veteran", "master"]
-
+show_at_secs = 10.0
 
 [[boss.timer]]
 id = "titan_6_kick_lom"
@@ -168,6 +176,8 @@ trigger = { type = "any_of", conditions = [
 ] }
 duration_secs = 15.0
 cancel_trigger = { type = "phase_entered", phase_id = "titan_6_burn" }
+icon_ability_id = 3153901859635200
+difficulties = ["veteran", "master"]
 
 [[boss.timer]]
 id = "titan_6_huge_grenade_b"
@@ -177,8 +187,21 @@ display_text = "Huge Grenade"
 trigger = { type = "ability_cast", abilities = [3255761304027136] }
 duration_secs = 20.0
 color = [169, 194, 25, 255]
+icon_ability_id = 3145707062034432
 difficulties = ["veteran", "master"]
 
+[[boss.timer]]
+id = "titan6_huge_grenade_on_you"
+name = "Huge Grenade on you"
+duration_secs = 7.0
+color = [255, 200, 0, 255]
+icon_ability_id = 3064205762625536
+difficulties = ["veteran", "master"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [3064205762625536]
+target = "local_player"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Secret Boss: Hateful Entity
@@ -266,6 +289,7 @@ trigger = { type = "boss_hp_below", hp_percent = 50.0, selector = ["Thrasher"] }
 is_alert = true
 alert_text = "Double Wave"
 color = [10, 118, 21, 255]
+icon_ability_id = 3060692479377408
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -275,6 +299,7 @@ display_text = "Adds"
 trigger = { type = "combat_start" }
 duration_secs = 15.0
 color = [10, 118, 21, 255]
+icon_ability_id = 3060692479377408
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -283,6 +308,7 @@ name = "Adds"
 trigger = { type = "ability_cast", abilities = [3060692479377408] }
 duration_secs = 45.0
 color = [10, 118, 21, 255]
+icon_ability_id = 3060692479377408
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -307,6 +333,7 @@ name = "Knockback 180"
 trigger = { type = "ability_cast", abilities = [3045857662337024] }
 duration_secs = 10.5
 color = [33, 224, 220, 255]
+icon_ability_id = 3045857662337024
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -316,6 +343,7 @@ name = "Knockback 360"
 trigger = { type = "ability_cast", abilities = [3262208049938432] }
 duration_secs = 8.5
 color = [33, 224, 220, 255]
+icon_ability_id = 3045857662337024
 difficulties = ["veteran", "master"]
 
 
@@ -339,7 +367,8 @@ id = "operations_chief_flash_bang"
 name = "Flash Bang"
 trigger = { type = "ability_cast", abilities = [3146325537325056] }
 duration_secs = 30.0
-color = [184, 183, 49, 255]
+color = [130, 130, 130, 255]
+icon_ability_id = 3146325537325056
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -348,6 +377,7 @@ name = "Terminate"
 trigger = { type = "ability_cast", abilities = [3146334127259648] }
 duration_secs = 24.0
 color = [224, 28, 24, 255]
+icon_ability_id = 3146334127259648
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -356,6 +386,7 @@ name = "Explosive Probe"
 trigger = { type = "ability_cast", abilities = [3146329832292352] }
 duration_secs = 32.0
 color = [224, 88, 29, 255]
+icon_ability_id = 3146329832292352
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -364,6 +395,7 @@ name = "Turrets"
 trigger = { type = "ability_cast", abilities = [3158012143337472] }
 duration_secs = 32.0
 color = [214, 32, 206, 255]
+icon_ability_id = 3158012143337472
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -371,7 +403,8 @@ id = "operations_chief_impulse"
 name = "Impulse"
 trigger = { type = "ability_cast", abilities = [2166591957499904] }
 duration_secs = 15.0
-color = [37, 29, 224, 255]
+color = [255, 200, 0, 255]
+icon_ability_id = 2166591957499904
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -380,6 +413,7 @@ name = "Thermal Grenade"
 trigger = { type = "ability_cast", abilities = [3145707062034432] }
 duration_secs = 20.0
 color = [12, 133, 17, 255]
+icon_ability_id = 3145707062034432
 difficulties = ["veteran", "master"]
 
 
@@ -419,12 +453,34 @@ ids = [3154674953748480, 3016445726294016, 3154679248715776, 3154662068846592]
 is_boss = true
 is_kill_target = true
 
+[[boss.phases]]
+id = "olok_wealthy_buyer"
+name = "Wealthy buyer"
+[boss.phases.start_trigger]
+type = "combat_start"
+
+[[boss.phases]]
+id = "olok_droids"
+name = "Droids"
+[boss.phases.start_trigger]
+type = "entity_death"
+selector = ["Wealthy Buyer"]
+
+[[boss.phases]]
+id = "olok_olok"
+name = "Olok"
+[boss.phases.start_trigger]
+type = "damage_taken"
+[boss.phases.start_trigger.source]
+selector = ["Olok the Shadow"]
+
 [[boss.timer]]
 id = "olok_the_shadow_stealthed"
 name = "Stealthed"
 trigger = { type = "ability_cast", abilities = [3132057655967744] }
 duration_secs = 5.5
 color = [29, 224, 221, 255]
+icon_ability_id = 3132057655967744
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -434,6 +490,7 @@ trigger = { type = "ability_cast", abilities = [3131215842377728] }
 is_alert = true
 alert_text = "Flashbang"
 color = [219, 187, 32, 255]
+icon_ability_id = 3131048338653184
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -443,6 +500,7 @@ display_text = "Flashbang"
 trigger = { type = "ability_cast", abilities = [3131215842377728] }
 duration_secs = 40.0
 color = [219, 187, 32, 255]
+icon_ability_id = 3131048338653184
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -451,6 +509,7 @@ name = "Stealth"
 trigger = { type = "ability_cast", abilities = [3131215842377728] }
 duration_secs = 4.5
 color = [29, 224, 221, 255]
+icon_ability_id = 3132057655967744
 difficulties = ["veteran", "master"]
 
 [[boss.counters]]
@@ -613,7 +672,8 @@ name = "Horic Spray"
 trigger = { type = "ability_cast", abilities = [3126156370903040] }
 cancel_trigger = { type = "entity_death", selector = ["Horic"] }
 duration_secs = 15.0
-color = [219, 33, 32, 255]
+color = [255, 60, 100, 255]
+icon_ability_id = 3126156370903040
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -623,7 +683,21 @@ trigger = { type = "ability_cast", abilities = [3126843565670400] }
 cancel_trigger = { type = "entity_death", selector = ["Horic"] }
 duration_secs = 15.0
 color = [12, 138, 31, 255]
+icon_ability_id = 3126843565670400
 difficulties = ["veteran", "master"]
+
+[[boss.timer]]
+id = "cartel_warlords_cleanse_destroy_armor"
+name = "Cleanse (destroy armor)"
+duration_secs = 6.3
+color = [255, 128, 0, 255]
+icon_ability_id = 3283107360801024
+difficulties = ["master"]
+can_be_refreshed = true
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [3283107360801024]
 
 [[boss.timer]]
 id = "cartel_warlords_garr_tp"
@@ -640,7 +714,8 @@ name = "Garr Shiv"
 trigger = { type = "ability_cast", abilities = [3129673949118464] }
 cancel_trigger = { type = "entity_death", selector = ["Garr"] }
 duration_secs = 11.0
-color = [224, 33, 180, 255]
+color = [150, 0, 0, 255]
+icon_ability_id = 3129673949118464
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -659,6 +734,7 @@ trigger = { type = "ability_cast", abilities = [3125911557767168] }
 cancel_trigger = { type = "entity_death", selector = ["Sunder"] }
 duration_secs = 15.0
 color = [36, 214, 204, 255]
+icon_ability_id = 3125911557767432
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -667,6 +743,7 @@ name = "Sunder The End VM"
 trigger = { type = "ability_cast", abilities = [3145926105366528] }
 duration_secs = 20.0
 color = [224, 35, 33, 255]
+icon_ability_id = 3145926105366528
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -675,6 +752,7 @@ name = "Sunder The End 8m"
 trigger = { type = "ability_cast", abilities = [3145926105366528] }
 duration_secs = 16.0
 color = [224, 29, 32, 255]
+icon_ability_id = 3145926105366528
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -683,6 +761,7 @@ name = "Sunder The End 16m"
 trigger = { type = "ability_cast", abilities = [3145926105366528] }
 duration_secs = 11.0
 color = [219, 31, 28, 255]
+icon_ability_id = 3145926105366528
 difficulties = ["master"]
 
 
