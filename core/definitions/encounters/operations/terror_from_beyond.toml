@@ -329,7 +329,6 @@ effects = [3014512991011084]
 [[boss.timer]]
 id = "dg_at_12_circles"
 name = "At 12 circles"
-duration_secs = 30.0
 is_alert = true
 color = [0, 150, 0, 255]
 difficulties = ["master"]
@@ -337,6 +336,10 @@ difficulties = ["master"]
 [boss.timer.trigger]
 type = "timer_expires"
 timer_id = "dg_circle_tracker_not_displayed"
+
+[[boss.timer.conditions]]
+type = "phase_active"
+phase_ids = ["dg_ciphas"]
 
 [[boss.timer]]
 id = "dg_take_kelsara_away"
@@ -581,12 +584,15 @@ selector = ["Data Core"]
 
 [[boss.timer]]
 id = "op_ix_black_obtuse"
-name = "Black Obtuse"
-trigger = { type = "ability_cast", abilities = [2998471288160256] }
-duration_secs = 31.0
+name = "Boss shielding"
+duration_secs = 28.0
 color = [255, 150, 0, 255]
 icon_ability_id = 2998471288160256
 difficulties = ["veteran", "master"]
+
+[boss.timer.trigger]
+type = "damage_taken"
+abilities = [2998471288160256]
 
 [[boss.timer]]
 id = "op_ix_adds"
