@@ -56,6 +56,7 @@ name = "Spear Toss"
 trigger = { type = "ability_cast", abilities = [3437799197900800] }
 duration_secs = 10.0
 color = [164, 29, 224, 255]
+icon_ability_id = 3437799197900800
 difficulties = ["veteran"]
 
 # Spear Fixate: 3s warning when fixate wears off (player needs to move)
@@ -67,19 +68,34 @@ trigger = { type = "effect_removed", effects = [
 ], target = "local_player" }
 duration_secs = 3.0
 color = [164, 29, 224, 255]
+icon_ability_id = 3437799197900800
 difficulties = ["veteran"]
 
-# -- Alerts --
+[[boss.counters]]
+id = "malaphar_savagery"
+name = "Savagery"
+
+[boss.counters.track_effect_stacks]
+effects = [3434788425826304]
+target = "local_player"
+aggregation = "max"
+
 [[boss.timer]]
 id = "mal_savagery"
 name = "Savagery"
 is_alert = true
-trigger = { type = "effect_applied", effects = [
-  3434788425826304,
-], target = "local_player" }
-alert_text = "Savagery!"
+alert_text = "Drop stacks!"
 color = [224, 34, 33, 255]
+icon_ability_id = 3434788425826304
 difficulties = ["veteran"]
+
+[boss.counters.increment_on]
+type = "ability_cast"
+
+[boss.timer.trigger]
+type = "counter_reaches"
+counter_id = "malaphar_savagery"
+value = 10
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Sword Squadron
@@ -130,6 +146,7 @@ trigger = { type = "any_of", conditions = [
 ] }
 duration_secs = 60.0
 color = [29, 39, 224, 255]
+icon_ability_id = 3498933762392064
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -139,6 +156,7 @@ display_text = "Gravity"
 trigger = { type = "combat_start" }
 duration_secs = 40.0
 color = [33, 224, 218, 255]
+icon_ability_id = 3519626914824192
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -148,9 +166,20 @@ trigger = { type = "effect_applied", effects = [3519626914824192] }
 duration_secs = 35.5
 show_at_seconds = 20.0
 color = [33, 224, 218, 255]
+icon_ability_id = 3519626914824192
 difficulties = ["veteran"]
 can_refresh = false
 
+[[boss.timer]]
+id = "sword_squadron_gravity_dmg"
+name = "Gravity dmg"
+duration_secs = 4.0
+color = [33, 224, 218, 255]
+difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [3519626914824192]
 
 [[boss.timer]]
 id = "ss_shield_down"
@@ -158,6 +187,58 @@ name = "Emergency Shield Down"
 alert_text = "Unit 1 Shield Down"
 is_alert = true
 trigger = { type = "effect_removed", effects = [3498933762392064] }
+icon_ability_id = 3498933762392064
+
+
+[[boss.timer]]
+id = "sword_squadron_rapid_fire_1st"
+name = "Rapid fire 1st"
+duration_secs = 16.0
+color = [222, 123, 0, 255]
+icon_ability_id = 3448046989869056
+difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "combat_start"
+
+[[boss.timer]]
+id = "sword_squadron_rapid_fire"
+name = "Rapid fire"
+duration_secs = 25.0
+color = [222, 123, 0, 255]
+icon_ability_id = 3448046989869056
+difficulties = ["veteran"]
+can_be_refreshed = true
+
+[boss.timer.trigger]
+type = "ability_cast"
+abilities = [3448046989869056]
+
+[[boss.timer]]
+id = "sword_squadron_huge_grenade_on_you"
+name = "Huge grenade on you"
+duration_secs = 7.0
+color = [175, 75, 0, 255]
+icon_ability_id = 3448055579803648
+difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [3448055579803648]
+target = "local_player"
+
+[[boss.timer]]
+id = "sword_squadron_mega_blast_soon"
+name = "Mega blast soon"
+duration_secs = 16.0
+color = [255, 0, 100, 255]
+icon_ability_id = 3448051284836352
+difficulties = ["veteran"]
+can_refresh = false
+
+[boss.timer.trigger]
+type = "damage_taken"
+abilities = [3448051284836352]
 
 # -- Rain of Missiles (counter-gated repeating timer) --
 
@@ -177,9 +258,9 @@ id = "ss_rain_of_missiles"
 name = "Rain of Missiles"
 trigger = { type = "counter_reaches", counter_id = "rain_damage", value = 1 }
 duration_secs = 19.0
-color = [219, 32, 28, 255]
+color = [150, 0, 0, 255]
+icon_ability_id = 3448064169738240
 difficulties = ["veteran"]
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # The Underlurker
@@ -220,6 +301,7 @@ name = "Collapse"
 trigger = { type = "ability_cast", abilities = [3512467204341760] }
 duration_secs = 17.5
 color = [41, 29, 224, 255]
+icon_ability_id = 3411423803736064
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -229,7 +311,8 @@ trigger = { type = "ability_cast", abilities = [
   3411423803736064,
 ] } # Collapse → Rage Storm coming
 duration_secs = 10.5
-color = [224, 35, 33, 255]
+color = [0, 150, 150, 255]
+icon_ability_id = 3411569832624128
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -248,6 +331,7 @@ name = "Cross"
 trigger = { type = "ability_cast", abilities = [3413575582351360] }
 duration_secs = 8
 color = [24, 173, 19, 255]
+icon_ability_id = 3413575582351360
 difficulties = ["veteran"]
 
 # -- HP Threshold Alerts --
@@ -423,6 +507,7 @@ name = "Impel"
 trigger = { type = "ability_cast", abilities = [3514803666550784] }
 duration_secs = 20
 color = [219, 32, 28, 255]
+icon_ability_id = 3514803666550784
 difficulties = ["story", "veteran"]
 
 # -- Force Wield: Spawns two Blades --
@@ -432,6 +517,7 @@ name = "Blades"
 trigger = { type = "ability_cast", abilities = [3453089281474560] }
 duration_secs = 60
 color = [20, 138, 32, 255]
+icon_ability_id = 3453080691539968
 difficulties = ["story", "veteran"]
 
 # -- Saber Overcharge: Next 3 attacks cleave --
@@ -440,7 +526,8 @@ id = "rev_overcharge"
 name = "Saber Overcharge"
 trigger = { type = "ability_cast", abilities = [3442094165196800] }
 duration_secs = 16
-color = [185, 24, 189, 255]
+color = [255, 100, 255, 255]
+icon_ability_id = 3442094165196800
 difficulties = ["story", "veteran"]
 
 # -- Heave: 2s raid-wide damage channel, every 30s (HM) --
@@ -449,7 +536,8 @@ id = "rev_heave"
 name = "Heave"
 trigger = { type = "ability_cast", abilities = [3462632698806272] }
 duration_secs = 30
-color = [173, 168, 22, 255]
+color = [255, 187, 0, 255]
+icon_ability_id = 3462632698806272
 difficulties = ["veteran"]
 
 # -- Trail of Agony: Tank drops pink circles for 10s (HM) --
@@ -458,7 +546,8 @@ id = "rev_trail"
 name = "Trail of Agony"
 trigger = { type = "ability_cast", abilities = [3443275281203200] }
 duration_secs = 32
-color = [219, 112, 32, 255]
+color = [175, 0, 200, 255]
+icon_ability_id = 3443275281203200
 difficulties = ["veteran"]
 
 # -- Essence Corruption: DPS debuff, 60s until death, must cleanse (HM) --
@@ -467,7 +556,8 @@ id = "rev_corruption"
 name = "Essence Corruption"
 trigger = { type = "ability_cast", abilities = [3447359795101696] }
 duration_secs = 11
-color = [104, 33, 224, 255]
+color = [100, 0, 200, 255]
+icon_ability_id = 3447359795101696
 difficulties = ["veteran"]
 
 # -- Essence Corruption Alert on local player --
@@ -478,8 +568,9 @@ is_alert = true
 trigger = { type = "effect_applied", effects = [
   3447359795101696,
 ], target = "local_player" }
-alert_text = "Corrupted! Move out and cleanse!"
-color = [104, 33, 224, 255]
+alert_text = "Move out and wait for cleanse!"
+color = [150, 0, 255, 255]
+icon_ability_id = 3447359795101696
 difficulties = ["veteran"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -492,7 +583,8 @@ id = "rev_killshot"
 name = "Force Imbue"
 trigger = { type = "ability_cast", abilities = [3447677622681600] }
 duration_secs = 5
-color = [224, 29, 29, 255]
+color = [200, 0, 0, 255]
+icon_ability_id = 3447673327714304
 difficulties = ["veteran"]
 
 # -- Force-Imbued Killshot follow-up timer --
@@ -501,7 +593,8 @@ id = "rev_force_imbue"
 name = "Force Imbue"
 trigger = { type = "timer_expires", timer_id = "rev_killshot" }
 duration_secs = 40
-color = [224, 31, 29, 255]
+color = [200, 0, 0, 255]
+icon_ability_id = 3447673327714304
 difficulties = ["veteran"]
 
 # -- Handful of Grenades: Planted on everyone, explode after 5s --
@@ -512,6 +605,7 @@ is_alert = true
 trigger = { type = "ability_cast", abilities = [3447669032747008] }
 alert_text = "Grenades! Spread!"
 color = [224, 168, 33, 255]
+icon_ability_id = 3447669032747008
 difficulties = ["story", "veteran"]
 
 # -- Reactive Shield: HK reflects damage from >10m (at 80% HP in HM) --
@@ -522,6 +616,7 @@ is_alert = true
 trigger = { type = "boss_hp_below", hp_percent = 80.0, selector = ["HK-47"] }
 alert_text = "Reactive Shield"
 color = [224, 29, 30, 255]
+icon_ability_id = 3465948413558784
 difficulties = ["veteran"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -628,7 +723,8 @@ id = "rev_heave_p4"
 name = "Heave"
 trigger = { type = "effect_removed", effects = [3449047717249024] }
 duration_secs = 25
-color = [173, 168, 22, 255]
+color = [255, 187, 0, 255]
+icon_ability_id = 3462632698806272
 difficulties = ["veteran"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -689,7 +785,8 @@ id = "rev_corruption_cs"
 name = "Essence Corruption"
 trigger = { type = "combat_start" }
 duration_secs = 10
-color = [104, 33, 224, 255]
+color = [100, 0, 200, 255]
+icon_ability_id = 3447359795101696
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -698,4 +795,5 @@ name = "Cleanse Pools"
 trigger = { type = "combat_start" }
 duration_secs = 50
 color = [112, 158, 17, 255]
+icon_ability_id = 3450125754040320
 difficulties = ["veteran"]
