@@ -49,6 +49,7 @@ trigger = { type = "any_of", conditions = [
 is_alert = true
 alert_text = "Brutalize"
 color = [224, 128, 24, 255]
+icon_ability_id = 3381616730701824
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -57,6 +58,7 @@ name = "Shoulder Throw"
 trigger = { type = "ability_cast", abilities = [3377850044383232] }
 duration_secs = 13.0
 color = [203, 204, 46, 255]
+icon_ability_id = 3377991778304000
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -65,6 +67,7 @@ name = "Rampage END"
 trigger = { type = "ability_cast", abilities = [3380452794564608] }
 duration_secs = 15.0
 color = [187, 29, 224, 255]
+icon_ability_id = 3380452794564608
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -79,6 +82,7 @@ trigger = { type = "any_of", conditions = [
 ] }
 duration_secs = 36.0
 color = [187, 29, 224, 255]
+icon_ability_id = 3380452794564608
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -94,6 +98,7 @@ trigger = { type = "any_of", conditions = [
 ] }
 duration_secs = 46.0
 color = [187, 29, 224, 255]
+icon_ability_id = 3380452794564608
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -102,6 +107,7 @@ name = "Forceful Roar (Adds)"
 trigger = { type = "ability_cast", abilities = [3380792096980992] }
 duration_secs = 40.5
 color = [34, 173, 19, 255]
+icon_ability_id = 3381891608608768
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -110,6 +116,7 @@ name = "Roar (Adds)"
 trigger = { type = "ability_cast", abilities = [3378502879412224] }
 duration_secs = 17.5
 color = [34, 173, 19, 255]
+icon_ability_id = 3381891608608768
 difficulties = ["veteran"]
 
 
@@ -135,6 +142,7 @@ display_text = "Shotgun Blast"
 trigger = { type = "combat_start" }
 duration_secs = 10.0
 color = [210, 24, 219, 255]
+icon_ability_id = 3391714198814720
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -153,6 +161,7 @@ display_text = "Pirates"
 trigger = { type = "combat_start" }
 duration_secs = 20.0
 color = [38, 168, 25, 255]
+icon_ability_id = 3391748558553088
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -162,6 +171,7 @@ display_text = "Carts + Scatter"
 trigger = { type = "combat_start" }
 duration_secs = 30.0
 color = [224, 25, 24, 255]
+icon_ability_id = 3391748558553088
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -171,6 +181,7 @@ display_text = "Relocate + Barrage"
 trigger = { type = "combat_start" }
 duration_secs = 50.0
 color = [37, 224, 218, 255]
+icon_ability_id = 3417496887492608
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -179,6 +190,7 @@ name = "Shotgun Blast"
 trigger = { type = "ability_cast", abilities = [3391714198814720] }
 duration_secs = 8.5
 color = [210, 24, 219, 255]
+icon_ability_id = 3391714198814720
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -196,6 +208,7 @@ name = "Barrel Throw"
 trigger = { type = "manual" }
 duration_secs = 6.0
 color = [146, 33, 224, 255]
+icon_ability_id = 3396090770489344
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -244,6 +257,7 @@ name = "Scatter Blaster END"
 trigger = { type = "ability_cast", abilities = [3391744263585792] }
 duration_secs = 11.0
 color = [224, 29, 29, 255]
+icon_ability_id = 3391748558553088
 difficulties = ["veteran"]
 chains_to = "bulo_scatter_blaster"
 
@@ -253,6 +267,7 @@ name = "Scatter Blaster"
 trigger = { type = "manual" }
 duration_secs = 29.0
 color = [219, 38, 28, 255]
+icon_ability_id = 3391748558553088
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -261,6 +276,7 @@ name = "Barrage/Carts Delay"
 trigger = { type = "ability_cast", abilities = [3391744263585792] }
 duration_secs = 20.0
 color = [167, 179, 26, 255]
+icon_ability_id = 3417496887492608
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -269,6 +285,7 @@ name = "Mass Barrage END"
 trigger = { type = "ability_cast", abilities = [3417496887492608] }
 duration_secs = 13.0
 color = [224, 110, 29, 255]
+icon_ability_id = 3417496887492608
 difficulties = ["veteran"]
 chains_to = "bulo_mass_barrage"
 
@@ -278,6 +295,7 @@ name = "Mass Barrage"
 trigger = { type = "manual" }
 duration_secs = 50.0
 color = [224, 110, 29, 255]
+icon_ability_id = 3417496887492608
 difficulties = ["veteran"]
 
 
@@ -303,6 +321,7 @@ display_text = "Laser Turret"
 trigger = { type = "combat_start" }
 duration_secs = 15.0
 color = [138, 98, 48, 255]
+icon_ability_id = 3406506066182144
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -338,6 +357,7 @@ name = "Magnetic Clamp"
 trigger = { type = "ability_cast", abilities = [3430678142124032] }
 duration_secs = 30.0
 color = [33, 224, 219, 255]
+icon_ability_id = 3430678142124304
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -355,6 +375,7 @@ name = "Flame Turret"
 trigger = { type = "ability_cast", abilities = [3406531835985920] }
 duration_secs = 15.0
 color = [219, 189, 32, 255]
+icon_ability_id = 3406501771214848
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -363,6 +384,7 @@ name = "Laser Turret"
 trigger = { type = "ability_cast", abilities = [3406527541018624] }
 duration_secs = 15.0
 color = [138, 98, 48, 255]
+icon_ability_id = 3406506066182144
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -372,6 +394,7 @@ trigger = { type = "ability_cast", abilities = [3409211895578624] }
 is_alert = true
 alert_text = "Tank Swap"
 color = [224, 29, 24, 255]
+icon_ability_id = 3409211895578624
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -380,6 +403,7 @@ name = "Knockback"
 trigger = { type = "ability_cast", abilities = [3409211895578624] }
 duration_secs = 40.0
 color = [219, 105, 32, 255]
+icon_ability_id = 3409211895578624
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -413,6 +437,7 @@ trigger = { type = "boss_hp_below", hp_percent = 95.0, selector = ["Torque"] }
 is_alert = true
 alert_text = "Magnetic"
 color = [33, 221, 224, 255]
+icon_ability_id = 3430678142124304
 difficulties = ["veteran"]
 
 
@@ -1488,7 +1513,8 @@ name = "Ricochet 1st"
 display_text = "Ricochet"
 trigger = { type = "combat_start" }
 duration_secs = 15.0
-color = [224, 32, 29, 255]
+color = [0, 0, 255, 255]
+icon_ability_id = 3372876472254730
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -1496,8 +1522,23 @@ id = "coratanni_ricochet"
 name = "Ricochet"
 trigger = { type = "ability_cast", abilities = [3372880767221760] }
 duration_secs = 15.0
-color = [219, 29, 28, 255]
+color = [0, 0, 255, 255]
+icon_ability_id = 3372876472254730
 difficulties = ["veteran"]
+
+[[boss.timer]]
+id = "coratanni_ricochet_on_local"
+name = "Ricochet on local"
+is_alert = true
+alert_text = "Move out"
+color = [0, 0, 255, 255]
+icon_ability_id = 3372876472254730
+difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [3372876472254730]
+target = "local_player"
 
 [[boss.timer]]
 id = "coratanni_multi_charge_1st"
@@ -1528,11 +1569,42 @@ difficulties = ["veteran"]
 [[boss.timer]]
 id = "coratanni_split"
 name = "Split"
-trigger = { type = "effect_applied", effects = [3372876472254748] }
 is_alert = true
-alert_text = "Split"
-color = [214, 27, 27, 255]
+alert_text = "Stay in group!"
+color = [0, 175, 255, 255]
+icon_ability_id = 3372876472254748
 difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [3372876472254748]
+target = "local_player"
+
+[[boss.timer]]
+id = "coratanni_split_removed"
+name = "Split removed"
+is_alert = true
+alert_text = "Move out now"
+color = [0, 175, 255, 255]
+icon_ability_id = 3372876472254748
+difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "effect_removed"
+effects = [3372876472254748]
+target = "local_player"
+
+[[boss.timer]]
+id = "coratanni_dcd_pearl_is_loose"
+name = "DCD, Pearl is loose"
+is_alert = true
+color = [255, 128, 0, 255]
+icon_ability_id = 3445250966159621
+difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [3445250966159621]
 
 [[boss.timer]]
 id = "coratanni_phase_2_hp"
@@ -1565,6 +1637,7 @@ display_text = "Jet Boost"
 trigger = { type = "phase_entered", phase_id = "coratanni_ruugar" }
 duration_secs = 15.0
 color = [224, 113, 33, 255]
+icon_ability_id = 3514734947074048
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -1592,6 +1665,7 @@ display_text = "Cull"
 trigger = { type = "phase_entered", phase_id = "coratanni_ruugar" }
 duration_secs = 30.0
 color = [25, 114, 194, 255]
+icon_ability_id = 3438778450444288
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -1601,14 +1675,28 @@ display_text = "Focus + Hostage"
 trigger = { type = "phase_entered", phase_id = "coratanni_ruugar" }
 duration_secs = 40.0
 color = [224, 33, 29, 255]
+icon_ability_id = 3438765565542400
 difficulties = ["veteran"]
+
+[[boss.timer]]
+id = "coratanni_stop_dps_for_5s"
+name = "STOP DPS for 5s"
+is_alert = true
+color = [255, 128, 0, 255]
+icon_ability_id = 3438765565542666
+difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [3438765565542666]
 
 [[boss.timer]]
 id = "coratanni_jet_boost"
 name = "Jet Boost"
-trigger = { type = "ability_cast", abilities = [3378167871963136] }
+trigger = { type = "ability_cast", abilities = [3514734947074048] }
 duration_secs = 15.6
 color = [224, 113, 33, 255]
+icon_ability_id = 3514734947074048
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -1625,6 +1713,7 @@ name = "Cull"
 trigger = { type = "ability_cast", abilities = [3438778450444288] }
 duration_secs = 20.0
 color = [25, 114, 194, 255]
+icon_ability_id = 3438778450444288
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -1649,14 +1738,7 @@ name = "Hostage"
 trigger = { type = "ability_cast", abilities = [3438765565542400] }
 duration_secs = 60.0
 color = [219, 26, 24, 255]
-difficulties = ["veteran"]
-
-[[boss.timer]]
-id = "coratanni_aoe_knockback"
-name = "AoE Knockback"
-trigger = { type = "ability_cast", abilities = [3514734947074048] }
-duration_secs = 15.0
-color = [224, 113, 33, 255]
+icon_ability_id = 3438765565542400
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -1664,5 +1746,5 @@ id = "coratanni_cant_grapple"
 name = "Can't Grapple"
 trigger = { type = "ability_cast", abilities = [3441853647028224] }
 duration_secs = 5.0
-color = [32, 35, 219, 255]
+color = [13, 103, 51, 255]
 difficulties = ["veteran"]
