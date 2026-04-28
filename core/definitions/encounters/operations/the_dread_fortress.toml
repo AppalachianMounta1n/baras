@@ -71,6 +71,17 @@ target = "any"
 [boss.counters.reset_on]
 type = "combat_end"
 
+[[boss.counters]]
+id = "nefra_twin_stacks"
+name = "Twin stacks"
+
+[boss.counters.increment_on]
+type = "ability_cast"
+
+[boss.counters.track_effect_stacks]
+effects = [3342034312102187]
+target = "boss"
+
 # ─── Timers ─────────────────────────────────────────────────────────────────────
 
 [[boss.timer]]
@@ -95,13 +106,11 @@ difficulties = ["veteran", "master"]
 [[boss.timer]]
 id = "nefra_local_taunt"
 name = "Local Taunt"
-duration_secs = 30.0
 is_alert = true
 alert_text = "3 Stacks - Taunt!"
-color = [97, 53, 131, 255]
+color = [150, 0, 0, 255]
 icon_ability_id = 3342034312102196
-difficulties = ["story", "veteran", "master"]
-roles = []
+difficulties = ["master"]
 
 [boss.timer.trigger]
 type = "counter_reaches"
@@ -180,12 +189,31 @@ conditions = [
 ]
 
 [[boss.timer]]
+id = "nefra_turn_boss"
+name = "Turn boss"
+duration_secs = 30.0
+is_alert = true
+color = [255, 128, 0, 255]
+icon_ability_id = 3342034312102187
+difficulties = ["veteran", "master"]
+display_targets = ["timers_a"]
+roles = []
+queue_countdown_bar = false
+queue_hide_from_next = false
+
+[boss.timer.trigger]
+type = "counter_reaches"
+counter_id = "nefra_twin_stacks"
+value = 14
+
+[[boss.timer]]
 id = "nefra_raid_cleave"
 name = "Raid Cleave"
 trigger = { type = "ability_cast", abilities = [3342034312101888] }
 is_alert = true
 alert_text = "Raid Cleave"
 color = [219, 37, 41, 255]
+icon_ability_id = 3342034312102187
 difficulties = ["master"]
 conditions = [
   { type = "counter_compare", counter_id = "nefra_twin_attack_count", operator = "eq", value = 15 },
@@ -310,6 +338,7 @@ name = "W1: Subteroths"
 trigger = { type = "combat_start" }
 duration_secs = 50.0
 color = [33, 151, 18, 255]
+icon_ability_id = 3281548287672595
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "timer_started", timer_id = "draxus_w2" }
 
@@ -319,6 +348,7 @@ name = "W2: Dispatchers"
 trigger = { type = "counter_reaches", counter_id = "draxus_subteroth_count", value = 1 }
 duration_secs = 50.0
 color = [33, 151, 18, 255]
+icon_ability_id = 3288162537308160
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "timer_started", timer_id = "draxus_w3" }
 
@@ -328,6 +358,7 @@ name = "W3: Draxus Returns, Corruptors"
 trigger = { type = "counter_reaches", counter_id = "draxus_dispatcher_count", value = 1 }
 duration_secs = 50.0
 color = [20, 136, 30, 255]
+icon_ability_id = 3288098112798720
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "timer_started", timer_id = "draxus_w4" }
 
@@ -338,6 +369,7 @@ name = "W4: Dismantlers"
 trigger = { type = "counter_reaches", counter_id = "draxus_corrupter_count", value = 1 }
 duration_secs = 50.0
 color = [20, 136, 22, 255]
+icon_ability_id = 3288033688289553
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "timer_started", timer_id = "draxus_w5" }
 
@@ -347,6 +379,7 @@ name = "W5: Draxus, Bulwarks"
 trigger = { type = "counter_reaches", counter_id = "draxus_dismantler_count", value = 1 }
 duration_secs = 50.0
 color = [20, 136, 22, 255]
+icon_ability_id = 3288171127242752
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "timer_started", timer_id = "draxus_w6" }
 
@@ -356,6 +389,7 @@ name = "W6: Dismantlers"
 trigger = { type = "counter_reaches", counter_id = "draxus_bulwark_count", value = 1 }
 duration_secs = 50.0
 color = [20, 136, 26, 255]
+icon_ability_id = 3288033688289553
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "timer_started", timer_id = "draxus_w7" }
 
@@ -365,6 +399,7 @@ name = "W7: Guardians"
 trigger = { type = "counter_reaches", counter_id = "draxus_dismantler_count", value = 3 }
 duration_secs = 50.0
 color = [20, 136, 26, 255]
+icon_ability_id = 3381651090440192
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "timer_started", timer_id = "draxus_w8" }
 
@@ -374,6 +409,7 @@ name = "W8: 4 Corruptors"
 trigger = { type = "counter_reaches", counter_id = "draxus_subteroth_count", value = 13 }
 duration_secs = 50.0
 color = [20, 136, 26, 255]
+icon_ability_id = 3288098112798720
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "timer_started", timer_id = "draxus_w9" }
 
@@ -383,6 +419,7 @@ name = "W9: Draxus and Guardians"
 trigger = { type = "counter_reaches", counter_id = "draxus_bulwark_count", value = 5 }
 duration_secs = 50.0
 color = [20, 136, 26, 255]
+icon_ability_id = 3381651090440192
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "counter_reaches", counter_id = "draxus_corrupter_count", value = 10 }
 
@@ -397,6 +434,7 @@ trigger = { type = "effect_applied", effects = [3321693346988296] }
 is_alert = true
 alert_text = "Draxus Immune"
 color = [29, 224, 219, 255]
+icon_ability_id = 3321693346988296
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -406,6 +444,7 @@ trigger = { type = "effect_removed", effects = [3321693346988296] }
 is_alert = true
 alert_text = "Shield Down!"
 color = [33, 224, 218, 255]
+icon_ability_id = 3321693346988296
 difficulties = ["veteran", "master"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -488,13 +527,14 @@ trigger = { type = "boss_hp_below", hp_percent = 95.0, selector = [
 is_alert = true
 alert_text = "Lava "
 color = [224, 108, 29, 255]
+icon_ability_id = 3294703772500224
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
 id = "grobthok_lava_dot"
 name = "Mining Droid"
 trigger = { type = "ability_cast", abilities = [3294703772499968] }
-icon_ability_id = 3294703772499968
+icon_ability_id = 3294703772500224
 duration_secs = 30.0
 color = [224, 108, 29, 255]
 difficulties = ["veteran", "master"]
@@ -505,9 +545,9 @@ name = "Mining Droid on Self"
 trigger = { type = "effect_applied", effects = [
   3294703772500224,
 ], target = "local_player" }
-icon_ability_id = 3294703772499968
+icon_ability_id = 3294703772500224
 is_alert = true
-alert_text = "MINING DROID DEBUFF"
+alert_text = "MINING DROID ON YOU"
 color = [224, 108, 29, 255]
 difficulties = ["veteran", "master"]
 
@@ -534,7 +574,8 @@ id = "grobthok_stunned"
 name = "Stunned"
 trigger = { type = "effect_applied", effects = [3286745198100740] }
 duration_secs = 10.0
-color = [33, 224, 221, 255]
+color = [200, 150, 0, 255]
+icon_ability_id = 3286745198100740
 difficulties = ["veteran", "master"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -584,7 +625,7 @@ name = "Missile Barrage"
 trigger = { type = "ability_cast", abilities = [3286483205095424] }
 icon_ability_id = 3286483205095424
 duration_secs = 15.0
-color = [35, 28, 219, 255]
+color = [125, 0, 0, 255]
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -593,7 +634,7 @@ name = "Heavy Slash"
 trigger = { type = "ability_cast", abilities = [3286530449735680] }
 icon_ability_id = 3286530449735680
 duration_secs = 20.0
-color = [219, 30, 28, 255]
+color = [200, 0, 0, 255]
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -602,7 +643,7 @@ name = "Chest Laser"
 trigger = { type = "ability_cast", abilities = [3285409463271424] }
 icon_ability_id = 3285409463271424
 duration_secs = 15.0
-color = [224, 59, 212, 255]
+color = [255, 135, 0, 255]
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -612,13 +653,14 @@ display_text = "Overcharged Beam"
 trigger = { type = "effect_applied", effects = [3284760923209993] }
 duration_secs = 60.0
 color = [219, 96, 28, 255]
+icon_ability_id = 3284760923209993
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
 id = "corruptor_zero_gravity_ranged_mode"
 name = "Gravity - Ranged Mode Start"
 display_text = "Anti-Gravity Field"
-icon_ability_id = 3285972103987200
+icon_ability_id = 3284760923209990
 duration_secs = 60.0
 color = [219, 30, 28, 255]
 difficulties = ["veteran", "master"]
@@ -642,7 +684,7 @@ trigger = { type = "any_of", conditions = [
 ] }
 icon_ability_id = 3321882325549056
 duration_secs = 21.5
-color = [24, 224, 221, 255]
+color = [255, 0, 111, 255]
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -651,7 +693,7 @@ name = "Gravity Field (Delayed)"
 display_text = "Anti-Gravity Field"
 icon_ability_id = 3285972103987200
 duration_secs = 11.5
-color = [219, 30, 28, 255]
+color = [200, 200, 30, 255]
 difficulties = ["veteran", "master"]
 
 [boss.timer.trigger]
@@ -684,7 +726,7 @@ name = "Gravity Field (Cooldown)"
 display_text = "Anti-Gravity Field"
 icon_ability_id = 3285972103987200
 duration_secs = 33.0
-color = [219, 30, 28, 255]
+color = [200, 200, 30, 255]
 difficulties = ["veteran", "master"]
 
 [boss.timer.trigger]
@@ -846,6 +888,7 @@ trigger = { type = "boss_hp_below", hp_percent = 96.0, selector = [
 is_alert = true
 alert_text = "Clone Spawning"
 color = [32, 168, 18, 255]
+icon_ability_id = 3309121977712640
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -856,6 +899,7 @@ cancel_trigger = { type = "timer_expires", timer_id = "brontes_cant_clone" }
 display_text = "Kephess Clone"
 duration_secs = 30.0
 color = [32, 168, 18, 255]
+icon_ability_id = 3309121977712640
 difficulties = ["veteran", "master"]
 
 
@@ -877,6 +921,7 @@ name = "Reaches Active"
 trigger = { type = "counter_reaches", counter_id = "brontes_hand_deaths_p1", value = 2 }
 duration_secs = 23.0
 color = [32, 220, 220, 255]
+icon_ability_id = 3346827495604224
 difficulties = ["veteran", "master"]
 
 [[boss.counter]]
@@ -897,10 +942,24 @@ name = "Finger Spawn"
 trigger = { type = "npc_appears", selector = ["Finger"] }
 cancel_trigger = { type = "phase_ended", phase_id = "hands" }
 duration_secs = 40.0
-color = [32, 220, 220, 255]
+color = [255, 100, 100, 255]
+icon_ability_id = 3303757563559936
 can_refresh = false
 difficulties = ["veteran", "master"]
 conditions = [{ type = "phase_active", phase_ids = ["hands"] }]
+
+[[boss.timer]]
+id = "brontes_enraged_finger"
+name = "Enraged finger"
+duration_secs = 30.0
+is_alert = true
+color = [255, 128, 0, 255]
+icon_ability_id = 3306089730801920
+difficulties = [ "veteran", "master"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [3306089730801920]
 
 [[boss.timer]]
 id = "brontes_sphere_aggro"
@@ -911,6 +970,7 @@ trigger = { type = "target_set", selector = [
 is_alert = true
 alert_text = "Sphere Targeting You!"
 color = [213, 41, 31, 255]
+icon_ability_id = 3292247051206656
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -919,6 +979,7 @@ name = "Fingers Knockback 1st"
 trigger = { type = "ability_cast", abilities = [3303572879966208] }
 duration_secs = 12.0
 color = [224, 38, 29, 255]
+icon_ability_id = 3347252697366794
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -929,6 +990,7 @@ trigger = { type = "any_of", conditions = [
 name = "Fingers Knockback"
 duration_secs = 30.0
 color = [219, 33, 32, 255]
+icon_ability_id = 3347252697366794
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "counter_reaches", counter_id = "finger_deaths", value = 6 }
 chains_to = "brontes_fingers_knock"
@@ -939,6 +1001,7 @@ name = "Arcing Assault"
 duration_secs = 17.0
 alert_on = "none"
 color = [153, 0, 255, 255]
+icon_ability_id = 3308868574642455
 difficulties = ["story", "veteran", "master"]
 enabled = true
 can_be_refreshed = true
