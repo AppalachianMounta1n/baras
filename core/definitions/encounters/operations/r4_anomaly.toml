@@ -69,19 +69,12 @@ phase_ids = ["burn"]
 [[boss.counters]]
 id = "ip_cpt_stacks"
 name = "Stacks"
-initial_value = 0
-decrement = false
 
 [boss.counters.increment_on]
 type = "effect_applied"
-effects = [4472005847941376]
-source = "any"
-target = "local_player"
 
-[boss.counters.reset_on]
-type = "effect_removed"
+[boss.counters.track_effect_stacks]
 effects = [4472005847941376]
-source = "any"
 target = "local_player"
 
 [[boss.counters]]
@@ -123,7 +116,7 @@ trigger = { type = "effect_applied", effects = [
   4471271408533778,
 ], target = "local_player" }
 duration_secs = 8.5
-color = [20, 153, 33, 255]
+color = [200, 0, 0, 255]
 icon_ability_id = 4471271408533778
 difficulties = ["veteran"]
 
@@ -206,6 +199,7 @@ duration_secs = 30.0
 is_alert = true
 alert_text = "At 4 stacks!"
 color = [255, 0, 136, 255]
+icon_ability_id = 4472005847941376
 difficulties = ["veteran"]
 
 [boss.timer.trigger]
@@ -338,6 +332,7 @@ name = "Leave consoles"
 duration_secs = 30.0
 is_alert = true
 color = [200, 0, 0, 255]
+icon_ability_id = 4470747422523392
 difficulties = ["story", "veteran"]
 
 [boss.timer.trigger]
@@ -761,6 +756,16 @@ enabled = true
 [boss.phases.start_trigger]
 type = "timer_expires"
 timer_id = "kanoth_p3"
+
+[[boss.challenges]]
+id = "kanoth_grenades_thrown"
+name = "Grenades thrown"
+metric = "ability_count"
+columns = "total_only"
+
+[[boss.challenges.conditions]]
+type = "ability"
+ability_ids = [4482674546704384]
 
 [[boss.counters]]
 id = "kanoth_p3_f_b"
@@ -1577,6 +1582,20 @@ id = "dom_attractor_appearance"
 name = "Attractor Spawns"
 increment_on = { type = "npc_appears", selector = ["Attractors"] }
 
+[[boss.counters]]
+id = "dominique_p2_stacks"
+name = "p2 stacks"
+enabled = true
+initial_value = 0
+decrement = false
+
+[boss.counters.increment_on]
+type = "ability_cast"
+
+[boss.counters.track_effect_stacks]
+effects = [4606133381628162]
+target = "local_player"
+
 # -- Challenges
 [[boss.challenges]]
 id = "dominique_burn"
@@ -1595,6 +1614,7 @@ name = "Orange Circle Local Player"
 is_alert = true
 alert_text = "Orange. Drop down!"
 color = [224, 112, 0, 255]
+icon_ability_id = 4574715695857998
 difficulties = ["story", "veteran"]
 display_target = "timers_a"
 
@@ -1610,6 +1630,7 @@ name = "Yellow Circle Local Player"
 is_alert = true
 alert_text = "Yellow. Knockback Incoming!"
 color = [255, 234, 0, 255]
+icon_ability_id = 4574698515988786
 difficulties = ["story", "veteran"]
 display_target = "timers_a"
 
@@ -1625,6 +1646,7 @@ name = "ARIA spawned"
 duration_secs = 30.0
 is_alert = true
 color = [38, 162, 105, 255]
+icon_ability_id = 4594657229012992
 difficulties = ["story", "veteran"]
 
 [boss.timer.trigger]
@@ -1692,6 +1714,19 @@ target = "boss"
 [boss.timer.cancel_trigger]
 type = "phase_ended"
 phase_id = "dominique_dom_generators"
+
+[[boss.timer]]
+id = "dominique_tank_swap"
+name = "Tank swap"
+is_alert = true
+color = [150, 0, 255, 255]
+icon_ability_id = 4606133381628162
+difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "counter_reaches"
+counter_id = "dominique_p2_stacks"
+value = 5
 
 [[boss.timer]]
 id = "dominique_watchdog_appears"
