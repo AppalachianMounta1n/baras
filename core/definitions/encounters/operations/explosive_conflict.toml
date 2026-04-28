@@ -58,7 +58,7 @@ value = 1
 
 [[boss.entities.hp_markers]]
 hp_percent = 50.0
-label = "Jump + Fearful"
+label = "Jump"
 difficulties = ["veteran", "master"]
 
 [[boss.entities.hp_markers.conditions]]
@@ -430,6 +430,7 @@ name = "Shriek"
 trigger = { type = "ability_cast", abilities = [2857132504383488] }
 duration_secs = 45
 color = [219, 100, 32, 255]
+icon_ability_id = 2857132504383753
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -438,6 +439,7 @@ name = "Baradium Heave"
 trigger = { type = "effect_applied", effects = [2857300008108306] }
 duration_secs = 13
 color = [219, 34, 32, 255]
+icon_ability_id = 2857295713140736
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -446,6 +448,7 @@ name = "Ground Shatter"
 trigger = { type = "effect_applied", effects = [2857368727584768] }
 duration_secs = 20
 color = [224, 24, 24, 255]
+icon_ability_id = 2857368727584768
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -465,6 +468,8 @@ trigger = { type = "effect_applied", effects = [
   3004561551786240,
 ], target = "local_player" }
 alert_text = "Use Medpack!"
+color = [0, 255, 0, 255]
+icon_ability_id = 3004561551786240
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -475,6 +480,7 @@ trigger = { type = "effect_applied", effects = [
   2857132504383753,
 ], target = "local_player" }
 alert_text = "Weakened"
+icon_ability_id = 2857132504383753
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -485,6 +491,8 @@ trigger = { type = "effect_applied", effects = [
   2857171159089412,
 ], target = "local_player" }
 alert_text = "Fearful"
+color = [200, 0, 150, 255]
+icon_ability_id = 2857171159089412
 difficulties = ["veteran", "master"]
 
 # -- HP Threshold Alerts (Toth) --
@@ -514,8 +522,8 @@ color = [130, 33, 224, 255]
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
-id = "zt_frenzy"
-name = "Frenzy"
+id = "zt_berserk"
+name = "Berserk"
 is_alert = true
 trigger = { type = "any_of", conditions = [
   { type = "boss_hp_below", hp_percent = 80.0, selector = [
@@ -525,8 +533,9 @@ trigger = { type = "any_of", conditions = [
     "Toth",
   ] },
 ] }
-alert_text = "Frenzy"
+alert_text = "Berserk"
 color = [214, 164, 19, 255]
+icon_ability_id = 2857325777911808
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -543,6 +552,7 @@ trigger = { type = "any_of", conditions = [
 ] }
 alert_text = "Shatter + Sonic"
 color = [219, 36, 28, 255]
+icon_ability_id = 2857368727584768
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -745,7 +755,8 @@ id = "fs_targeted_missile_cs"
 name = "Targeted Missile"
 trigger = { type = "combat_start" }
 duration_secs = 15
-color = [224, 24, 164, 255]
+color = [255, 200, 0, 255]
+icon_ability_id = 2876648835776790
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -771,10 +782,9 @@ id = "firebrand_stormcaller_targeted_by_missile"
 name = "Targeted by missile"
 is_alert = true
 alert_text = "Cleanse and move"
-color = [255, 234, 0, 255]
+color = [255, 200, 0, 255]
+icon_ability_id = 2876648835776790
 difficulties = ["story", "veteran", "master"]
-enabled = true
-display_target = "timers_a"
 
 [boss.timer.trigger]
 type = "effect_applied"
@@ -818,7 +828,7 @@ id = "fs_densive_systems"
 name = "Defensive Systems"
 icon_ability_id = 2876717555253248
 trigger = { type = "effect_applied", effects = [2876717555253248] }
-color = [224, 25, 24, 255]
+color = [0, 110, 255, 255]
 can_refresh = false
 difficulties = ["veteran", "master"]
 duration_secs = 25
@@ -837,7 +847,8 @@ id = "fs_targeted_missile"
 name = "Targeted Missile"
 trigger = { type = "ability_cast", abilities = [2876648835776512] }
 duration_secs = 16
-color = [224, 24, 164, 255]
+color = [255, 200, 0, 255]
+icon_ability_id = 2876648835776790
 difficulties = ["veteran", "master"]
 cancel_trigger = { type = "phase_entered", phase_id = "fs_shield" }
 
@@ -973,6 +984,7 @@ name = "Knockback"
 trigger = { type = "ability_cast", abilities = [2853275623751680] }
 duration_secs = 15
 color = [224, 108, 24, 255]
+icon_ability_id = 2853275623751680
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -981,6 +993,7 @@ name = "Grenade"
 trigger = { type = "ability_cast", abilities = [2853344343228416] }
 duration_secs = 15
 color = [214, 37, 32, 255]
+icon_ability_id = 2853344343228711
 difficulties = ["veteran", "master"]
 
 # -- HP Threshold Alerts --
@@ -1114,7 +1127,21 @@ name = "Mighty Leap"
 trigger = { type = "ability_cast", abilities = [2877069742571520] }
 duration_secs = 40
 color = [214, 37, 32, 255]
+icon_ability_id = 2877039677800706
 difficulties = ["veteran", "master"]
+
+[[boss.timer]]
+id = "warlord_kephess_dot_is_on_you"
+name = "Savage dot is on you"
+duration_secs = 8.0
+color = [255, 100, 0, 255]
+icon_ability_id = 2877039677800706
+difficulties = ["veteran", "master"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [2877039677800706]
+target = "local_player"
 
 [[boss.timer]]
 id = "wk_savage_slash"
@@ -1122,6 +1149,7 @@ name = "Savage Slash"
 trigger = { type = "ability_cast", abilities = [2877048267735040] }
 duration_secs = 18
 color = [219, 28, 29, 255]
+icon_ability_id = 2877048267735300
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -1130,6 +1158,7 @@ name = "Breath Pull"
 trigger = { type = "effect_applied", effects = [2877078332506112] }
 duration_secs = 6
 color = [224, 168, 33, 255]
+icon_ability_id = 2877078332506112
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -1138,9 +1167,8 @@ name = "Bomb"
 is_alert = true
 alert_text = "You have the bomb"
 color = [255, 128, 0, 255]
+icon_ability_id = 2877026792898560
 difficulties = ["story", "veteran", "master"]
-enabled = true
-display_target = "timers_a"
 
 [boss.timer.trigger]
 type = "effect_applied"
@@ -1181,11 +1209,25 @@ type = "combat_start"
 
 [[boss.timer]]
 id = "wk_baradium_countdown"
-name = "Bomber Coutdown"
+name = "Bomber Countdown"
 trigger = { type = "npc_appears", selector = ["Baradium Bomber"] }
 cancel_trigger = { type = "entity_death", selector = ["Baradium Bomber"] }
 duration_secs = 20.0
+icon_ability_id = 2877026792898560
 difficulties = ["veteran", "master"]
+
+[[boss.timer]]
+id = "warlord_kephess_pull_in_soon"
+name = "Pull in soon"
+is_alert = true
+color = [125, 250, 0, 255]
+icon_ability_id = 2877074037538816
+difficulties = ["veteran", "master"]
+
+[boss.timer.trigger]
+type = "boss_hp_below"
+hp_percent = 63.0
+selector = ["Warlord Kephess"]
 
 [[boss.challenge]]
 id = "wk_ch_walker_burn"
