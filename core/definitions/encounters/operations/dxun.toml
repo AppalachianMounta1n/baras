@@ -53,6 +53,7 @@ display_text = "Bull"
 trigger = { type = "combat_start" }
 color = [219, 93, 28, 255]
 duration_secs = 60.0
+icon_ability_id = 4250067707887616
 difficulties = ["verteran", "master"]
 
 [[boss.timer]]
@@ -61,6 +62,7 @@ name = "Bull"
 trigger = { type = "timer_expires", timer_id = "red_bull_cs" }
 color = [219, 93, 28, 255]
 duration_secs = 60.0
+icon_ability_id = 4250067707887616
 difficulties = ["verteran", "master"]
 chains_to = "red_enrage_bull"
 repeats = 5
@@ -68,10 +70,14 @@ repeats = 5
 [[boss.timer]]
 id = "red_enrage_bull"
 name = "Enrage + Bull"
-trigger = { type = "manual" }
-duration_secs = 60.0
+duration_secs = 480.0
 color = [219, 28, 180, 255]
+icon_ability_id = 4250067707887616
 difficulties = ["veteran", "master"]
+show_at_secs = 60.0
+
+[boss.timer.trigger]
+type = "combat_start"
 
 [[boss.timer]]
 id = "red_phospholipase_corona"
@@ -80,8 +86,9 @@ trigger = { type = "effect_removed", effects = [
   4250076297822510,
 ], target = "local_player" }
 is_alert = true
-alert_text = "Phospholipase Corona"
+alert_text = "Click flower"
 color = [25, 158, 229, 255]
+icon_ability_id = 4250076297822510
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -91,6 +98,7 @@ display_text = "Hydrochloric Pool"
 trigger = { type = "combat_start" }
 duration_secs = 15.0
 color = [23, 123, 8, 255]
+icon_ability_id = 4250097772658688
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -99,6 +107,7 @@ name = "Hydrochloric Pool"
 trigger = { type = "ability_cast", abilities = [4250097772658688] }
 duration_secs = 47.0
 color = [23, 123, 8, 255]
+icon_ability_id = 4250097772658688
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -108,6 +117,7 @@ display_text = "Acidic Jet"
 trigger = { type = "combat_start" }
 duration_secs = 20.0
 color = [224, 25, 24, 255]
+icon_ability_id = 4250089182724096
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -116,6 +126,7 @@ name = "Acidic Jet"
 trigger = { type = "ability_cast", abilities = [4250089182724096] }
 duration_secs = 30.0
 color = [224, 25, 24, 255]
+icon_ability_id = 4250089182724096
 difficulties = ["veteran", "master"]
 
 
@@ -215,6 +226,7 @@ trigger = { type = "effect_applied", effects = [
 conditions = [
   { type = "counter_compare", counter_id = "holding_pens_stun_darts", operator = "eq", value = 0 },
 ]
+icon_ability_id = 4389430806708224
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -229,6 +241,7 @@ trigger = { type = "effect_applied", effects = [
 conditions = [
   { type = "counter_compare", counter_id = "holding_pens_stun_darts", operator = "gte", value = 1 },
 ]
+icon_ability_id = 4389430806708224
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -236,6 +249,8 @@ id = "holding_pens_flare"
 name = "Flare Duration"
 duration_secs = 20.0
 trigger = { type = "ability_cast", abilities = [4250840802000896] }
+color = [130, 130, 130, 255]
+icon_ability_id = 4250840802000896
 difficulties = ["story", "veteran", "master"]
 
 [[boss.timer]]
@@ -244,9 +259,8 @@ name = "Pursuit Target"
 is_alert = true
 alert_text = "Droid is targeting you"
 color = [255, 0, 51, 255]
+icon_ability_id = 4389430806708224
 difficulties = ["master"]
-enabled = true
-display_target = "timers_a"
 
 [boss.timer.trigger]
 type = "effect_applied"
@@ -290,6 +304,8 @@ id = "breach_flare"
 name = "Flare Duration"
 duration_secs = 20.0
 trigger = { type = "ability_cast", abilities = [4250840802000896] }
+color = [130, 130, 130, 255]
+icon_ability_id = 4250840802000896
 difficulties = ["story", "veteran", "master"]
 
 
@@ -351,7 +367,8 @@ name = "Crush the Weak Start"
 display_text = "Crush The Weak"
 trigger = { type = "combat_start" }
 duration_secs = 30.0
-color = [219, 32, 182, 255]
+color = [200, 0, 100, 255]
+icon_ability_id = 4256239575891968
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -360,7 +377,8 @@ name = "Inspiration Start"
 display_text = "Inspiration"
 trigger = { type = "combat_start" }
 duration_secs = 20.0
-color = [33, 221, 224, 255]
+color = [0, 175, 255, 255]
+icon_ability_id = 4377748495663104
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -368,7 +386,8 @@ id = "trandos_inspiration"
 name = "Inspiration"
 trigger = { type = "ability_cast", abilities = [4377748495663104] }
 duration_secs = 25.0
-color = [33, 221, 224, 255]
+color = [0, 175, 255, 255]
+icon_ability_id = 4377748495663104
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -376,7 +395,8 @@ id = "trandos_crush_the_weak"
 name = "Crush the Weak"
 trigger = { type = "ability_cast", abilities = [4256239575891968] }
 duration_secs = 40.0
-color = [219, 32, 182, 255]
+color = [200, 0, 100, 255]
+icon_ability_id = 4256239575891968
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -384,7 +404,8 @@ id = "trandos_crush_the_weak_1st_vm"
 name = "Crush the Weak 1st VM"
 trigger = { type = "npc_appears", selector = ["Titax"] }
 duration_secs = 30.0
-color = [219, 32, 182, 255]
+color = [200, 0, 100, 255]
+icon_ability_id = 4256239575891968
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -392,7 +413,8 @@ id = "trandos_titax_strike"
 name = "Titax Strike"
 trigger = { type = "ability_cast", abilities = [4256733497131008] }
 duration_secs = 20.0
-color = [108, 66, 42, 255]
+color = [150, 0, 0, 255]
+icon_ability_id = 4256733497131008
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -400,7 +422,8 @@ id = "trandos_titax_strike_1st"
 name = "Titax Strike NiM Start"
 trigger = { type = "combat_start" }
 duration_secs = 8.0
-color = [108, 66, 42, 255]
+color = [150, 0, 0, 255]
+icon_ability_id = 4256733497131008
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -408,7 +431,8 @@ id = "trandos_titax_strike_1st_vm"
 name = "Titax Strike 1st VM"
 trigger = { type = "npc_appears", selector = ["Titax"] }
 duration_secs = 8.0
-color = [108, 66, 42, 255]
+color = [150, 0, 0, 255]
+icon_ability_id = 4256733497131008
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -416,7 +440,8 @@ id = "trandos_titax_strike_vm"
 name = "Titax Strike VM"
 trigger = { type = "ability_cast", abilities = [4256733497131008] }
 duration_secs = 35.0
-color = [108, 66, 42, 255]
+color = [150, 0, 0, 255]
+icon_ability_id = 4256733497131008
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -425,6 +450,7 @@ name = "Divebomb 1st"
 trigger = { type = "npc_appears", selector = ["Greus"] }
 duration_secs = 40.0
 color = [224, 107, 24, 255]
+icon_ability_id = 4377413488214016
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -433,6 +459,7 @@ name = "Divebomb"
 trigger = { type = "ability_cast", abilities = [4377413488214016] }
 duration_secs = 40.0
 color = [224, 107, 24, 255]
+icon_ability_id = 4377413488214016
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -440,7 +467,8 @@ id = "trandos_ayhis_eru"
 name = "Ayhis & Eru"
 trigger = { type = "ability_cast", abilities = [4255208783740928] }
 duration_secs = 7.0
-color = [244, 229, 74, 255]
+color = [255, 200, 0, 255]
+icon_ability_id = 4255208783741194
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -449,6 +477,7 @@ name = "Fire Blast 1st"
 trigger = { type = "npc_appears", selector = ["Greus"] }
 duration_secs = 20.0
 color = [219, 34, 32, 255]
+icon_ability_id = 4250359765663744
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -457,6 +486,7 @@ name = "Fire Blast 1st VM"
 trigger = { type = "combat_start" }
 duration_secs = 20.0
 color = [219, 32, 34, 255]
+icon_ability_id = 4250359765663744
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -465,6 +495,7 @@ name = "Fire Blast"
 trigger = { type = "ability_cast", abilities = [4250359765663744] }
 duration_secs = 16.0
 color = [224, 29, 30, 255]
+icon_ability_id = 4250359765663744
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -473,6 +504,7 @@ name = "Endothermic"
 trigger = { type = "ability_cast", abilities = [4250291046187008] }
 duration_secs = 12.0
 color = [28, 42, 219, 255]
+icon_ability_id = 4250291046187008
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -481,6 +513,7 @@ name = "Train Arrive"
 trigger = { type = "ability_cast", abilities = [833455583657984] }
 duration_secs = 45.0
 color = [127, 32, 219, 255]
+icon_ability_id = 833455583657984
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -489,6 +522,7 @@ name = "Caustic Plume"
 trigger = { type = "ability_cast", abilities = [4265293366951936] }
 duration_secs = 30.0
 color = [48, 219, 37, 255]
+icon_ability_id = 4265293366951936
 difficulties = ["veteran", "master"]
 conditions = [
   { type = "counter_compare", counter_id = "trandos_damagecountera", operator = "eq", value = 1 },
@@ -501,8 +535,21 @@ trigger = { type = "timer_expires", timer_id = "trandos_caustic_plume" }
 is_alert = true
 alert_text = "Caustic reset"
 color = [48, 219, 37, 255]
+icon_ability_id = 4265293366951936
 difficulties = ["veteran", "master"]
 chains_to = "194e5fb9-73a4-4c0e-a41a-6bd7bc363307"
+
+[[boss.timer]]
+id = "trandos_cleanse_hissy_tank"
+name = "Cleanse hissy tank"
+is_alert = true
+color = [0, 255, 150, 255]
+icon_ability_id = 4268458757849388
+difficulties = ["veteran", "master"]
+
+[boss.timer.trigger]
+type = "effect_applied"
+effects = [4268458757849388]
 
 [[boss.timer]]
 id = "trandos_irradiated_fire_blast_1st"
@@ -510,6 +557,7 @@ name = "Irradiated Fire Blast 1st"
 trigger = { type = "npc_appears", selector = ["Ultimate Hunter"] }
 duration_secs = 15.0
 color = [224, 29, 30, 255]
+icon_ability_id = 4381072800350208
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -518,6 +566,7 @@ name = "Irradiated Fire Blast DB"
 trigger = { type = "ability_cast", abilities = [4381059915448320] }
 duration_secs = 12.5
 color = [224, 29, 31, 255]
+icon_ability_id = 4381072800350208
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -526,6 +575,7 @@ name = "Irradiated Fire Blast"
 trigger = { type = "ability_cast", abilities = [4381072800350208] }
 duration_secs = 16.0
 color = [224, 25, 24, 255]
+icon_ability_id = 4381072800350208
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -534,6 +584,7 @@ name = "Divebomb U"
 trigger = { type = "ability_cast", abilities = [4381059915448320] }
 duration_secs = 24.5
 color = [224, 107, 24, 255]
+icon_ability_id = 4381059915448320
 difficulties = ["master"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -634,6 +685,7 @@ display_text = "Shotroll"
 trigger = { type = "combat_start" }
 duration_secs = 48.0
 color = [18, 116, 26, 255]
+icon_ability_id = 4335425887928320
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -642,7 +694,8 @@ name = "Primal Fear CS"
 display_text = "Primal Fear"
 trigger = { type = "combat_start" }
 duration_secs = 42.0
-color = [16, 174, 167, 255]
+color = [150, 0, 255, 255]
+icon_ability_id = 4335425887928320
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -650,7 +703,8 @@ id = "huntmaster_primal_fear_1st_vm"
 name = "Primal Fear CS VM"
 trigger = { type = "combat_start" }
 duration_secs = 36.0
-color = [16, 174, 167, 255]
+color = [150, 0, 255, 255]
+icon_ability_id = 4335425887928320
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -667,7 +721,8 @@ id = "huntmaster_penetratign_shot_p3_vm"
 name = "Penetrating Shot P3 VM"
 trigger = { type = "timer_expires", timer_id = "huntmaster_p3_jump" }
 duration_secs = 12.0
-color = [26, 34, 222, 255]
+color = [255, 100, 100, 255]
+icon_ability_id = 4269777312808960
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -684,7 +739,8 @@ name = "Firestorm Grenade P3 VM"
 display_text = "Firestorm Grenade"
 trigger = { type = "timer_expires", timer_id = "huntmaster_p3_jump" }
 duration_secs = 16.0
-color = [160, 70, 25, 255]
+color = [255, 150, 0, 255]
+icon_ability_id = 4271559724236800
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -693,7 +749,8 @@ name = "Firestorm Grenade P3"
 display_text = "Firestorm Grenade"
 trigger = { type = "timer_expires", timer_id = "huntmaster_p3_jump" }
 duration_secs = 12.0
-color = [160, 70, 25, 255]
+color = [255, 150, 0, 255]
+icon_ability_id = 4271559724236800
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -702,7 +759,8 @@ name = "Firestorm Grenade 1st"
 display_text = "Firestorm Grenade"
 trigger = { type = "combat_start" }
 duration_secs = 16.0
-color = [157, 75, 20, 255]
+color = [255, 150, 0, 255]
+icon_ability_id = 4271559724236800
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -710,7 +768,8 @@ id = "huntmaster_firestorm_grenade"
 name = "Firestorm Grenade"
 trigger = { type = "ability_cast", abilities = [4271559724236800] }
 duration_secs = 32.0
-color = [164, 82, 25, 255]
+color = [255, 150, 0, 255]
+icon_ability_id = 4271559724236800
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -719,6 +778,7 @@ name = "Fortress"
 trigger = { type = "combat_start" }
 duration_secs = 75.0
 color = [106, 62, 5, 255]
+icon_ability_id = 4271405105414144
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -727,6 +787,7 @@ name = "Flying Fortress"
 trigger = { type = "timer_expires", timer_id = "huntmaster_p3_jump" }
 duration_secs = 75.0
 color = [106, 62, 5, 255]
+icon_ability_id = 4271405105414144
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -734,7 +795,7 @@ id = "huntmaster_scat_pv_pen"
 name = "Scat/PV/Pen"
 trigger = { type = "ability_cast", abilities = [4387871733579776] }
 duration_secs = 25.0
-color = [222, 30, 33, 255]
+color = [175, 0, 0, 255]
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -742,7 +803,8 @@ id = "huntmaster_powershot_volley_1st"
 name = "Powershot Volley 1st"
 trigger = { type = "combat_start" }
 duration_secs = 8.0
-color = [219, 31, 33, 255]
+color = [0, 75, 150, 255]
+icon_ability_id = 4269773017841664
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -750,7 +812,8 @@ id = "huntmaster_powershot_volley"
 name = "Powershot Volley"
 trigger = { type = "ability_cast", abilities = [4269773017841664] }
 duration_secs = 53.1
-color = [229, 21, 21, 255]
+color = [0, 75, 150, 255]
+icon_ability_id = 4269773017841664
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -758,7 +821,7 @@ id = "huntmaster_powershot_scatter_p3_vm"
 name = "Powershot/Scatter P3 VM"
 trigger = { type = "timer_expires", timer_id = "huntmaster_p3_jump" }
 duration_secs = 48.0
-color = [222, 42, 34, 255]
+color = [175, 0, 0, 255]
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -766,7 +829,8 @@ id = "huntmaster_egg_snipe_p3"
 name = "Egg Snipe P3"
 trigger = { type = "timer_expires", timer_id = "huntmaster_p3_jump" }
 duration_secs = 28.0
-color = [182, 47, 188, 255]
+color = [255, 50, 255, 255]
+icon_ability_id = 4385986242936832
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -774,7 +838,8 @@ id = "huntmaster_penetratign_shot_p3"
 name = "Penetratign Shot P3"
 trigger = { type = "timer_expires", timer_id = "huntmaster_p3_jump" }
 duration_secs = 6.0
-color = [26, 34, 222, 255]
+color = [255, 100, 100, 255]
+icon_ability_id = 4269777312808960
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -782,7 +847,8 @@ id = "huntmaster_primal_fear_p3"
 name = "Primal Fear P3"
 trigger = { type = "timer_expires", timer_id = "huntmaster_p3_jump" }
 duration_secs = 34.0
-color = [30, 174, 169, 255]
+color = [150, 0, 255, 255]
+icon_ability_id = 4335425887928320
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -790,7 +856,8 @@ id = "huntmaster_egg_snipe_1st"
 name = "Egg Snipe 1st"
 trigger = { type = "combat_start" }
 duration_secs = 36.0
-color = [188, 47, 179, 255]
+color = [255, 50, 255, 255]
+icon_ability_id = 4385986242936832
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -807,6 +874,7 @@ name = "Scatterblast"
 trigger = { type = "ability_cast", abilities = [4335125240217600] }
 duration_secs = 53.0
 color = [205, 200, 43, 255]
+icon_ability_id = 4335125240217600
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -814,7 +882,8 @@ id = "huntmaster_penetrating_shot_1st"
 name = "Penetrating Shot 1st"
 trigger = { type = "combat_start" }
 duration_secs = 20.0
-color = [36, 31, 219, 255]
+color = [255, 100, 100, 255]
+icon_ability_id = 4269777312808960
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -822,7 +891,8 @@ id = "huntmaster_penetrating_shot"
 name = "Penetrating Shot"
 trigger = { type = "ability_cast", abilities = [4269777312808960] }
 duration_secs = 37.0
-color = [36, 34, 222, 255]
+color = [255, 100, 100, 255]
+icon_ability_id = 4269777312808960
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -830,7 +900,8 @@ id = "huntmaster_primal_fear"
 name = "Primal Fear"
 trigger = { type = "ability_cast", abilities = [4335425887928320] }
 duration_secs = 31.0
-color = [26, 169, 160, 255]
+color = [150, 0, 255, 255]
+icon_ability_id = 4335425887928320
 difficulties = ["master"]
 
 [[boss.timer]]
@@ -838,7 +909,8 @@ id = "huntmaster_primal_fear_vm"
 name = "Primal Fear VM"
 trigger = { type = "ability_cast", abilities = [4335425887928320] }
 duration_secs = 34.0
-color = [23, 169, 168, 255]
+color = [150, 0, 255, 255]
+icon_ability_id = 4335425887928320
 difficulties = ["veteran"]
 
 [[boss.timer]]
@@ -846,7 +918,7 @@ id = "huntmaster_power_scater"
 name = "Power/Scatter"
 trigger = { type = "ability_cast", abilities = [4336065838055424] }
 duration_secs = 16.0
-color = [224, 29, 31, 255]
+color = [175, 0, 0, 255]
 difficulties = ["veteran", "master"]
 
 [[boss.timer]]
@@ -854,10 +926,10 @@ id = "huntmaster_grenade"
 name = "Grenade"
 alert_text = "Grenade on You!"
 is_alert = true
-color = [255, 128, 0, 255]
+color = [255, 150, 0, 255]
+icon_ability_id = 4271559724236800
 difficulties = ["story", "veteran", "master"]
 enabled = true
-display_target = "timers_a"
 
 [boss.timer.trigger]
 type = "effect_applied"
@@ -983,7 +1055,8 @@ id = "apex_vanguard_1st_acid"
 name = "1st Acid"
 display_text = "Acid Blast"
 duration_secs = 10.0
-color = [0, 250, 9, 255]
+color = [200, 200, 50, 255]
+icon_ability_id = 4305094828883968
 difficulties = ["veteran", "master"]
 enabled = true
 show_at_secs = 8.0
@@ -1001,7 +1074,8 @@ countdown_start = 0
 id = "apex_vanguard_acid_blast"
 name = "Acid Blast"
 duration_secs = 30.0
-color = [0, 250, 1, 255]
+color = [200, 200, 50, 255]
+icon_ability_id = 4305094828883968
 difficulties = ["story", "veteran", "master"]
 enabled = true
 show_at_secs = 8.0
@@ -1023,6 +1097,7 @@ id = "apex_vanguard_contagion"
 name = "Contagion"
 duration_secs = 63.0
 color = [0, 250, 250, 255]
+icon_ability_id = 4306117031100416
 difficulties = ["veteran", "master"]
 enabled = true
 show_at_secs = 8.0
@@ -1045,6 +1120,7 @@ name = "1st Contagion"
 display_text = "Contagion"
 duration_secs = 30.0
 color = [5, 250, 250, 255]
+icon_ability_id = 4306117031100416
 difficulties = ["veteran", "master"]
 enabled = true
 show_at_secs = 8.0
@@ -1063,7 +1139,8 @@ id = "apex_vanguard_2nd_deluge"
 name = "2nd Deluge"
 display_text = "Acid Deluge"
 duration_secs = 122.0
-color = [0, 250, 0, 255]
+color = [100, 150, 50, 255]
+icon_ability_id = 4330254747303936
 difficulties = ["story", "veteran", "master"]
 enabled = true
 show_at_secs = 30.0
@@ -1085,6 +1162,7 @@ id = "apex_vanguard_1st_bloodlust"
 name = "1st Bloodlust"
 display_text = "Bloodlust"
 duration_secs = 60.0
+icon_ability_id = 4385835919081472
 color = [250, 0, 0, 255]
 difficulties = ["master"]
 enabled = true
@@ -1108,6 +1186,7 @@ id = "apex_vanguard_bloodlust"
 name = "Bloodlust"
 duration_secs = 63.0
 color = [250, 0, 0, 255]
+icon_ability_id = 4385835919081472
 difficulties = ["master"]
 enabled = true
 display_target = "timers_a"
@@ -1130,6 +1209,7 @@ name = "1st Red Venom"
 display_text = "Red Venom"
 duration_secs = 60.0
 color = [200, 0, 250, 255]
+icon_ability_id = 4306151390838784
 difficulties = ["story", "veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1151,6 +1231,7 @@ name = "1st Mass Target"
 display_text = "Mass Target Lock"
 duration_secs = 60.0
 color = [255, 128, 0, 255]
+icon_ability_id = 4308938824613888
 difficulties = ["veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1170,6 +1251,7 @@ name = "1st Voltinator"
 display_text = "Voltinator"
 duration_secs = 60.0
 color = [255, 255, 255, 255]
+icon_ability_id = 4310493602775316
 difficulties = ["story", "veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1308,7 +1390,8 @@ countdown_start = 5
 id = "apex_vanguard_ultraviolence"
 name = "ULTRAVIOLENCE"
 duration_secs = 63.0
-color = [250, 0, 0, 255]
+color = [150, 0, 0, 255]
+icon_ability_id = 4409239195877376
 difficulties = ["story", "veteran", "master"]
 enabled = true
 show_at_secs = 45.0
@@ -1331,7 +1414,8 @@ id = "apex_vanguard_1st_deluge"
 name = "1st Deluge"
 display_text = "Acid Deluge"
 duration_secs = 60.0
-color = [0, 250, 0, 255]
+color = [100, 150, 50, 255]
+icon_ability_id = 4330254747303936
 difficulties = ["story", "veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1350,6 +1434,7 @@ id = "apex_vanguard_zone_defense"
 name = "Zone Defense"
 duration_secs = 310.0
 color = [250, 250, 0, 255]
+icon_ability_id = 4333050771013632
 difficulties = ["veteran", "master"]
 enabled = true
 show_at_secs = 15.0
@@ -1372,6 +1457,7 @@ name = "1st Rockets"
 display_text = "Rockets"
 duration_secs = 16.0
 color = [250, 250, 0, 255]
+icon_ability_id = 4308741256118684
 difficulties = ["veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1390,6 +1476,7 @@ id = "apex_vanguard_rockets"
 name = "Rockets"
 duration_secs = 24.0
 color = [250, 250, 0, 255]
+icon_ability_id = 4308741256118684
 difficulties = ["veteran", "master"]
 enabled = true
 show_at_secs = 8.0
@@ -1419,6 +1506,7 @@ name = "Target Lock P3"
 display_text = "Mass Target Lock"
 duration_secs = 30.0
 color = [255, 128, 0, 255]
+icon_ability_id = 4308938824613888
 difficulties = ["story", "veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1440,6 +1528,7 @@ name = "Voltinator P3"
 display_text = "Voltinator"
 duration_secs = 30.0
 color = [255, 255, 255, 255]
+icon_ability_id = 4310493602775316
 difficulties = ["story", "veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1459,6 +1548,7 @@ name = "Red Venom P4"
 display_text = "Red Venom"
 duration_secs = 60.0
 color = [200, 0, 250, 255]
+icon_ability_id = 4306151390838784
 difficulties = ["story", "veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1504,6 +1594,7 @@ name = "Target Lock P4"
 display_text = "Mass Target Lock"
 duration_secs = 30.0
 color = [255, 128, 0, 255]
+icon_ability_id = 4308938824613888
 difficulties = ["story", "veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1523,6 +1614,7 @@ name = "1st Flare"
 duration_secs = 2.5
 is_alert = true
 color = [255, 0, 150, 255]
+icon_ability_id = 4296410405011456
 difficulties = ["story", "veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1543,10 +1635,12 @@ name = "Flare"
 display_text = "Flare Ends"
 duration_secs = 30.0
 color = [255, 0, 150, 255]
+icon_ability_id = 4296410405011456
 difficulties = ["veteran", "master"]
 enabled = true
 show_at_secs = 10.0
 display_target = "timers_a"
+can_be_refreshed = true
 
 [boss.timer.trigger]
 type = "ability_cast"
@@ -1564,7 +1658,8 @@ countdown_start = 0
 id = "apex_vanguard_flares_crafted"
 name = "Flares crafted"
 duration_secs = 45.0
-color = [0, 50, 250, 255]
+color = [200, 0, 150, 255]
+icon_ability_id = 4296410405011456
 difficulties = ["story", "veteran", "master"]
 enabled = true
 can_be_refreshed = true
@@ -1583,10 +1678,22 @@ offset = 1
 countdown_start = 3
 
 [[boss.timer]]
+id = "apex_vanguard_flares_ready"
+name = "Flares ready"
+is_alert = true
+color = [200, 0, 150, 255]
+difficulties = ["story", "veteran", "master"]
+
+[boss.timer.trigger]
+type = "timer_expires"
+timer_id = "apex_vanguard_flares_crafted"
+
+[[boss.timer]]
 id = "apex_vanguard_bombardment"
 name = "Bombardment"
 duration_secs = 32.0
 color = [0, 150, 250, 255]
+icon_ability_id = 4308951709515776
 difficulties = ["story", "veteran", "master"]
 enabled = true
 display_target = "timers_a"
@@ -1607,3 +1714,14 @@ target = "any_player"
 enabled = false
 offset = 0
 countdown_start = 0
+
+[[boss.timer]]
+id = "apex_vanguard_last_ditch"
+name = "Last ditch"
+is_alert = true
+color = [200, 0, 0, 255]
+difficulties = ["story", "veteran", "master"]
+
+[boss.timer.trigger]
+type = "phase_entered"
+phase_id = "apex_burn"
