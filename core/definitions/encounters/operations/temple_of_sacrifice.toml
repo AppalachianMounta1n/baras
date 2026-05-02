@@ -301,6 +301,9 @@ id = "revan"
 name = "Revan"
 difficulties = ["story", "veteran"]
 is_final_boss = true
+has_victory_trigger = true
+victory_trigger = { type = "entity_death", selector = ["Machine Core"] }
+victory_trigger_difficulties = ["veteran"]
 
 # -- Entities --
 [[boss.entities]]
