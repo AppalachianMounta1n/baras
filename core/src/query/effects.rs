@@ -72,18 +72,54 @@ impl EncounterQuery<'_> {
         let range_end = time_range.map(|tr| tr.end).unwrap_or(duration);
         let range_duration = (range_end - range_start).max(0.001);
 
+        // When no source filter is active, infer pre-combat applications from
+        // "orphan" removes — REMOVE events with no preceding APPLY for the same
+        // (effect_id, target_name). We synthesize an apply at time 0.0 so the
+        // existing pipeline pairs it with the first remove. Skipped under a
+        // source filter, where we can't attribute the pre-combat application
+        // to a specific source.
+        let (synthetic_cte, synthetic_union) = if src_filter.is_empty() {
+            (
+                r#"
+            synthetic_applies AS (
+                SELECT fr.effect_id, fr.effect_name,
+                       '' as ability_name,
+                       fr.target_name,
+                       CAST(0.0 AS REAL) as apply_time,
+                       CAST(NULL AS TIMESTAMP) as timestamp,
+                       CAST(0 AS BIGINT) as line_number
+                FROM (
+                    SELECT effect_id, effect_name, target_name,
+                           MIN(remove_time) as first_remove_time
+                    FROM removes
+                    GROUP BY effect_id, effect_name, target_name
+                ) fr
+                LEFT JOIN (
+                    SELECT effect_id, target_name, MIN(apply_time) as min_apply
+                    FROM real_applies
+                    GROUP BY effect_id, target_name
+                ) a
+                  ON fr.effect_id = a.effect_id AND fr.target_name = a.target_name
+                WHERE a.min_apply IS NULL OR fr.first_remove_time < a.min_apply
+            ),"#,
+                "UNION ALL
+                SELECT effect_id, effect_name, ability_name, target_name,
+                       apply_time, timestamp, line_number
+                FROM synthetic_applies",
+            )
+        } else {
+            ("", "")
+        };
+
         // Strategy: Build ALL effect windows from every apply/remove pair (including
         // pre-combat events via COALESCE), then filter to windows overlapping the
         // target range and clamp edges. This handles effects applied before combat
         // or before a selected time range.
         let batches = self.sql(&format!(r#"
-            WITH applies AS (
+            WITH real_applies AS (
                 SELECT effect_id, effect_name, ability_name, target_name,
                        COALESCE(combat_time_secs, 0.0) as apply_time, timestamp,
-                       LEAD(COALESCE(combat_time_secs, 0.0)) OVER (
-                           PARTITION BY effect_id, target_name
-                           ORDER BY COALESCE(combat_time_secs, 0.0), line_number
-                       ) as next_apply_time
+                       line_number
                 FROM events
                 WHERE effect_type_id = {APPLY_EFFECT}
                   AND effect_id NOT IN ({DAMAGE_EFFECT}, {HEAL_EFFECT})
@@ -91,12 +127,25 @@ impl EncounterQuery<'_> {
                   {src_filter}
             ),
             removes AS (
-                SELECT effect_id, target_name,
+                SELECT effect_id, effect_name, target_name,
                        COALESCE(combat_time_secs, 0.0) as remove_time
                 FROM events
                 WHERE effect_type_id = {REMOVE_EFFECT}
                   AND effect_id NOT IN ({DAMAGE_EFFECT}, {HEAL_EFFECT})
                   {target_filter}
+            ),{synthetic_cte}
+            applies AS (
+                SELECT effect_id, effect_name, ability_name, target_name, apply_time, timestamp,
+                       LEAD(apply_time) OVER (
+                           PARTITION BY effect_id, target_name
+                           ORDER BY apply_time, line_number
+                       ) as next_apply_time
+                FROM (
+                    SELECT effect_id, effect_name, ability_name, target_name,
+                           apply_time, timestamp, line_number
+                    FROM real_applies
+                    {synthetic_union}
+                ) all_apply_events
             ),
             apply_with_remove AS (
                 SELECT a.effect_id, a.effect_name, a.ability_name, a.apply_time, a.timestamp,
@@ -276,15 +325,41 @@ impl EncounterQuery<'_> {
         let range_start = time_range.map(|tr| tr.start).unwrap_or(0.0);
         let range_end = time_range.map(|tr| tr.end).unwrap_or(duration);
 
+        // Synthesize a pre-combat apply at time 0.0 for any (effect_id, target_name)
+        // whose first remove precedes any apply (or where no apply exists). Skipped
+        // under a source filter — see query_effect_uptime for rationale.
+        let (synthetic_cte, synthetic_union) = if src_filter.is_empty() {
+            (
+                r#"
+            synthetic_applies AS (
+                SELECT CAST(0.0 AS REAL) as apply_time, fr.target_name,
+                       CAST(0 AS BIGINT) as line_number
+                FROM (
+                    SELECT target_name, MIN(remove_time) as first_remove_time
+                    FROM removes
+                    GROUP BY target_name
+                ) fr
+                LEFT JOIN (
+                    SELECT target_name, MIN(apply_time) as min_apply
+                    FROM real_applies
+                    GROUP BY target_name
+                ) a
+                  ON fr.target_name = a.target_name
+                WHERE a.min_apply IS NULL OR fr.first_remove_time < a.min_apply
+            ),"#,
+                "UNION ALL
+                SELECT apply_time, target_name, line_number FROM synthetic_applies",
+            )
+        } else {
+            ("", "")
+        };
+
         let batches = self
             .sql(&format!(
                 r#"
-            WITH applies AS (
+            WITH real_applies AS (
                 SELECT COALESCE(combat_time_secs, 0.0) as apply_time, target_name,
-                       LEAD(COALESCE(combat_time_secs, 0.0)) OVER (
-                           PARTITION BY target_name
-                           ORDER BY COALESCE(combat_time_secs, 0.0), line_number
-                       ) as next_apply_time
+                       line_number
                 FROM events
                 WHERE effect_type_id = {APPLY_EFFECT}
                   AND effect_id = {effect_id}
@@ -297,6 +372,18 @@ impl EncounterQuery<'_> {
                 WHERE effect_type_id = {REMOVE_EFFECT}
                   AND effect_id = {effect_id}
                   {target_filter}
+            ),{synthetic_cte}
+            applies AS (
+                SELECT apply_time, target_name,
+                       LEAD(apply_time) OVER (
+                           PARTITION BY target_name
+                           ORDER BY apply_time, line_number
+                       ) as next_apply_time
+                FROM (
+                    SELECT apply_time, target_name, line_number
+                    FROM real_applies
+                    {synthetic_union}
+                ) all_apply_events
             ),
             apply_with_remove AS (
                 SELECT a.apply_time, a.next_apply_time,
