@@ -252,6 +252,7 @@ trigger = { type = "ability_cast", abilities = [4250840802000896] }
 color = [130, 130, 130, 255]
 icon_ability_id = 4250840802000896
 difficulties = ["story", "veteran", "master"]
+can_be_refreshed = true
 
 [[boss.timer]]
 id = "holding_pens_pursuit_target"
@@ -307,6 +308,7 @@ trigger = { type = "ability_cast", abilities = [4250840802000896] }
 color = [130, 130, 130, 255]
 icon_ability_id = 4250840802000896
 difficulties = ["story", "veteran", "master"]
+can_be_refreshed = true
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
