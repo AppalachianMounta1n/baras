@@ -89,9 +89,14 @@ pub struct BossHealthOverlay {
     config: BossHealthConfig,
     data: BossHealthData,
     european_number_format: bool,
-    /// (current, max, active_shield_count) per entry — used to skip re-renders
-    /// when HP and shields are unchanged and no boss effects are ticking.
-    last_hp_sig: Vec<(i32, i32, usize)>,
+    /// (current, max, shield_remaining_per_shield) per entry — used to skip re-renders
+    /// when HP and shields are unchanged and no boss effects are ticking. Tracking
+    /// per-shield `remaining` (not just count) lets the shield bar animate as it absorbs.
+    last_hp_sig: Vec<(i32, i32, Vec<i64>)>,
+    /// Total boss-effect icon count from the last frame. Forces one final re-render
+    /// on the trailing edge when icons disappear, so a stale "0.0" countdown text
+    /// doesn't remain on screen.
+    last_icon_count: usize,
 }
 
 impl BossHealthOverlay {
@@ -111,6 +116,7 @@ impl BossHealthOverlay {
             data: BossHealthData::default(),
             european_number_format: false,
             last_hp_sig: Vec::new(),
+            last_icon_count: 0,
         })
     }
 
@@ -645,24 +651,34 @@ impl Overlay for BossHealthOverlay {
                 return false;
             }
 
-            // Active effect icons tick every frame — always render to keep
-            // the countdown wipedown smooth.
-            let has_active_effects = boss_data
-                .boss_icons
-                .values()
-                .any(|icons| icons.iter().any(|i| i.remaining_secs > 0.0));
+            // Active effect icons tick every frame — render every frame while present.
+            // Track total count so the trailing edge (last icon expires) forces one
+            // final render to erase the stale "0.0" countdown text.
+            let new_icon_count: usize =
+                boss_data.boss_icons.values().map(|v| v.len()).sum();
+            let icons_changed = new_icon_count != self.last_icon_count;
+            let has_active_effects = new_icon_count > 0;
+            self.last_icon_count = new_icon_count;
 
-            // Otherwise only render when HP or shield state changed.
-            let new_sig: Vec<(i32, i32, usize)> = boss_data
+            // Re-render when HP or shield state changed. Per-shield `remaining` is
+            // included so absorbing damage smoothly redraws the shield bar without
+            // requiring a count change.
+            let new_sig: Vec<(i32, i32, Vec<i64>)> = boss_data
                 .entries
                 .iter()
-                .map(|e| (e.current, e.max, e.active_shields.len()))
+                .map(|e| {
+                    (
+                        e.current,
+                        e.max,
+                        e.active_shields.iter().map(|s| s.remaining).collect(),
+                    )
+                })
                 .collect();
             let hp_changed = new_sig != self.last_hp_sig;
             self.last_hp_sig = new_sig;
 
             self.set_data(boss_data);
-            has_active_effects || hp_changed
+            has_active_effects || icons_changed || hp_changed
         } else {
             false
         }
