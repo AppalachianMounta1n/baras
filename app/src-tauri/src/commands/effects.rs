@@ -68,6 +68,8 @@ pub struct EffectListItem {
     pub disciplines: Vec<String>,
 
     // Behavior
+    #[serde(default)]
+    pub ignore_refreshes: bool,
     pub persist_past_death: bool,
     pub track_outside_combat: bool,
 
@@ -110,6 +112,7 @@ impl EffectListItem {
             is_affected_by_alacrity: def.is_affected_by_alacrity,
             cooldown_ready_secs: def.cooldown_ready_secs,
             disciplines: def.disciplines.iter().map(|d| d.name().to_string()).collect(),
+            ignore_refreshes: def.ignore_refreshes,
             persist_past_death: def.persist_past_death,
             track_outside_combat: def.track_outside_combat,
             on_apply_trigger_timer: def.on_apply_trigger_timer.clone(),
@@ -139,6 +142,7 @@ impl EffectListItem {
             disciplines: self.disciplines.iter()
                 .filter_map(|name| Discipline::from_name(name))
                 .collect(),
+            ignore_refreshes: self.ignore_refreshes,
             persist_past_death: self.persist_past_death,
             track_outside_combat: self.track_outside_combat,
             on_apply_trigger_timer: self.on_apply_trigger_timer.clone(),

@@ -218,6 +218,7 @@ fn default_effect(name: String) -> EffectListItem {
         is_affected_by_alacrity: false,
         cooldown_ready_secs: 0.0,
         disciplines: vec![],
+        ignore_refreshes: false,
         persist_past_death: false,
         track_outside_combat: true,
         on_apply_trigger_timer: None,
@@ -1500,6 +1501,27 @@ fn EffectEditForm(
                                             span {
                                                 class: "help-icon",
                                                 title: "Reset timer when effect stacks change",
+                                                "?"
+                                            }
+                                        }
+                                    }
+
+                                    label {
+                                        class: "flex items-center gap-xs text-sm",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: draft().ignore_refreshes,
+                                            onchange: move |e| {
+                                                let mut d = draft();
+                                                d.ignore_refreshes = e.checked();
+                                                draft.set(d);
+                                            }
+                                        }
+                                        span { class: "flex items-center",
+                                            "Ignore Refreshes"
+                                            span {
+                                                class: "help-icon",
+                                                title: "When the effect is already active, do not reset its duration if the trigger fires again. Useful for damage/healing taken triggers.",
                                                 "?"
                                             }
                                         }

@@ -997,6 +997,11 @@ impl EffectTracker {
                     continue;
                 }
 
+                // Ignore refreshes: skip retrigger when effect is already active
+                if def.ignore_refreshes && existing.is_active(timestamp) {
+                    continue;
+                }
+
                 existing.refresh(timestamp, duration);
                 if let Some(c) = charges {
                     existing.set_stacks(c);
@@ -1590,6 +1595,11 @@ impl EffectTracker {
             let duration = self.effective_duration(def);
 
             if let Some(existing) = self.active_effects.get_mut(&key) {
+                // Ignore refreshes: skip retrigger when effect is already active
+                if def.ignore_refreshes && existing.is_active(timestamp) {
+                    continue;
+                }
+
                 existing.refresh(timestamp, duration);
 
                 // Fire OnApply alert on refresh
@@ -1721,6 +1731,11 @@ impl EffectTracker {
             let duration = self.effective_duration(def);
 
             if let Some(existing) = self.active_effects.get_mut(&key) {
+                // Ignore refreshes: skip retrigger when effect is already active
+                if def.ignore_refreshes && existing.is_active(timestamp) {
+                    continue;
+                }
+
                 existing.refresh(timestamp, duration);
 
                 // Fire OnApply alert on refresh

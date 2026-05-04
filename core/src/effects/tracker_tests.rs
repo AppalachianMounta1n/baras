@@ -45,6 +45,7 @@ fn make_effect(
         show_icon: true,
         display_source: false,
         disciplines: vec![],
+        ignore_refreshes: false,
         persist_past_death: false,
         track_outside_combat: true,
         on_apply_trigger_timer: None,

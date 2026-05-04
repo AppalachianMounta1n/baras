@@ -887,6 +887,8 @@ pub struct EffectListItem {
 
     // Behavior
     #[serde(default)]
+    pub ignore_refreshes: bool,
+    #[serde(default)]
     pub persist_past_death: bool,
     #[serde(default)]
     pub track_outside_combat: bool,

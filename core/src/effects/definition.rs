@@ -172,6 +172,13 @@ pub struct EffectDefinition {
     pub disciplines: Vec<Discipline>,
 
     // ─── Behavior ───────────────────────────────────────────────────────────
+    /// If true, retriggering the effect while it is already active is ignored
+    /// (the existing duration is preserved instead of being refreshed). Useful
+    /// for triggers like DamageTaken/HealingTaken where reapplication shouldn't
+    /// reset the timer. Refresh abilities still operate normally.
+    #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
+    pub ignore_refreshes: bool,
+
     /// Should this effect persist after target dies?
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
     pub persist_past_death: bool,
