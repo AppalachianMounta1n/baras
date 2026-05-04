@@ -446,6 +446,34 @@ fn save_timer_preferences(prefs: &TimerPreferences) -> Result<(), String> {
     prefs.save(&path).map_err(|e| e.to_string())
 }
 
+/// Returns true if two timers differ only in user-preference fields
+/// (enabled, color, audio.enabled, audio.file, roles). These are stored in
+/// `timer_preferences.toml` rather than the encounter definition, so they
+/// shouldn't trigger a "modified" badge against the bundled original.
+fn timer_eq_ignoring_prefs(a: &BossTimerDefinition, b: &BossTimerDefinition) -> bool {
+    let mut a_norm = a.clone();
+    a_norm.enabled = b.enabled;
+    a_norm.color = b.color;
+    a_norm.audio.enabled = b.audio.enabled;
+    a_norm.audio.file = b.audio.file.clone();
+    a_norm.roles = b.roles.clone();
+    a_norm == *b
+}
+
+/// Returns true if two phases differ only in user-preference fields (enabled).
+fn phase_eq_ignoring_prefs(a: &PhaseDefinition, b: &PhaseDefinition) -> bool {
+    let mut a_norm = a.clone();
+    a_norm.enabled = b.enabled;
+    a_norm == *b
+}
+
+/// Returns true if two counters differ only in user-preference fields (enabled).
+fn counter_eq_ignoring_prefs(a: &CounterDefinition, b: &CounterDefinition) -> bool {
+    let mut a_norm = a.clone();
+    a_norm.enabled = b.enabled;
+    a_norm == *b
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Tauri Commands
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -549,7 +577,7 @@ pub async fn fetch_area_bosses(
             if let Some(original_timers) = bundled_timers.get(&bwp.boss.id) {
                 for timer in &bwp.boss.timers {
                     if let Some(original) = original_timers.iter().find(|t| t.id == timer.id) {
-                        if *original == *timer {
+                        if timer_eq_ignoring_prefs(original, timer) {
                             builtin_timer_ids.push(timer.id.clone());
                         } else {
                             modified_timer_ids.push(timer.id.clone());
@@ -561,7 +589,7 @@ pub async fn fetch_area_bosses(
             if let Some(original_phases) = bundled_phases.get(&bwp.boss.id) {
                 for phase in &bwp.boss.phases {
                     if let Some(original) = original_phases.iter().find(|p| p.id == phase.id) {
-                        if *original == *phase {
+                        if phase_eq_ignoring_prefs(original, phase) {
                             builtin_phase_ids.push(phase.id.clone());
                         } else {
                             modified_phase_ids.push(phase.id.clone());
@@ -573,7 +601,7 @@ pub async fn fetch_area_bosses(
             if let Some(original_counters) = bundled_counters.get(&bwp.boss.id) {
                 for counter in &bwp.boss.counters {
                     if let Some(original) = original_counters.iter().find(|c| c.id == counter.id) {
-                        if *original == *counter {
+                        if counter_eq_ignoring_prefs(original, counter) {
                             builtin_counter_ids.push(counter.id.clone());
                         } else {
                             modified_counter_ids.push(counter.id.clone());

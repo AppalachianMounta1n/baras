@@ -22,6 +22,20 @@ use super::triggers::ComposableTriggerEditor;
 // Timers Tab
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Returns true if two timers differ only in user-preference fields
+/// (enabled, color, audio.enabled, audio.file, roles). These are saved to
+/// `timer_preferences.toml` not the encounter definition, so changing them
+/// shouldn't surface as an "unsaved changes" indicator.
+fn timer_eq_ignoring_prefs(a: &BossTimerDefinition, b: &BossTimerDefinition) -> bool {
+    let mut a_norm = a.clone();
+    a_norm.enabled = b.enabled;
+    a_norm.color = b.color;
+    a_norm.audio.enabled = b.audio.enabled;
+    a_norm.audio.file = b.audio.file.clone();
+    a_norm.roles = b.roles.clone();
+    a_norm == *b
+}
+
 /// Create a default timer definition with sensible defaults
 fn default_timer(name: String) -> BossTimerDefinition {
     BossTimerDefinition {
@@ -505,12 +519,12 @@ fn TimerEditForm(
     // Reset just_saved when user makes new changes after saving
     let timer_original_for_effect = timer_original.clone();
     use_effect(move || {
-        if draft() != timer_original_for_effect && just_saved() {
+        if !timer_eq_ignoring_prefs(&draft(), &timer_original_for_effect) && just_saved() {
             just_saved.set(false);
         }
     });
 
-    let has_changes = use_memo(move || !just_saved() && draft() != timer_original);
+    let has_changes = use_memo(move || !just_saved() && !timer_eq_ignoring_prefs(&draft(), &timer_original));
 
     // Notify parent when dirty state changes
     use_effect(move || {
