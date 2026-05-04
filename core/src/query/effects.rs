@@ -72,15 +72,12 @@ impl EncounterQuery<'_> {
         let range_end = time_range.map(|tr| tr.end).unwrap_or(duration);
         let range_duration = (range_end - range_start).max(0.001);
 
-        // When no source filter is active, infer pre-combat applications from
-        // "orphan" removes — REMOVE events with no preceding APPLY for the same
-        // (effect_id, target_name). We synthesize an apply at time 0.0 so the
-        // existing pipeline pairs it with the first remove. Skipped under a
-        // source filter, where we can't attribute the pre-combat application
-        // to a specific source.
-        let (synthetic_cte, synthetic_union) = if src_filter.is_empty() {
-            (
-                r#"
+        // Infer pre-combat applications from "orphan" removes — REMOVE events
+        // with no preceding APPLY for the same (effect_id, target_name). We
+        // synthesize an apply at time 0.0 so the existing pipeline pairs it
+        // with the first remove. The source filter applies to removes too,
+        // since EffectRemoved's source_name reflects the original applier.
+        let synthetic_cte = r#"
             synthetic_applies AS (
                 SELECT fr.effect_id, fr.effect_name,
                        '' as ability_name,
@@ -101,15 +98,11 @@ impl EncounterQuery<'_> {
                 ) a
                   ON fr.effect_id = a.effect_id AND fr.target_name = a.target_name
                 WHERE a.min_apply IS NULL OR fr.first_remove_time < a.min_apply
-            ),"#,
-                "UNION ALL
+            ),"#;
+        let synthetic_union = "UNION ALL
                 SELECT effect_id, effect_name, ability_name, target_name,
                        apply_time, timestamp, line_number
-                FROM synthetic_applies",
-            )
-        } else {
-            ("", "")
-        };
+                FROM synthetic_applies";
 
         // Strategy: Build ALL effect windows from every apply/remove pair (including
         // pre-combat events via COALESCE), then filter to windows overlapping the
@@ -133,6 +126,7 @@ impl EncounterQuery<'_> {
                 WHERE effect_type_id = {REMOVE_EFFECT}
                   AND effect_id NOT IN ({DAMAGE_EFFECT}, {HEAL_EFFECT})
                   {target_filter}
+                  {src_filter}
             ),{synthetic_cte}
             applies AS (
                 SELECT effect_id, effect_name, ability_name, target_name, apply_time, timestamp,
@@ -325,12 +319,11 @@ impl EncounterQuery<'_> {
         let range_start = time_range.map(|tr| tr.start).unwrap_or(0.0);
         let range_end = time_range.map(|tr| tr.end).unwrap_or(duration);
 
-        // Synthesize a pre-combat apply at time 0.0 for any (effect_id, target_name)
-        // whose first remove precedes any apply (or where no apply exists). Skipped
-        // under a source filter — see query_effect_uptime for rationale.
-        let (synthetic_cte, synthetic_union) = if src_filter.is_empty() {
-            (
-                r#"
+        // Synthesize a pre-combat apply at time 0.0 for any target_name whose
+        // first remove precedes any apply (or where no apply exists). The
+        // source filter applies to removes too, since EffectRemoved's source
+        // reflects the original applier.
+        let synthetic_cte = r#"
             synthetic_applies AS (
                 SELECT CAST(0.0 AS REAL) as apply_time, fr.target_name,
                        CAST(0 AS BIGINT) as line_number
@@ -346,13 +339,9 @@ impl EncounterQuery<'_> {
                 ) a
                   ON fr.target_name = a.target_name
                 WHERE a.min_apply IS NULL OR fr.first_remove_time < a.min_apply
-            ),"#,
-                "UNION ALL
-                SELECT apply_time, target_name, line_number FROM synthetic_applies",
-            )
-        } else {
-            ("", "")
-        };
+            ),"#;
+        let synthetic_union = "UNION ALL
+                SELECT apply_time, target_name, line_number FROM synthetic_applies";
 
         let batches = self
             .sql(&format!(
@@ -372,6 +361,7 @@ impl EncounterQuery<'_> {
                 WHERE effect_type_id = {REMOVE_EFFECT}
                   AND effect_id = {effect_id}
                   {target_filter}
+                  {src_filter}
             ),{synthetic_cte}
             applies AS (
                 SELECT apply_time, target_name,
