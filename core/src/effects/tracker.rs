@@ -743,22 +743,23 @@ impl EffectTracker {
         by_target
     }
 
-    /// Get effects destined for the boss HP overlay, grouped by resolved target name.
-    pub fn boss_health_effects_by_name(&self) -> std::collections::HashMap<String, Vec<&ActiveEffect>> {
-        let mut by_name: std::collections::HashMap<String, Vec<&ActiveEffect>> =
+    /// Get effects destined for the boss HP overlay, grouped by target entity id.
+    /// Keyed by entity id (not name) so two NPCs sharing a name don't share icons.
+    pub fn boss_health_effects_by_target_id(&self) -> std::collections::HashMap<i64, Vec<&ActiveEffect>> {
+        let mut by_target: std::collections::HashMap<i64, Vec<&ActiveEffect>> =
             std::collections::HashMap::new();
         for effect in self.active_effects.values() {
             if effect.removed_at.is_none()
                 && !effect.timer_expired
                 && effect.display_targets.contains(&DisplayTarget::BossHealth)
             {
-                by_name
-                    .entry(crate::context::resolve(effect.target_name).to_string())
+                by_target
+                    .entry(effect.target_entity_id)
                     .or_default()
                     .push(effect);
             }
         }
-        by_name
+        by_target
     }
 
     /// Get effects destined for generic effects overlay (legacy)

@@ -50,8 +50,10 @@ impl BossEffectIcon {
 pub struct BossHealthData {
     /// Current boss health entries (sorted by encounter order)
     pub entries: Vec<OverlayHealthEntry>,
-    /// Effect icons keyed by NPC display name (matches OverlayHealthEntry::name)
-    pub boss_icons: HashMap<String, Vec<BossEffectIcon>>,
+    /// Effect icons keyed by NPC entity id (matches OverlayHealthEntry::entity_id).
+    /// Keyed by id rather than name so two NPCs that share a display name show
+    /// only the effects actually applied to each one.
+    pub boss_icons: HashMap<i64, Vec<BossEffectIcon>>,
 }
 
 /// Base dimensions for scaling calculations
@@ -203,7 +205,7 @@ impl BossHealthOverlay {
             + entries
                 .iter()
                 .map(|e| {
-                    let has_icons = self.data.boss_icons.get(&e.name).is_some_and(|v| !v.is_empty());
+                    let has_icons = self.data.boss_icons.get(&e.entity_id).is_some_and(|v| !v.is_empty());
                     let icon_row = (has_icons || Self::next_marker(e).is_some()).then_some(icon_row_h);
                     self.entry_height(
                         e,
@@ -240,7 +242,7 @@ impl BossHealthOverlay {
         let mut y = padding;
 
         for entry in entries {
-            let has_icons = self.data.boss_icons.get(&entry.name).is_some_and(|v| !v.is_empty());
+            let has_icons = self.data.boss_icons.get(&entry.entity_id).is_some_and(|v| !v.is_empty());
             let icon_row = (has_icons || Self::next_marker(entry).is_some()).then_some(icon_row_h);
             y += self.entry_height(
                 entry,
@@ -541,7 +543,7 @@ impl BossHealthOverlay {
             y += bar_height;
 
             // ── Icon + Marker Row (below bar) ──────────────────────────
-            let entry_icons = self.data.boss_icons.get(&entry.name);
+            let entry_icons = self.data.boss_icons.get(&entry.entity_id);
             if entry_icons.is_some_and(|v| !v.is_empty()) {
                 let icons = entry_icons.unwrap();
                 let icon_y = y + 3.0;

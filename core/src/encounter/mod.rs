@@ -47,6 +47,8 @@ pub enum PhaseType {
 /// Real-time boss health data for overlay display
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct OverlayHealthEntry {
+    /// Unique per-spawn entity id (NPC `log_id`). Disambiguates same-named entities.
+    pub entity_id: i64,
     pub name: String,
     pub target_name: Option<String>,
     pub current: i32,

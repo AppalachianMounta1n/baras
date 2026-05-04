@@ -1389,6 +1389,7 @@ mod examples {
     pub fn run_boss_health_overlay() {
         let three_bosses = vec![
             OverlayHealthEntry {
+                entity_id: 1,
                 name: "Dread Master Brontes".to_string(),
                 current: 6_200_000,
                 max: 8_000_000,
@@ -1399,6 +1400,7 @@ mod examples {
                 pushes_at: None,
             },
             OverlayHealthEntry {
+                entity_id: 2,
                 name: "Dread Master Styrak".to_string(),
                 current: 3_200_000,
                 max: 8_000_000,
@@ -1409,6 +1411,7 @@ mod examples {
                 pushes_at: None,
             },
             OverlayHealthEntry {
+                entity_id: 3,
                 name: "Dread Master Calphayus".to_string(),
                 current: 7_100_000,
                 max: 8_000_000,
@@ -1421,6 +1424,7 @@ mod examples {
         ];
 
         let one_boss = vec![OverlayHealthEntry {
+            entity_id: 4,
             name: "Dread Master Styrak".to_string(),
             current: 8_500_000,
             max: 12_000_000,
@@ -1433,6 +1437,7 @@ mod examples {
 
         let two_bosses = vec![
             OverlayHealthEntry {
+                entity_id: 5,
                 name: "Dread Master Brontes".to_string(),
                 current: 6_200_000,
                 max: 8_000_000,
@@ -1443,6 +1448,7 @@ mod examples {
                 pushes_at: None,
             },
             OverlayHealthEntry {
+                entity_id: 6,
                 name: "Dread Master Bestia".to_string(),
                 current: 5_800_000,
                 max: 8_000_000,
@@ -1458,6 +1464,7 @@ mod examples {
         let markers_and_shields = vec![
             // Boss with HP markers at 75%, 50%, 25% (current HP is 60% → next marker is 50%)
             OverlayHealthEntry {
+                entity_id: 7,
                 name: "Brontes".to_string(),
                 current: 4_800_000,
                 max: 8_000_000,
@@ -1491,6 +1498,7 @@ mod examples {
             },
             // Boss with active shield
             OverlayHealthEntry {
+                entity_id: 8,
                 name: "Styrak".to_string(),
                 current: 6_000_000,
                 max: 8_000_000,
@@ -1506,6 +1514,7 @@ mod examples {
             },
             // Boss with both markers and shield
             OverlayHealthEntry {
+                entity_id: 9,
                 name: "Calphayus".to_string(),
                 current: 5_500_000,
                 max: 8_000_000,

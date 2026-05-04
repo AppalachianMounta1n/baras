@@ -3176,15 +3176,16 @@ async fn build_boss_health_data(
 
     let entries = cache.get_boss_health();
 
-    // Collect BossHealth-targeted effects grouped by target name
-    let boss_icons: HashMap<String, Vec<BossEffectIcon>> =
+    // Collect BossHealth-targeted effects grouped by target entity id (so two
+    // NPCs sharing a display name don't share icons).
+    let boss_icons: HashMap<i64, Vec<BossEffectIcon>> =
         if let Some(effect_tracker) = session.effect_tracker() {
             let tracker = effect_tracker.lock().unwrap_or_else(|p| p.into_inner());
             let interp_time = tracker.interpolated_game_time();
             tracker
-                .boss_health_effects_by_name()
+                .boss_health_effects_by_target_id()
                 .into_iter()
-                .filter_map(|(name, effects)| {
+                .filter_map(|(entity_id, effects)| {
                     let icons: Vec<BossEffectIcon> = effects
                         .into_iter()
                         .filter_map(|effect| {
@@ -3210,7 +3211,7 @@ async fn build_boss_health_data(
                             })
                         })
                         .collect();
-                    if icons.is_empty() { None } else { Some((name, icons)) }
+                    if icons.is_empty() { None } else { Some((entity_id, icons)) }
                 })
                 .collect()
         } else {

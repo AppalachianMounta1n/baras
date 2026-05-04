@@ -507,6 +507,7 @@ impl CombatEncounter {
                 let pushes_at = entity_def.and_then(|e| e.pushes_at);
 
                 OverlayHealthEntry {
+                    entity_id: npc.log_id,
                     name: crate::context::resolve(npc.name).to_string(),
                     target_name: self
                         .players
