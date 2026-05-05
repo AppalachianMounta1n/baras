@@ -627,6 +627,12 @@ pub struct BossTimerDefinition {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queue_blocking_timers: Vec<String>,
 
+    /// State condition that, when satisfied, blocks this entry in the ability
+    /// queue. OR'd with `queue_blocking_timers`. Compose multi-clause logic
+    /// via `all_of` / `any_of` / `not` Condition variants.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_blocking_condition: Option<Condition>,
+
     /// When true, render this timer's ability-queue row as a trickling-down
     /// bar (full → empty as cooldown elapses). Only applies when
     /// `display_target = AbilityQueue`.
@@ -698,6 +704,7 @@ impl BossTimerDefinition {
             queue_priority: self.queue_priority,
             queue_remove_trigger: self.queue_remove_trigger.clone(),
             queue_blocking_timers: self.queue_blocking_timers.clone(),
+            queue_blocking_condition: self.queue_blocking_condition.clone(),
             queue_countdown_bar: self.queue_countdown_bar,
             queue_hide_from_next: self.queue_hide_from_next,
         }

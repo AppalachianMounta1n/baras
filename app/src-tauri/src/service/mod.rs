@@ -3399,11 +3399,20 @@ async fn build_timer_data_with_audio(
         if timer.displays_on(TimerDisplayTarget::AbilityQueue)
             && (display_is_queued || remaining > 0.0)
         {
-            let is_blocked = timer.queue_blocking_timers.iter().any(|name| {
+            let blocked_by_timer = timer.queue_blocking_timers.iter().any(|name| {
                 blocker_remaining
                     .get(name.as_str())
                     .is_some_and(|&rem| rem > gcd_remaining)
             });
+            let current_encounter = session
+                .session_cache
+                .as_ref()
+                .and_then(|c| c.current_encounter());
+            let blocked_by_condition = match (&timer.queue_blocking_condition, current_encounter) {
+                (Some(c), Some(enc)) => enc.evaluate_condition(c),
+                _ => false,
+            };
+            let is_blocked = blocked_by_timer || blocked_by_condition;
             aq_entries.push(AbilityQueueEntry {
                 name: timer.name.clone(),
                 remaining_secs: remaining,

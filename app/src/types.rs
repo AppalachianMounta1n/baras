@@ -573,6 +573,10 @@ pub struct BossTimerDefinition {
     /// from appearing as "next cast" while any of them is active. OR semantics.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queue_blocking_timers: Vec<String>,
+    /// State condition that, when satisfied, blocks this entry in the ability
+    /// queue. OR'd with `queue_blocking_timers`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_blocking_condition: Option<Condition>,
     /// When true, render this timer's ability-queue row as a trickling-down
     /// bar instead of the default filling-up progress bar. Only applies when
     /// `display_target = AbilityQueue`.

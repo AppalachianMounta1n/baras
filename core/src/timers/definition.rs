@@ -208,6 +208,14 @@ pub struct TimerDefinition {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queue_blocking_timers: Vec<String>,
 
+    /// State condition that, when satisfied, blocks this entry in the ability
+    /// queue (dimmed, excluded from "next cast"). Logically OR'd with
+    /// `queue_blocking_timers` — either signal blocks the entry. Compose
+    /// multi-clause logic via the `all_of` / `any_of` / `not` Condition
+    /// variants rather than introducing a Vec here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_blocking_condition: Option<Condition>,
+
     /// When true, render this timer's ability-queue row as a trickling-down
     /// bar (full → empty as the cooldown elapses) instead of the default
     /// filling-up progress bar. Only has an effect when `display_target` is

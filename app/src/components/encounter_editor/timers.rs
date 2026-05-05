@@ -60,6 +60,7 @@ fn default_timer(name: String) -> BossTimerDefinition {
         queue_priority: 0,
         queue_remove_trigger: None,
         queue_blocking_timers: Vec::new(),
+        queue_blocking_condition: None,
         queue_countdown_bar: false,
         queue_hide_from_next: false,
     }
@@ -1661,6 +1662,31 @@ fn TimerEditForm(
                                                         }
                                                     }
                                                 }
+                                            }
+                                        }
+                                    }
+                                }
+                                div { class: "form-row-hz", style: "align-items: flex-start;",
+                                    label { class: "flex items-center", style: "padding-top: 6px;",
+                                        "Blocked By Condition"
+                                        span { class: "help-icon", title: "State condition that blocks this entry from appearing as 'next cast' when satisfied. OR'd with the Blocked By timer list — either signal blocks the entry. Multiple conditions are AND'd implicitly (use 'Any Of' to OR).", "?" }
+                                    }
+                                    div { class: "flex-col gap-xs",
+                                        ConditionsEditor {
+                                            conditions: match draft().queue_blocking_condition.clone() {
+                                                None => Vec::new(),
+                                                Some(Condition::AllOf { conditions }) => conditions,
+                                                Some(c) => vec![c],
+                                            },
+                                            encounter_data: encounter_data.clone(),
+                                            on_change: move |v: Vec<Condition>| {
+                                                let mut d = draft();
+                                                d.queue_blocking_condition = match v.len() {
+                                                    0 => None,
+                                                    1 => v.into_iter().next(),
+                                                    _ => Some(Condition::AllOf { conditions: v }),
+                                                };
+                                                draft.set(d);
                                             }
                                         }
                                     }

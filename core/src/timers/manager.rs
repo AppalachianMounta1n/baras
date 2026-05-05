@@ -874,6 +874,7 @@ impl TimerManager {
             def.queue_on_expire,
             def.queue_priority,
             def.queue_blocking_timers.clone(),
+            def.queue_blocking_condition.clone(),
             def.queue_countdown_bar,
             def.queue_hide_from_next,
         );
