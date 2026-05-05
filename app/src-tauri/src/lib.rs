@@ -274,6 +274,7 @@ pub fn run() {
             commands::update_encounter_item,
             commands::set_all_timer_roles,
             commands::delete_encounter_item,
+            commands::reset_encounter_item_preferences,
             commands::duplicate_encounter_timer,
             commands::update_boss_notes,
             commands::update_boss_enabled,

@@ -58,6 +58,16 @@ pub struct BossWithPathResponse {
     /// Challenge IDs that exist in the bundled definition but have been modified by the user.
     #[serde(default)]
     pub modified_challenge_ids: Vec<String>,
+    /// Timer IDs whose user-preference fields (color/enabled/audio/roles) differ
+    /// from the bundled defaults. Independent of `modified_timer_ids`.
+    #[serde(default)]
+    pub pref_customized_timer_ids: Vec<String>,
+    /// Phase IDs whose user-preference fields (enabled) differ from the bundled defaults.
+    #[serde(default)]
+    pub pref_customized_phase_ids: Vec<String>,
+    /// Counter IDs whose user-preference fields (enabled) differ from the bundled defaults.
+    #[serde(default)]
+    pub pref_customized_counter_ids: Vec<String>,
 }
 
 impl From<BossWithPath> for BossWithPathResponse {
@@ -74,6 +84,9 @@ impl From<BossWithPath> for BossWithPathResponse {
             modified_counter_ids: Vec::new(),
             builtin_challenge_ids: Vec::new(),
             modified_challenge_ids: Vec::new(),
+            pref_customized_timer_ids: Vec::new(),
+            pref_customized_phase_ids: Vec::new(),
+            pref_customized_counter_ids: Vec::new(),
         }
     }
 }
@@ -386,11 +399,83 @@ fn delete_item_from_custom(
 }
 
 /// Save an item to a custom overlay file (upsert).
+///
+/// Pref fields (color/enabled/audio/roles for timers, enabled for phases/counters)
+/// belong in `timer_preferences.toml`, not the definition. Before writing, we
+/// reset those fields to the bundled values so `_custom.toml` only ever stores
+/// real definition changes. If the item ends up byte-equal to bundled, it's
+/// removed from `_custom.toml` instead of upserted.
 fn save_item_to_custom_file(
     custom_path: &Path,
+    bundled_path: &Path,
     boss_id: &str,
     item: &EncounterItem,
 ) -> Result<(), String> {
+    // Find the bundled counterpart for this item, if any.
+    let bundled_boss = load_bosses_from_file(bundled_path)
+        .ok()
+        .and_then(|bs| bs.into_iter().find(|b| b.id == boss_id));
+
+    // Strip pref fields by copying bundled values onto the to-be-saved item.
+    let item_for_save: EncounterItem = match item {
+        EncounterItem::Timer(t) => {
+            let mut t = t.clone();
+            let bundled = bundled_boss.as_ref().and_then(|b| b.timers.iter().find(|x| x.id == t.id));
+            if let Some(b) = bundled {
+                t.enabled = b.enabled;
+                t.color = b.color;
+                t.audio.enabled = b.audio.enabled;
+                t.audio.file = b.audio.file.clone();
+                t.roles = b.roles.clone();
+            } else {
+                // Custom-only timer — roles still belong in prefs.
+                t.roles = vec![];
+            }
+            EncounterItem::Timer(t)
+        }
+        EncounterItem::Phase(p) => {
+            let mut p = p.clone();
+            if let Some(b) = bundled_boss.as_ref().and_then(|b| b.phases.iter().find(|x| x.id == p.id)) {
+                p.enabled = b.enabled;
+            }
+            EncounterItem::Phase(p)
+        }
+        EncounterItem::Counter(c) => {
+            let mut c = c.clone();
+            if let Some(b) = bundled_boss.as_ref().and_then(|b| b.counters.iter().find(|x| x.id == c.id)) {
+                c.enabled = b.enabled;
+            }
+            EncounterItem::Counter(c)
+        }
+        EncounterItem::Challenge(c) => EncounterItem::Challenge(c.clone()),
+        EncounterItem::Entity(e) => EncounterItem::Entity(e.clone()),
+    };
+
+    // If the cleaned item equals bundled, drop from custom file instead of writing.
+    let matches_bundled = match (&item_for_save, bundled_boss.as_ref()) {
+        (EncounterItem::Timer(t), Some(b)) => b.timers.iter().any(|x| x == t),
+        (EncounterItem::Phase(p), Some(b)) => b.phases.iter().any(|x| x == p),
+        (EncounterItem::Counter(c), Some(b)) => b.counters.iter().any(|x| x == c),
+        (EncounterItem::Challenge(c), Some(b)) => b.challenges.iter().any(|x| x == c),
+        (EncounterItem::Entity(_), _) => false,
+        _ => false,
+    };
+    if matches_bundled {
+        let item_type = match item_for_save {
+            EncounterItem::Timer(_) => "timer",
+            EncounterItem::Phase(_) => "phase",
+            EncounterItem::Counter(_) => "counter",
+            EncounterItem::Challenge(_) => "challenge",
+            EncounterItem::Entity(_) => "entity",
+        };
+        if custom_path.exists()
+            && item_exists_in_custom_by_type(custom_path, boss_id, item_type, item.id())
+        {
+            return delete_item_from_custom(custom_path, boss_id, item_type, item.id());
+        }
+        return Ok(());
+    }
+
     let mut bosses = if custom_path.exists() {
         load_bosses_from_file(custom_path).unwrap_or_default()
     } else {
@@ -402,16 +487,12 @@ fn save_item_to_custom_file(
         id: boss_id.to_string(),
         ..Default::default()
     };
-    match item {
-        EncounterItem::Timer(t) => {
-            let mut t_for_save = t.clone();
-            t_for_save.roles = vec![]; // roles are stored in preferences, not definitions
-            temp.timers.push(t_for_save);
-        }
-        EncounterItem::Phase(p) => temp.phases.push(p.clone()),
-        EncounterItem::Counter(c) => temp.counters.push(c.clone()),
-        EncounterItem::Challenge(c) => temp.challenges.push(c.clone()),
-        EncounterItem::Entity(e) => temp.entities.push(e.clone()),
+    match item_for_save {
+        EncounterItem::Timer(t) => temp.timers.push(t),
+        EncounterItem::Phase(p) => temp.phases.push(p),
+        EncounterItem::Counter(c) => temp.counters.push(c),
+        EncounterItem::Challenge(c) => temp.challenges.push(c),
+        EncounterItem::Entity(e) => temp.entities.push(e),
     }
 
     // Merge into existing boss or add new
@@ -472,6 +553,18 @@ fn counter_eq_ignoring_prefs(a: &CounterDefinition, b: &CounterDefinition) -> bo
     let mut a_norm = a.clone();
     a_norm.enabled = b.enabled;
     a_norm == *b
+}
+
+/// Returns true if any user-preference field on the timer differs from the bundled original.
+fn timer_has_pref_customization(
+    bundled: &BossTimerDefinition,
+    merged: &BossTimerDefinition,
+) -> bool {
+    bundled.enabled != merged.enabled
+        || bundled.color != merged.color
+        || bundled.audio.enabled != merged.audio.enabled
+        || bundled.audio.file != merged.audio.file
+        || bundled.roles != merged.roles
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -573,6 +666,9 @@ pub async fn fetch_area_bosses(
             let mut modified_counter_ids = Vec::new();
             let mut builtin_challenge_ids: Vec<String> = Vec::new();
             let mut modified_challenge_ids: Vec<String> = Vec::new();
+            let mut pref_customized_timer_ids = Vec::new();
+            let mut pref_customized_phase_ids = Vec::new();
+            let mut pref_customized_counter_ids = Vec::new();
 
             if let Some(original_timers) = bundled_timers.get(&bwp.boss.id) {
                 for timer in &bwp.boss.timers {
@@ -581,6 +677,9 @@ pub async fn fetch_area_bosses(
                             builtin_timer_ids.push(timer.id.clone());
                         } else {
                             modified_timer_ids.push(timer.id.clone());
+                        }
+                        if timer_has_pref_customization(original, timer) {
+                            pref_customized_timer_ids.push(timer.id.clone());
                         }
                     }
                 }
@@ -594,6 +693,9 @@ pub async fn fetch_area_bosses(
                         } else {
                             modified_phase_ids.push(phase.id.clone());
                         }
+                        if original.enabled != phase.enabled {
+                            pref_customized_phase_ids.push(phase.id.clone());
+                        }
                     }
                 }
             }
@@ -605,6 +707,9 @@ pub async fn fetch_area_bosses(
                             builtin_counter_ids.push(counter.id.clone());
                         } else {
                             modified_counter_ids.push(counter.id.clone());
+                        }
+                        if original.enabled != counter.enabled {
+                            pref_customized_counter_ids.push(counter.id.clone());
                         }
                     }
                 }
@@ -640,6 +745,9 @@ pub async fn fetch_area_bosses(
             resp.modified_counter_ids = modified_counter_ids;
             resp.builtin_challenge_ids = builtin_challenge_ids;
             resp.modified_challenge_ids = modified_challenge_ids;
+            resp.pref_customized_timer_ids = pref_customized_timer_ids;
+            resp.pref_customized_phase_ids = pref_customized_phase_ids;
+            resp.pref_customized_counter_ids = pref_customized_counter_ids;
             resp
         })
         .collect())
@@ -716,7 +824,7 @@ pub async fn create_encounter_item(
 
     // Save to appropriate file
     if let Some(custom_path) = get_custom_path_if_bundled(&file_path_buf, &app_handle) {
-        save_item_to_custom_file(&custom_path, &boss_id, &item)?;
+        save_item_to_custom_file(&custom_path, &file_path_buf, &boss_id, &item)?;
     } else {
         let file_bosses: Vec<_> = bosses
             .iter()
@@ -804,7 +912,7 @@ pub async fn update_encounter_item(
 
     // Save definition changes
     if let Some(custom_path) = get_custom_path_if_bundled(&file_path_buf, &app_handle) {
-        save_item_to_custom_file(&custom_path, &boss_id, &item)?;
+        save_item_to_custom_file(&custom_path, &file_path_buf, &boss_id, &item)?;
     } else {
         let mut bosses = load_all_bosses(&app_handle)?;
         let boss = bosses
@@ -969,6 +1077,164 @@ pub async fn delete_encounter_item(
     Ok(())
 }
 
+/// Reset user preferences (color/visibility/audio/enabled) for a single encounter item.
+///
+/// Pref fields are written to two places by `update_encounter_item`:
+/// `timer_preferences.toml` (authoritative for live overrides) and the
+/// `_custom.toml` definition (because the editor saves the full timer).
+/// Both must be cleaned up here, otherwise the `_custom.toml` copy keeps
+/// the customized values and the user sees no change.
+#[tauri::command]
+pub async fn reset_encounter_item_preferences(
+    app_handle: AppHandle,
+    service: State<'_, ServiceHandle>,
+    item_type: String,
+    item_id: String,
+    boss_id: String,
+    file_path: String,
+) -> Result<(), String> {
+    let file_path_buf = PathBuf::from(&file_path);
+    let bosses = load_all_bosses(&app_handle)?;
+    let boss_with_path = bosses
+        .iter()
+        .find(|b| b.boss.id == boss_id && b.file_path == file_path_buf)
+        .ok_or_else(|| format!("Boss '{}' not found", boss_id))?;
+
+    let mut prefs = load_timer_preferences();
+    match item_type.as_str() {
+        "timer" => {
+            let key =
+                boss_timer_key(&boss_with_path.boss.area_name, &boss_with_path.boss.name, &item_id);
+            prefs.clear(&key);
+        }
+        "phase" => {
+            let key =
+                boss_phase_key(&boss_with_path.boss.area_name, &boss_with_path.boss.name, &item_id);
+            prefs.clear_phase(&key);
+        }
+        "counter" => {
+            let key = boss_counter_key(
+                &boss_with_path.boss.area_name,
+                &boss_with_path.boss.name,
+                &item_id,
+            );
+            prefs.clear_counter(&key);
+        }
+        _ => return Err(format!("Unknown item type for prefs reset: {}", item_type)),
+    }
+    save_timer_preferences(&prefs)?;
+
+    // Strip pref fields from the _custom.toml definition copy (if any) so the
+    // bundled defaults take effect on the next load.
+    if let Some(custom_path) = get_custom_path_if_bundled(&file_path_buf, &app_handle)
+        && custom_path.exists()
+    {
+        let bundled = load_bosses_from_file(&file_path_buf).unwrap_or_default();
+        let bundled_boss = bundled.iter().find(|b| b.id == boss_id);
+        revert_pref_fields_in_custom(&custom_path, &boss_id, &item_type, &item_id, bundled_boss)?;
+    }
+
+    // Push updated prefs to the live timer manager so running timers pick up defaults.
+    if let Some(session) = service.shared.session.read().await.as_ref() {
+        let session = session.read().await;
+        if let Some(timer_mgr) = session.timer_manager()
+            && let Ok(mut mgr) = timer_mgr.lock()
+        {
+            mgr.set_preferences(prefs);
+        }
+    }
+
+    let _ = service.reload_timer_definitions().await;
+    Ok(())
+}
+
+/// Reset the pref-only fields of a single item inside the user's `_custom.toml`
+/// to match the bundled definition. If, after that, the item is byte-equal to
+/// bundled, drop it entirely (and drop the custom file if it becomes empty).
+fn revert_pref_fields_in_custom(
+    custom_path: &Path,
+    boss_id: &str,
+    item_type: &str,
+    item_id: &str,
+    bundled_boss: Option<&BossEncounterDefinition>,
+) -> Result<(), String> {
+    let mut bosses = load_bosses_from_file(custom_path)
+        .map_err(|e| format!("Failed to load custom file: {}", e))?;
+
+    let mut should_drop = false;
+
+    for boss in &mut bosses {
+        if boss.id != boss_id {
+            continue;
+        }
+        match item_type {
+            "timer" => {
+                if let Some(idx) = boss.timers.iter().position(|t| t.id == item_id) {
+                    let bundled_timer = bundled_boss.and_then(|b| b.timers.iter().find(|t| t.id == item_id));
+                    if let Some(bundled) = bundled_timer {
+                        boss.timers[idx].enabled = bundled.enabled;
+                        boss.timers[idx].color = bundled.color;
+                        boss.timers[idx].audio.enabled = bundled.audio.enabled;
+                        boss.timers[idx].audio.file = bundled.audio.file.clone();
+                        boss.timers[idx].roles = bundled.roles.clone();
+                        if boss.timers[idx] == *bundled {
+                            boss.timers.remove(idx);
+                        }
+                    } else {
+                        // No bundled counterpart — this is a custom-only timer; nothing to revert.
+                    }
+                }
+            }
+            "phase" => {
+                if let Some(idx) = boss.phases.iter().position(|p| p.id == item_id) {
+                    let bundled_phase = bundled_boss.and_then(|b| b.phases.iter().find(|p| p.id == item_id));
+                    if let Some(bundled) = bundled_phase {
+                        boss.phases[idx].enabled = bundled.enabled;
+                        if boss.phases[idx] == *bundled {
+                            boss.phases.remove(idx);
+                        }
+                    }
+                }
+            }
+            "counter" => {
+                if let Some(idx) = boss.counters.iter().position(|c| c.id == item_id) {
+                    let bundled_counter = bundled_boss.and_then(|b| b.counters.iter().find(|c| c.id == item_id));
+                    if let Some(bundled) = bundled_counter {
+                        boss.counters[idx].enabled = bundled.enabled;
+                        if boss.counters[idx] == *bundled {
+                            boss.counters.remove(idx);
+                        }
+                    }
+                }
+            }
+            _ => return Err(format!("Unknown item type: {}", item_type)),
+        }
+
+        if boss.timers.is_empty()
+            && boss.phases.is_empty()
+            && boss.counters.is_empty()
+            && boss.challenges.is_empty()
+            && boss.entities.is_empty()
+        {
+            should_drop = true;
+        }
+        break;
+    }
+
+    if should_drop {
+        bosses.retain(|b| b.id != boss_id);
+    }
+
+    if bosses.is_empty() {
+        std::fs::remove_file(custom_path)
+            .map_err(|e| format!("Failed to remove empty custom file: {}", e))?;
+    } else {
+        save_bosses_to_file(&bosses, custom_path)?;
+    }
+
+    Ok(())
+}
+
 /// Duplicate a timer — clones it with a new ID and " (Copy)" suffix, appends it to the boss.
 #[tauri::command]
 pub async fn duplicate_encounter_timer(
@@ -1010,7 +1276,7 @@ pub async fn duplicate_encounter_timer(
 
     let item = EncounterItem::Timer(new_timer.clone());
     if let Some(custom_path) = get_custom_path_if_bundled(&file_path_buf, &app_handle) {
-        save_item_to_custom_file(&custom_path, &boss_id, &item)?;
+        save_item_to_custom_file(&custom_path, &file_path_buf, &boss_id, &item)?;
     } else {
         let file_bosses: Vec<_> = bosses
             .iter()

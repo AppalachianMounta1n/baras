@@ -22,20 +22,6 @@ use super::triggers::ComposableTriggerEditor;
 // Timers Tab
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Returns true if two timers differ only in user-preference fields
-/// (enabled, color, audio.enabled, audio.file, roles). These are saved to
-/// `timer_preferences.toml` not the encounter definition, so changing them
-/// shouldn't surface as an "unsaved changes" indicator.
-fn timer_eq_ignoring_prefs(a: &BossTimerDefinition, b: &BossTimerDefinition) -> bool {
-    let mut a_norm = a.clone();
-    a_norm.enabled = b.enabled;
-    a_norm.color = b.color;
-    a_norm.audio.enabled = b.audio.enabled;
-    a_norm.audio.file = b.audio.file.clone();
-    a_norm.roles = b.roles.clone();
-    a_norm == *b
-}
-
 /// Create a default timer definition with sensible defaults
 fn default_timer(name: String) -> BossTimerDefinition {
     BossTimerDefinition {
@@ -94,6 +80,7 @@ pub fn TimersTab(
     let timers = boss_with_path.boss.timers.clone();
     let builtin_timer_ids = boss_with_path.builtin_timer_ids.clone();
     let modified_timer_ids = boss_with_path.modified_timer_ids.clone();
+    let pref_customized_timer_ids = boss_with_path.pref_customized_timer_ids.clone();
 
     let disabled_count = timers.iter().filter(|t| !t.enabled).count();
 
@@ -202,6 +189,7 @@ pub fn TimersTab(
                         let timers_for_row = timers.clone();
                         let timer_is_builtin = builtin_timer_ids.contains(&timer.id);
                         let timer_is_modified = modified_timer_ids.contains(&timer.id);
+                        let timer_is_pref_customized = pref_customized_timer_ids.contains(&timer.id);
 
                         rsx! {
                             TimerRow {
@@ -210,6 +198,7 @@ pub fn TimersTab(
                                 all_timers: timers_for_row,
                                 is_builtin: timer_is_builtin,
                                 is_modified: timer_is_modified,
+                                is_pref_customized: timer_is_pref_customized,
                                 boss_with_path: boss_with_path.clone(),
                                 encounter_data: encounter_data.clone(),
                                 expanded: is_expanded,
@@ -239,6 +228,7 @@ fn TimerRow(
     all_timers: Vec<BossTimerDefinition>,
     is_builtin: bool,
     is_modified: bool,
+    #[props(default)] is_pref_customized: bool,
     boss_with_path: BossWithPath,
     encounter_data: EncounterData,
     expanded: bool,
@@ -301,6 +291,14 @@ fn TimerRow(
                         class: "timer-origin timer-origin-custom",
                         title: "Custom: created by you",
                         "C"
+                    }
+                }
+
+                // Preferences-customized dot (color/visibility/audio/enabled differ from bundled)
+                if is_pref_customized {
+                    span {
+                        class: "timer-pref-dot",
+                        title: "Preferences customized — color/visibility/audio differ from defaults. Use 'Reset Preferences' in the editor to restore.",
                     }
                 }
 
@@ -415,6 +413,7 @@ fn TimerRow(
                     all_timers: all_timers,
                     is_builtin: is_builtin,
                     is_modified: is_modified,
+                    is_pref_customized: is_pref_customized,
                     boss_with_path: boss_with_path,
                     encounter_data: encounter_data,
                     on_change: on_change,
@@ -493,6 +492,7 @@ fn TimerEditForm(
     all_timers: Vec<BossTimerDefinition>,
     #[props(default)] is_builtin: bool,
     #[props(default)] is_modified: bool,
+    #[props(default)] is_pref_customized: bool,
     boss_with_path: BossWithPath,
     encounter_data: EncounterData,
     on_change: EventHandler<Vec<BossTimerDefinition>>,
@@ -519,12 +519,12 @@ fn TimerEditForm(
     // Reset just_saved when user makes new changes after saving
     let timer_original_for_effect = timer_original.clone();
     use_effect(move || {
-        if !timer_eq_ignoring_prefs(&draft(), &timer_original_for_effect) && just_saved() {
+        if draft() != timer_original_for_effect && just_saved() {
             just_saved.set(false);
         }
     });
 
-    let has_changes = use_memo(move || !just_saved() && !timer_eq_ignoring_prefs(&draft(), &timer_original));
+    let has_changes = use_memo(move || !just_saved() && draft() != timer_original);
 
     // Notify parent when dirty state changes
     use_effect(move || {
@@ -613,6 +613,30 @@ fn TimerEditForm(
                     Err(err) => {
                         on_status.call((err, true));
                     }
+                }
+            });
+        }
+    };
+
+    // Reset-preferences handler — clears pref entries (color/visibility/audio/enabled)
+    // for this timer so it falls back to the bundled defaults.
+    let handle_reset_prefs = {
+        let timer_id = timer_id.clone();
+        let bwp = boss_with_path.clone();
+        move |_| {
+            let id = timer_id.clone();
+            let boss_id = bwp.boss.id.clone();
+            let file_path = bwp.file_path.clone();
+            spawn(async move {
+                match api::reset_encounter_item_preferences("timer", &id, &boss_id, &file_path)
+                    .await
+                {
+                    Ok(_) => {
+                        on_status.call(("Preferences reset".to_string(), false));
+                        on_collapse.call(());
+                        on_refetch.call(());
+                    }
+                    Err(err) => on_status.call((err, true)),
                 }
             });
         }
@@ -1703,6 +1727,17 @@ fn TimerEditForm(
                     class: "btn btn-primary btn-sm",
                     onclick: handle_duplicate,
                     "Duplicate"
+                }
+
+                // Show "Reset Preferences" only when prefs differ from defaults.
+                // Built-in items only — custom timers store their state directly.
+                if is_pref_customized && (is_builtin || is_modified) {
+                    button {
+                        class: "btn btn-sm",
+                        title: "Restore color, visibility, audio, and enabled state to bundled defaults",
+                        onclick: handle_reset_prefs,
+                        "Reset Preferences"
+                    }
                 }
 
                 // Reset/Delete logic:

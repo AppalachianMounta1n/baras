@@ -355,6 +355,15 @@ pub struct BossWithPath {
     /// Challenge IDs from the bundled definition that the user has modified.
     #[serde(default)]
     pub modified_challenge_ids: Vec<String>,
+    /// Timer IDs whose user-preference fields differ from the bundled defaults.
+    #[serde(default)]
+    pub pref_customized_timer_ids: Vec<String>,
+    /// Phase IDs whose user-preference fields differ from the bundled defaults.
+    #[serde(default)]
+    pub pref_customized_phase_ids: Vec<String>,
+    /// Counter IDs whose user-preference fields differ from the bundled defaults.
+    #[serde(default)]
+    pub pref_customized_counter_ids: Vec<String>,
 }
 
 /// Full boss encounter definition (mirrors baras_core::dsl::BossEncounterDefinition)
