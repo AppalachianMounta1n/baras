@@ -2148,16 +2148,24 @@ pub fn App() -> Element {
                                                                     class: "chip-remove",
                                                                     title: "Remove guild",
                                                                     onclick: move |_| {
-                                                                        let mut list = parsely_guilds.write();
-                                                                        list.retain(|g| g != &name);
-                                                                        let still_has_selected = parsely_selected_guild
-                                                                            .read()
-                                                                            .as_deref()
-                                                                            .map(|s| list.iter().any(|g| g == s))
-                                                                            .unwrap_or(false);
-                                                                        if !still_has_selected {
-                                                                            parsely_selected_guild.set(list.first().cloned());
-                                                                        }
+                                                                        let (guilds_snapshot, selected_snapshot) = {
+                                                                            let mut list = parsely_guilds.write();
+                                                                            list.retain(|g| g != &name);
+                                                                            let still_has_selected = parsely_selected_guild
+                                                                                .read()
+                                                                                .as_deref()
+                                                                                .map(|s| list.iter().any(|g| g == s))
+                                                                                .unwrap_or(false);
+                                                                            if !still_has_selected {
+                                                                                parsely_selected_guild.set(list.first().cloned());
+                                                                            }
+                                                                            (list.clone(), parsely_selected_guild.read().clone())
+                                                                        };
+                                                                        save_parsely_guild_fields(
+                                                                            guilds_snapshot,
+                                                                            selected_snapshot,
+                                                                            parsely_save_status,
+                                                                        );
                                                                     },
                                                                     "×"
                                                                 }
@@ -2175,32 +2183,24 @@ pub fn App() -> Element {
                                                 oninput: move |e| parsely_guild_input.set(e.value()),
                                                 onkeydown: move |e| {
                                                     if e.key() == Key::Enter {
-                                                        let trimmed = parsely_guild_input.read().trim().to_string();
-                                                        if !trimmed.is_empty()
-                                                            && !parsely_guilds.read().iter().any(|g| g == &trimmed)
-                                                        {
-                                                            parsely_guilds.write().push(trimmed.clone());
-                                                            if parsely_selected_guild.read().is_none() {
-                                                                parsely_selected_guild.set(Some(trimmed));
-                                                            }
-                                                            parsely_guild_input.set(String::new());
-                                                        }
+                                                        add_parsely_guild(
+                                                            parsely_guild_input,
+                                                            parsely_guilds,
+                                                            parsely_selected_guild,
+                                                            parsely_save_status,
+                                                        );
                                                     }
                                                 }
                                             }
                                             button {
                                                 class: "btn btn-secondary btn-sm",
                                                 onclick: move |_| {
-                                                    let trimmed = parsely_guild_input.read().trim().to_string();
-                                                    if !trimmed.is_empty()
-                                                        && !parsely_guilds.read().iter().any(|g| g == &trimmed)
-                                                    {
-                                                        parsely_guilds.write().push(trimmed.clone());
-                                                        if parsely_selected_guild.read().is_none() {
-                                                            parsely_selected_guild.set(Some(trimmed));
-                                                        }
-                                                        parsely_guild_input.set(String::new());
-                                                    }
+                                                    add_parsely_guild(
+                                                        parsely_guild_input,
+                                                        parsely_guilds,
+                                                        parsely_selected_guild,
+                                                        parsely_save_status,
+                                                    );
                                                 },
                                                 "Add"
                                             }
@@ -2541,6 +2541,59 @@ pub fn App() -> Element {
             ToastFrame {}
         }
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parsely Guild Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Persist guild fields (`guilds` + `selected_guild`) to the config without
+/// touching unrelated parsely settings. Used by add/remove handlers so the
+/// chip list stays in sync with what the upload modal sees.
+fn save_parsely_guild_fields(
+    guilds: Vec<String>,
+    selected: Option<String>,
+    mut save_status: Signal<String>,
+) {
+    let mut toast = use_toast();
+    spawn(async move {
+        if let Some(mut cfg) = api::get_config().await {
+            cfg.parsely.guilds = guilds;
+            cfg.parsely.selected_guild = selected;
+            match api::update_config(&cfg).await {
+                Ok(_) => save_status.set("Saved!".to_string()),
+                Err(err) => toast.show(
+                    format!("Failed to save guilds: {}", err),
+                    ToastSeverity::Normal,
+                ),
+            }
+        }
+    });
+}
+
+/// Add the trimmed guild input to the list and persist guild fields to config.
+/// No-op if the input is empty or already present.
+fn add_parsely_guild(
+    mut input: Signal<String>,
+    mut guilds: Signal<Vec<String>>,
+    mut selected: Signal<Option<String>>,
+    save_status: Signal<String>,
+) {
+    let trimmed = input.read().trim().to_string();
+    if trimmed.is_empty() || guilds.read().iter().any(|g| g == &trimmed) {
+        return;
+    }
+    guilds.write().push(trimmed.clone());
+    if selected.read().is_none() {
+        selected.set(Some(trimmed));
+    }
+    input.set(String::new());
+
+    save_parsely_guild_fields(
+        guilds.read().clone(),
+        selected.read().clone(),
+        save_status,
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
