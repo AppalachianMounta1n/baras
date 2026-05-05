@@ -1413,8 +1413,15 @@ fn TimerEditForm(
                                                     }
                                                 },
                                                 option { value: "0", "Off" }
+                                                option { value: "1", "1s" }
+                                                option { value: "2", "2s" }
                                                 option { value: "3", "3s" }
+                                                option { value: "4", "4s" }
                                                 option { value: "5", "5s" }
+                                                option { value: "6", "6s" }
+                                                option { value: "7", "7s" }
+                                                option { value: "8", "8s" }
+                                                option { value: "9", "9s" }
                                                 option { value: "10", "10s" }
                                             }
                                             select {
