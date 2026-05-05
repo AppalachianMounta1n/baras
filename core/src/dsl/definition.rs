@@ -621,9 +621,10 @@ pub struct BossTimerDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_remove_trigger: Option<crate::timers::TimerTrigger>,
 
-    /// Names of other timers in the same encounter that block this ability
-    /// queue entry from appearing as "next to cast" when any of them is
-    /// currently active (OR semantics).
+    /// Definition IDs of other timers in the same encounter that block this
+    /// ability queue entry from appearing as "next to cast" when any of them
+    /// is currently active (OR semantics). Use definition IDs, not names —
+    /// names are display strings and not guaranteed unique.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queue_blocking_timers: Vec<String>,
 
@@ -632,6 +633,12 @@ pub struct BossTimerDefinition {
     /// via `all_of` / `any_of` / `not` Condition variants.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_blocking_condition: Option<Condition>,
+
+    /// Audio cue played once when this timer becomes the unique highest-
+    /// priority "next cast" in the ability queue. Silent during ties,
+    /// rate-limited per definition_id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_next_audio: Option<crate::dsl::AudioConfig>,
 
     /// When true, render this timer's ability-queue row as a trickling-down
     /// bar (full → empty as cooldown elapses). Only applies when
@@ -705,6 +712,7 @@ impl BossTimerDefinition {
             queue_remove_trigger: self.queue_remove_trigger.clone(),
             queue_blocking_timers: self.queue_blocking_timers.clone(),
             queue_blocking_condition: self.queue_blocking_condition.clone(),
+            queue_next_audio: self.queue_next_audio.clone(),
             queue_countdown_bar: self.queue_countdown_bar,
             queue_hide_from_next: self.queue_hide_from_next,
         }

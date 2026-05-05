@@ -318,6 +318,11 @@ pub struct AudioConfig {
     /// Voice pack for countdown (None = default)
     #[serde(default)]
     pub countdown_voice: Option<String>,
+
+    /// Defer the "becomes next cast" cue until GCD remaining ≤ this value.
+    /// Only meaningful when used as a timer's `queue_next_audio`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_gcd_remaining: Option<f32>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -569,14 +574,19 @@ pub struct BossTimerDefinition {
     /// Trigger that clears a queued/ready entry from the ability queue.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_remove_trigger: Option<Trigger>,
-    /// Names of other timers in the same encounter that block this ability
-    /// from appearing as "next cast" while any of them is active. OR semantics.
+    /// Definition IDs of other timers in the same encounter that block this
+    /// ability from appearing as "next cast" while any of them is active.
+    /// OR semantics. Use IDs, not names — names are display-only.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queue_blocking_timers: Vec<String>,
     /// State condition that, when satisfied, blocks this entry in the ability
     /// queue. OR'd with `queue_blocking_timers`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_blocking_condition: Option<Condition>,
+    /// Audio cue played once when this timer becomes the unique highest-
+    /// priority "next cast" in the ability queue. Silent on ties.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_next_audio: Option<AudioConfig>,
     /// When true, render this timer's ability-queue row as a trickling-down
     /// bar instead of the default filling-up progress bar. Only applies when
     /// `display_target = AbilityQueue`.

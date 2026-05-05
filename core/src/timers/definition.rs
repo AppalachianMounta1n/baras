@@ -202,11 +202,19 @@ pub struct TimerDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_remove_trigger: Option<Trigger>,
 
-    /// Names of other timers in the same encounter that block this ability
-    /// from appearing as "next to cast" when any of them is currently active.
-    /// OR semantics — any one active blocker marks this timer as blocked.
+    /// Definition IDs of other timers in the same encounter that block this
+    /// ability from appearing as "next to cast" when any of them is currently
+    /// active. OR semantics — any one active blocker marks this timer as
+    /// blocked. Names are not used because they aren't guaranteed unique.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queue_blocking_timers: Vec<String>,
+
+    /// Audio cue to play once when this timer becomes the unique highest-
+    /// priority "next cast" in the ability queue. Suppressed during
+    /// priority ties, and rate-limited per definition_id (see service-
+    /// side dedup window). None disables.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_next_audio: Option<crate::dsl::AudioConfig>,
 
     /// State condition that, when satisfied, blocks this entry in the ability
     /// queue (dimmed, excluded from "next cast"). Logically OR'd with

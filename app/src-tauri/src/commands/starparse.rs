@@ -305,6 +305,7 @@ fn convert_audio(xml: &XmlConfigTimer) -> AudioConfig {
         countdown_start: xml.countdown_count.unwrap_or(0),
         countdown_voice: xml.countdown_voice.clone(),
         alert_text: None,
+        at_gcd_remaining: None,
     }
 }
 
@@ -362,6 +363,7 @@ fn convert_to_boss_timer(xml: &XmlConfigTimer) -> BossTimerDefinition {
         queue_remove_trigger: None,
         queue_blocking_timers: Vec::new(),
         queue_blocking_condition: None,
+        queue_next_audio: None,
         queue_countdown_bar: false,
         queue_hide_from_next: false,
     }

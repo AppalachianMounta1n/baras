@@ -58,6 +58,9 @@ pub struct TimerData {
 /// - Active countdown entries: both flags false → tier-3 progress bar
 #[derive(Debug, Clone)]
 pub struct AbilityQueueEntry {
+    /// Stable identifier from the source `TimerDefinition`. Use this for any
+    /// downstream lookups — names are display strings and not guaranteed unique.
+    pub definition_id: String,
     pub name: String,
     pub remaining_secs: f32,
     pub total_secs: f32,

@@ -3287,11 +3287,11 @@ async fn build_timer_data_with_audio(
     let mut aq_entries: Vec<AbilityQueueEntry> = Vec::new();
 
     // Pre-collect remaining-seconds of all currently-active (non-queued) timers
-    // keyed by name so we can mark ability queue entries as blocked only when a
-    // blocker will still be running when the current GCD resolves — a blocker
-    // that expires before the GCD should not stop the ability from being the
-    // next cast. Duplicate names (e.g. same timer on multiple targets) collapse
-    // to the longest remaining, which is the pessimistic blocker.
+    // keyed by definition_id so we can mark ability queue entries as blocked
+    // only when a blocker will still be running when the current GCD resolves.
+    // Multi-target instances of the same definition collapse to the longest
+    // remaining (pessimistic blocker). Names are intentionally not used here
+    // because they're display-only and not guaranteed unique.
     let blocker_remaining: std::collections::HashMap<&str, f32> = {
         let mut map: std::collections::HashMap<&str, f32> =
             std::collections::HashMap::new();
@@ -3300,7 +3300,7 @@ async fn build_timer_data_with_audio(
                 continue;
             }
             let rem = interp_time.map(|ti| t.remaining_secs(ti)).unwrap_or(0.0);
-            map.entry(t.name.as_str())
+            map.entry(t.definition_id.as_str())
                 .and_modify(|cur| *cur = cur.max(rem))
                 .or_insert(rem);
         }
@@ -3323,6 +3323,7 @@ async fn build_timer_data_with_audio(
             .max(0) as f32
             / 1000.0;
         aq_entries.push(AbilityQueueEntry {
+            definition_id: String::new(),
             name: String::new(),
             remaining_secs: remaining,
             total_secs: total,
@@ -3399,9 +3400,9 @@ async fn build_timer_data_with_audio(
         if timer.displays_on(TimerDisplayTarget::AbilityQueue)
             && (display_is_queued || remaining > 0.0)
         {
-            let blocked_by_timer = timer.queue_blocking_timers.iter().any(|name| {
+            let blocked_by_timer = timer.queue_blocking_timers.iter().any(|id| {
                 blocker_remaining
-                    .get(name.as_str())
+                    .get(id.as_str())
                     .is_some_and(|&rem| rem > gcd_remaining)
             });
             let current_encounter = session
@@ -3414,6 +3415,7 @@ async fn build_timer_data_with_audio(
             };
             let is_blocked = blocked_by_timer || blocked_by_condition;
             aq_entries.push(AbilityQueueEntry {
+                definition_id: timer.definition_id.clone(),
                 name: timer.name.clone(),
                 remaining_secs: remaining,
                 total_secs,
@@ -3426,6 +3428,80 @@ async fn build_timer_data_with_audio(
                 hide_from_next: timer.queue_hide_from_next,
                 icon_ability_id: timer.icon_ability_id,
                 icon,
+            });
+        }
+    }
+
+    // ─── Ability Queue: unique-next audio cue ────────────────────────────────
+    // Determine the timer that solo-occupies the highest-priority eligible
+    // slot, then ask TimerManager whether that's a fresh transition (with a
+    // 500ms dedup window to absorb frame-boundary jitter near the GCD edge).
+    let unique_next_id: Option<String> = {
+        let max_prio = aq_entries
+            .iter()
+            .filter(|e| {
+                !e.is_pinned
+                    && !e.is_blocked
+                    && !e.hide_from_next
+                    && (e.is_queued || e.remaining_secs <= gcd_remaining)
+            })
+            .map(|e| e.queue_priority)
+            .max();
+        max_prio.and_then(|p| {
+            let mut winners = aq_entries.iter().filter(|e| {
+                !e.is_pinned
+                    && !e.is_blocked
+                    && !e.hide_from_next
+                    && (e.is_queued || e.remaining_secs <= gcd_remaining)
+                    && e.queue_priority == p
+            });
+            let first = winners.next()?;
+            if winners.next().is_some() {
+                None
+            } else {
+                Some(first.definition_id.clone())
+            }
+        })
+    };
+    if let Some(now) = interp_time {
+        // Pull the candidate's at_gcd_remaining threshold (if any) before the
+        // mutable call below — borrow checker won't let active_timers() and
+        // update_uniquely_next() overlap.
+        let threshold_met = unique_next_id
+            .as_deref()
+            .map(|id| {
+                let threshold = timer_mgr
+                    .active_timers()
+                    .into_iter()
+                    .find(|t| t.definition_id == id)
+                    .and_then(|t| t.queue_next_audio.as_ref())
+                    .and_then(|a| a.at_gcd_remaining);
+                threshold.is_none_or(|t| gcd_remaining <= t)
+            })
+            .unwrap_or(true);
+        let fire = timer_mgr.update_uniquely_next(
+            unique_next_id.as_deref(),
+            threshold_met,
+            now,
+            chrono::Duration::milliseconds(500),
+        );
+        if let Some(fire_id) = fire
+            && let Some(timer) = timer_mgr
+                .active_timers()
+                .into_iter()
+                .find(|t| t.definition_id == fire_id)
+            && let Some(audio) = timer.queue_next_audio.as_ref().filter(|a| a.enabled)
+        {
+            alerts.push(baras_core::timers::FiredAlert {
+                id: timer.definition_id.clone(),
+                name: timer.name.clone(),
+                text: timer.name.clone(),
+                color: Some(timer.color),
+                timestamp: now,
+                alert_text_enabled: false,
+                audio_enabled: true,
+                audio_file: audio.file.clone(),
+                icon_ability_id: timer.icon_ability_id,
             });
         }
     }

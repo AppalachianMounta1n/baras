@@ -147,6 +147,27 @@ pub struct TimerManager {
     /// Fingerprint of loaded definitions (hash of definition IDs + count)
     /// Used to detect when definitions actually change vs. redundant reloads.
     definitions_fingerprint: u64,
+
+    // ─── Ability Queue: Unique-Next Tracking ────────────────────────────────
+    /// Definition ID of the timer currently solo-occupying the highest-priority
+    /// "next cast" slot in the ability queue. `None` when there is a tie or
+    /// nothing eligible. Used to detect session boundaries — when this id
+    /// transitions to a different value, the audio cue arms for the new id.
+    last_uniquely_next: Option<String>,
+
+    /// Definition ID we've already fired the "becomes next" audio cue for in
+    /// the current uniquely-next session. Cleared when `last_uniquely_next`
+    /// transitions to a different id (or to `None`), so the next emergence
+    /// of an ability can fire its cue exactly once. Without this, deferred
+    /// firing (waiting on `at_gcd_remaining`) would replay every subsequent
+    /// frame because the threshold stays satisfied.
+    last_audio_fired_for: Option<String>,
+
+    /// Game-time of the last audio fire. Acts as a cross-id jitter floor:
+    /// even if the uniquely-next id flaps None→A→None→A within the floor
+    /// window, the second A won't refire. Distinct from `last_audio_fired_for`
+    /// because that field is cleared on session boundaries.
+    last_audio_fired_at: Option<NaiveDateTime>,
 }
 
 impl Default for TimerManager {
@@ -186,6 +207,72 @@ impl TimerManager {
             combat_time_started: HashSet::new(),
             active_encounter_id: None,
             definitions_fingerprint: 0,
+            last_uniquely_next: None,
+            last_audio_fired_for: None,
+            last_audio_fired_at: None,
+        }
+    }
+
+    /// Decide whether the "becomes next cast" audio cue should fire on this
+    /// frame for the given uniquely-next definition_id. Returns `Some(id)`
+    /// at most once per uniquely-next session for a given id.
+    ///
+    /// A "session" begins when an id first becomes uniquely-next (or when it
+    /// returns to uniquely-next after the slot transitions to a different id
+    /// or to `None`). Within a single session, the cue fires exactly once —
+    /// on the first frame after `threshold_met` becomes true — and is then
+    /// suppressed for every subsequent frame, even if the threshold remains
+    /// satisfied. This is the fix for deferred (`at_gcd_remaining`) cues
+    /// that would otherwise replay every frame the GCD is below threshold.
+    ///
+    /// `jitter_floor` adds a global rate limit so brief None spikes (from a
+    /// momentary priority tie that resolves back to the same id) cannot
+    /// retrigger the cue: even if the session technically ended, the cue
+    /// is suppressed until at least `jitter_floor` has elapsed since the
+    /// last fire.
+    pub fn update_uniquely_next(
+        &mut self,
+        current: Option<&str>,
+        threshold_met: bool,
+        now: NaiveDateTime,
+        jitter_floor: chrono::Duration,
+    ) -> Option<String> {
+        match current {
+            None => {
+                // Session boundary: clear the per-id arm so the next emergence
+                // can fire. Keep `last_audio_fired_at` so jitter_floor still
+                // applies across the gap.
+                self.last_uniquely_next = None;
+                self.last_audio_fired_for = None;
+                None
+            }
+            Some(id) => {
+                // Different id than last frame? That's a session change for
+                // both the previous occupant (which leaves) and the new one
+                // (which is fresh-eligible). Clear the per-id arm.
+                let id_changed = self.last_uniquely_next.as_deref() != Some(id);
+                if id_changed {
+                    self.last_audio_fired_for = None;
+                }
+                self.last_uniquely_next = Some(id.to_string());
+
+                if self.last_audio_fired_for.as_deref() == Some(id) {
+                    return None;
+                }
+                if !threshold_met {
+                    return None;
+                }
+                if self
+                    .last_audio_fired_at
+                    .is_some_and(|t| now.signed_duration_since(t) < jitter_floor)
+                {
+                    return None;
+                }
+
+                self.last_audio_fired_for = Some(id.to_string());
+                self.last_audio_fired_at = Some(now);
+                Some(id.to_string())
+            }
         }
     }
 
@@ -850,6 +937,7 @@ impl TimerManager {
             countdown_start: def.audio.countdown_start,
             countdown_voice: def.audio.countdown_voice.clone(),
             alert_text: def.audio.alert_text.clone(),
+            at_gcd_remaining: def.audio.at_gcd_remaining,
         };
 
         // Create new timer
@@ -875,6 +963,7 @@ impl TimerManager {
             def.queue_priority,
             def.queue_blocking_timers.clone(),
             def.queue_blocking_condition.clone(),
+            def.queue_next_audio.clone(),
             def.queue_countdown_bar,
             def.queue_hide_from_next,
         );

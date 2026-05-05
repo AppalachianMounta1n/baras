@@ -123,6 +123,9 @@ pub struct ActiveTimer {
     /// entry in the ability queue (OR'd with `queue_blocking_timers`).
     pub queue_blocking_condition: Option<crate::dsl::Condition>,
 
+    /// Cached from definition: audio config for the "becomes next" cue.
+    pub queue_next_audio: Option<crate::dsl::AudioConfig>,
+
     /// Cached from definition: render this timer's ability-queue row as a
     /// trickling-down bar instead of the default filling-up progress bar.
     pub queue_countdown_bar: bool,
@@ -155,6 +158,7 @@ impl ActiveTimer {
         queue_priority: u8,
         queue_blocking_timers: Vec<String>,
         queue_blocking_condition: Option<crate::dsl::Condition>,
+        queue_next_audio: Option<crate::dsl::AudioConfig>,
         queue_countdown_bar: bool,
         queue_hide_from_next: bool,
     ) -> Self {
@@ -195,6 +199,7 @@ impl ActiveTimer {
             queue_priority,
             queue_blocking_timers,
             queue_blocking_condition,
+            queue_next_audio,
             queue_countdown_bar,
             queue_hide_from_next,
         }
