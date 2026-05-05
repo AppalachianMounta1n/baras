@@ -998,8 +998,10 @@ impl EffectTracker {
                     continue;
                 }
 
-                // Ignore refreshes: skip retrigger when effect is already active
-                if def.ignore_refreshes && existing.is_active(timestamp) {
+                // Ignore refreshes: skip retrigger only while still in base duration.
+                // Once the cooldown enters the ready state it has effectively expired,
+                // so a new trigger is a fresh activation, not a refresh.
+                if def.ignore_refreshes && existing.is_in_base_duration(timestamp) {
                     continue;
                 }
 
@@ -1596,8 +1598,10 @@ impl EffectTracker {
             let duration = self.effective_duration(def);
 
             if let Some(existing) = self.active_effects.get_mut(&key) {
-                // Ignore refreshes: skip retrigger when effect is already active
-                if def.ignore_refreshes && existing.is_active(timestamp) {
+                // Ignore refreshes: skip retrigger only while still in base duration.
+                // Once the cooldown enters the ready state it has effectively expired,
+                // so a new trigger is a fresh activation, not a refresh.
+                if def.ignore_refreshes && existing.is_in_base_duration(timestamp) {
                     continue;
                 }
 
@@ -1732,8 +1736,10 @@ impl EffectTracker {
             let duration = self.effective_duration(def);
 
             if let Some(existing) = self.active_effects.get_mut(&key) {
-                // Ignore refreshes: skip retrigger when effect is already active
-                if def.ignore_refreshes && existing.is_active(timestamp) {
+                // Ignore refreshes: skip retrigger only while still in base duration.
+                // Once the cooldown enters the ready state it has effectively expired,
+                // so a new trigger is a fresh activation, not a refresh.
+                if def.ignore_refreshes && existing.is_in_base_duration(timestamp) {
                     continue;
                 }
 

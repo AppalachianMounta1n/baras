@@ -280,6 +280,20 @@ impl ActiveEffect {
         self.removed_at.is_none() && !self.has_duration_expired(current_game_time)
     }
 
+    /// Check if the effect is active AND still in its base duration (not in ready state).
+    ///
+    /// Used by `ignore_refreshes`: once a cooldown enters the ready state, the
+    /// cooldown has effectively expired and a new trigger is a fresh activation
+    /// rather than a refresh. For effects without `cooldown_ready_secs` this is
+    /// equivalent to `is_active`.
+    pub fn is_in_base_duration(&self, current_game_time: NaiveDateTime) -> bool {
+        if !self.is_active(current_game_time) {
+            return false;
+        }
+        let remaining_total = self.remaining_secs(current_game_time).unwrap_or(0.0);
+        !self.has_base_duration_ended(remaining_total)
+    }
+
     /// Get fill percentage for countdown display (1.0 = full, 0.0 = expired)
     ///
     /// Pass the current game time (latest log timestamp) for accurate calculation.
