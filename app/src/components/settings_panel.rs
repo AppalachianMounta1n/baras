@@ -569,13 +569,14 @@ pub fn SettingsPanel(
                                 label { "Bar Thickness" }
                                 input {
                                     r#type: "range",
-                                    min: "100",
+                                    min: "30",
                                     max: "200",
+                                    step: "5",
                                     value: "{(current_settings.metric_scaling_factor * 100.0) as i32}",
                                     oninput: move |e| {
                                         if let Ok(val) = e.value().parse::<i32>() {
                                             let mut new_settings = draft_settings();
-                                            new_settings.metric_scaling_factor = val as f32 / 100.0;
+                                            new_settings.metric_scaling_factor = (val as f32 / 100.0).clamp(0.3, 2.0);
                                             update_draft(new_settings);
                                         }
                                     }
@@ -737,14 +738,14 @@ pub fn SettingsPanel(
                                 label { "Font Scale" }
                                 input {
                                     r#type: "range",
-                                    min: "100",
+                                    min: "30",
                                     max: "200",
-                                    step: "10",
+                                    step: "5",
                                     value: "{(current_settings.metric_font_scale * 100.0) as i32}",
                                     oninput: move |e| {
                                         if let Ok(val) = e.value().parse::<i32>() {
                                             let mut new_settings = draft_settings();
-                                            new_settings.metric_font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
+                                            new_settings.metric_font_scale = (val as f32 / 100.0).clamp(0.3, 2.0);
                                             update_draft(new_settings);
                                         }
                                     }

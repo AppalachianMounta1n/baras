@@ -136,7 +136,7 @@ pub struct MetricOverlay {
     stack_from_bottom: bool,
     scaling_factor: f32,
     icon_mode: ClassIconMode,
-    /// Global font scale for metric bar text (1.0 - 2.0)
+    /// Global font scale for metric bar text (0.3 - 2.0)
     font_scale: f32,
     /// Global dynamic background setting for metrics
     dynamic_background: bool,
@@ -180,9 +180,9 @@ impl MetricOverlay {
             appearance,
             show_empty_bars,
             stack_from_bottom,
-            scaling_factor: scaling_factor.clamp(1.0, 2.0),
+            scaling_factor: scaling_factor.clamp(0.3, 2.0),
             icon_mode,
-            font_scale: font_scale.clamp(1.0, 2.0),
+            font_scale: font_scale.clamp(0.3, 2.0),
             dynamic_background,
             show_background_bar,
             european_number_format: false,
@@ -212,9 +212,9 @@ impl MetricOverlay {
         self.stack_from_bottom = stack;
     }
 
-    /// Update scaling factor (clamped to 1.0-2.0)
+    /// Update scaling factor (clamped to 0.3-2.0)
     pub fn set_scaling_factor(&mut self, factor: f32) {
-        self.scaling_factor = factor.clamp(1.0, 2.0);
+        self.scaling_factor = factor.clamp(0.3, 2.0);
     }
 
     /// Update icon display mode
@@ -222,9 +222,9 @@ impl MetricOverlay {
         self.icon_mode = mode;
     }
 
-    /// Update font scale (clamped to 1.0-2.0)
+    /// Update font scale (clamped to 0.3-2.0)
     pub fn set_font_scale(&mut self, scale: f32) {
-        self.font_scale = scale.clamp(1.0, 2.0);
+        self.font_scale = scale.clamp(0.3, 2.0);
     }
 
     /// Update dynamic background setting
@@ -262,7 +262,7 @@ impl MetricOverlay {
         // Base font size for header/footer (NOT affected by font_scale or scaling_factor)
         let base_font_size = self.frame.scaled(BASE_FONT_SIZE);
         // Font scale from global metric settings — only affects bar text, not header/footer
-        let font_scale = self.font_scale.clamp(1.0, 2.0);
+        let font_scale = self.font_scale.clamp(0.3, 2.0);
         let bar_font_size = self.frame.scaled(BASE_FONT_SIZE * font_scale);
         let scaled_bar_height = BASE_BAR_HEIGHT * self.scaling_factor;
         let ideal_bar_height = self.frame.scaled(scaled_bar_height);
