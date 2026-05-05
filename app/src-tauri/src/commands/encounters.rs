@@ -678,7 +678,9 @@ pub async fn fetch_area_bosses(
                         } else {
                             modified_timer_ids.push(timer.id.clone());
                         }
-                        if timer_has_pref_customization(original, timer) {
+                        if timer_has_pref_customization(original, timer)
+                            || has_roles_pref.contains(&timer.id)
+                        {
                             pref_customized_timer_ids.push(timer.id.clone());
                         }
                     }
