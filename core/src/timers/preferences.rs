@@ -203,6 +203,11 @@ impl TimerPreferences {
         pref.enabled = Some(enabled);
     }
 
+    /// Remove all overrides for a phase (reset to defaults)
+    pub fn clear_phase(&mut self, key: &str) {
+        self.phases.remove(key);
+    }
+
     // ─── Counter preference helpers ───────────────────────────────────
 
     /// Get preference for a counter by key
@@ -214,6 +219,11 @@ impl TimerPreferences {
     pub fn update_counter_enabled(&mut self, key: &str, enabled: bool) {
         let pref = self.counters.entry(key.to_string()).or_default();
         pref.enabled = Some(enabled);
+    }
+
+    /// Remove all overrides for a counter (reset to defaults)
+    pub fn clear_counter(&mut self, key: &str) {
+        self.counters.remove(key);
     }
 
     /// Return a copy with empty preferences removed
