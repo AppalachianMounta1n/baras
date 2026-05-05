@@ -388,6 +388,7 @@ is_final_boss = true
 has_victory_trigger = true
 victory_trigger = { type = "entity_death", selector = ["Machine Core"] }
 victory_trigger_difficulties = ["veteran"]
+pushes_at = 10.0
 
 # -- Entities --
 [[boss.entities]]
@@ -406,14 +407,53 @@ hp_percent = 28.0
 label = "Floor 3"
 
 [[boss.entities.hp_markers]]
-hp_percent = 9.0
+hp_percent = 10.0
 label = "Core Burn"
+
+[[boss.entities.shields]]
+label = "Resonance Shield"
+
+[boss.entities.shields.start_trigger]
+type = "effect_applied"
+effects = [3447578838433792]
+source = "any"
+target = "any"
+
+[boss.entities.shields.end_trigger]
+type = "effect_removed"
+effects = [3447578838433792]
+source = "any"
+target = "any"
+
+[[boss.entities.shields.hp]]
+difficulties = ["story"]
+group_size = 8
+total = 892961
+
+[[boss.entities.shields.hp]]
+difficulties = ["story"]
+group_size = 16
+total = 892961
+
+[[boss.entities.shields.hp]]
+difficulties = ["veteran"]
+group_size = 8
+total = 568227
+
+[[boss.entities.shields.hp]]
+difficulties = ["veteran"]
+group_size = 16
+total = 2000000
 
 [[boss.entities]]
 name = "HK-47"
 ids = [3444310368321536]
 is_boss = true
 is_kill_target = false
+
+[[boss.entities.hp_markers]]
+hp_percent = 80.0
+label = "Reactive Shield"
 
 [[boss.entities.hp_markers]]
 hp_percent = 9.0
@@ -513,12 +553,15 @@ difficulties = ["story", "veteran"]
 # -- Force Wield: Spawns two Blades --
 [[boss.timer]]
 id = "rev_blades"
-name = "Blades"
+name = "Blades Spawn"
 trigger = { type = "ability_cast", abilities = [3453089281474560] }
 duration_secs = 60
 color = [20, 138, 32, 255]
 icon_ability_id = 3453080691539968
 difficulties = ["story", "veteran"]
+
+[boss.timer.cancel_trigger]
+type = "any_phase_change"
 
 # -- Saber Overcharge: Next 3 attacks cleave --
 [[boss.timer]]
@@ -530,7 +573,10 @@ color = [255, 100, 255, 255]
 icon_ability_id = 3442094165196800
 difficulties = ["story", "veteran"]
 
-# -- Heave: 2s raid-wide damage channel, every 30s (HM) --
+[boss.timer.cancel_trigger]
+type = "any_phase_change"
+
+
 [[boss.timer]]
 id = "rev_heave"
 name = "Heave"
@@ -550,15 +596,8 @@ color = [175, 0, 200, 255]
 icon_ability_id = 3443275281203200
 difficulties = ["veteran"]
 
-# -- Essence Corruption: DPS debuff, 60s until death, must cleanse (HM) --
-[[boss.timer]]
-id = "rev_corruption"
-name = "Essence Corruption"
-trigger = { type = "ability_cast", abilities = [3447359795101696] }
-duration_secs = 11
-color = [100, 0, 200, 255]
-icon_ability_id = 3447359795101696
-difficulties = ["veteran"]
+[boss.timer.cancel_trigger]
+type = "any_phase_change"
 
 # -- Essence Corruption Alert on local player --
 [[boss.timer]]
@@ -580,14 +619,13 @@ difficulties = ["veteran"]
 # -- Force Imbue → Force-Imbued Killshot: Tank must hide behind beam (HM) --
 [[boss.timer]]
 id = "rev_killshot"
-name = "Force Imbue"
+name = "Killshot"
 trigger = { type = "ability_cast", abilities = [3447677622681600] }
 duration_secs = 5
 color = [200, 0, 0, 255]
 icon_ability_id = 3447673327714304
 difficulties = ["veteran"]
 
-# -- Force-Imbued Killshot follow-up timer --
 [[boss.timer]]
 id = "rev_force_imbue"
 name = "Force Imbue"
@@ -603,7 +641,7 @@ id = "rev_grenades"
 name = "Grenades"
 is_alert = true
 trigger = { type = "ability_cast", abilities = [3447669032747008] }
-alert_text = "Grenades! Spread!"
+alert_text = "Spread!"
 color = [224, 168, 33, 255]
 icon_ability_id = 3447669032747008
 difficulties = ["story", "veteran"]
@@ -628,47 +666,88 @@ difficulties = ["veteran"]
 id = "rev_aberration_p3"
 name = "Force Aberration"
 trigger = { type = "ability_cast", abilities = [3447523003858944] }
+icon_ability_id = 3449073487052800
 duration_secs = 23.5
 color = [104, 33, 224, 255]
 difficulties = ["story", "veteran"]
 
 # -- Floor 2 Push/Pull Chain (HM) --
-# Guide: "After a Push comes a Pull, then again a Push and so on. It starts with Push."
-# Push knocks outwards, Pull knocks inwards
-# Uses chains_to for clean timer loops
 
-# Initial Push (triggered by ability) → chains to Pull
 [[boss.timer]]
 id = "rev_push_p3"
-name = "Push"
-trigger = { type = "ability_cast", abilities = [3455881010216960] }
+name = "Push (Floor 2 1st)"
+display_text = "Push"
 duration_secs = 9.5
 color = [214, 33, 32, 255]
 difficulties = ["veteran"]
-conditions = [{ type = "phase_active", phase_ids = ["revan_p3"] }]
 chains_to = "rev_pull_p3"
+display_targets = ["timers_a"]
+roles = []
+queue_countdown_bar = false
+queue_hide_from_next = false
 
-# Pull (started via chain) → chains to Push loop
+[boss.timer.trigger]
+type = "ability_cast"
+abilities = [3455881010216960]
+source = "any"
+target = "any"
+
+[[boss.timer.conditions]]
+type = "phase_active"
+phase_ids = ["revan_p3"]
+
+[boss.timer.cancel_trigger]
+type = "phase_ended"
+phase_id = "revan_p3"
+
 [[boss.timer]]
 id = "rev_pull_p3"
-name = "Pull"
-trigger = { type = "manual" }
-duration_secs = 15
+name = "Pull (Floor 2 Chain)"
+display_text = "Pull"
+duration_secs = 15.0
 color = [32, 214, 214, 255]
 difficulties = ["veteran"]
-conditions = [{ type = "phase_active", phase_ids = ["revan_p3"] }]
 chains_to = "rev_push_p3_loop"
+display_targets = ["timers_a"]
+roles = []
+queue_countdown_bar = false
+queue_hide_from_next = false
 
-# Push loop (started via chain) → chains back to Pull
+[boss.timer.trigger]
+type = "manual"
+
+[[boss.timer.conditions]]
+type = "phase_active"
+phase_ids = ["revan_p3"]
+
+[boss.timer.cancel_trigger]
+type = "phase_ended"
+phase_id = "revan_p3"
+
 [[boss.timer]]
 id = "rev_push_p3_loop"
-name = "Push"
-trigger = { type = "manual" }
-duration_secs = 15
+name = "Push (Floor 2 Chain)"
+display_text = "Push"
+duration_secs = 15.0
 color = [214, 33, 32, 255]
 difficulties = ["veteran"]
-conditions = [{ type = "phase_active", phase_ids = ["revan_p3"] }]
 chains_to = "rev_pull_p3"
+display_targets = ["timers_a"]
+roles = []
+queue_countdown_bar = false
+queue_hide_from_next = false
+
+[boss.timer.trigger]
+type = "manual"
+
+[[boss.timer.conditions]]
+type = "phase_active"
+phase_ids = ["revan_p3"]
+
+[boss.timer.cancel_trigger]
+type = "phase_ended"
+phase_id = "revan_p3"
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Timers - Phase 4 (Floor 3 - Revan)
@@ -679,6 +758,7 @@ chains_to = "rev_pull_p3"
 id = "rev_unstable"
 name = "Unstable Aberration"
 trigger = { type = "ability_cast", abilities = [3449073487052800] }
+icon_ability_id = 3449073487052800
 duration_secs = 40
 color = [104, 33, 224, 255]
 difficulties = ["story", "veteran"]
@@ -686,36 +766,81 @@ difficulties = ["story", "veteran"]
 # -- Floor 3 Push/Pull Chain (HM) --
 
 # Initial Push after Resonance ends → chains to Pull
+
 [[boss.timer]]
 id = "rev_push_p4"
-name = "Push"
-trigger = { type = "effect_removed", effects = [3447578838433792] }
-duration_secs = 16
+name = "Push (Floor 3 1st)"
+display_text = "Push"
+duration_secs = 16.0
 color = [219, 30, 28, 255]
 difficulties = ["veteran"]
 chains_to = "rev_pull_p4"
+display_targets = ["timers_a"]
+roles = []
+queue_countdown_bar = false
+queue_hide_from_next = false
 
-# Pull (started via chain) → chains to Push loop
+[boss.timer.trigger]
+type = "effect_removed"
+effects = [3447578838433792]
+source = "any"
+target = "any"
+
+[boss.timer.audio]
+enabled = true
+file = "Push.mp3"
+countdown_start = 5
+
 [[boss.timer]]
 id = "rev_pull_p4"
-name = "Pull"
-trigger = { type = "manual" }
-duration_secs = 15
+name = "Pull (Floor 3 Chain)"
+display_text = "Pull"
+duration_secs = 15.0
 color = [28, 219, 214, 255]
 difficulties = ["veteran"]
-conditions = [{ type = "phase_active", phase_ids = ["revan_p4", "revan_core"] }]
 chains_to = "rev_push_p4_loop"
+display_targets = ["timers_a"]
+roles = []
+queue_countdown_bar = false
+queue_hide_from_next = false
 
-# Push loop (started via chain) → chains back to Pull
+[boss.timer.trigger]
+type = "manual"
+
+[[boss.timer.conditions]]
+type = "phase_active"
+phase_ids = ["revan_p4", "revan_core"]
+
+[boss.timer.audio]
+enabled = true
+file = "Alarm.mp3"
+countdown_start = 3
+
 [[boss.timer]]
 id = "rev_push_p4_loop"
-name = "Push"
-trigger = { type = "manual" }
-duration_secs = 15
+name = "Push (Floor 3 Chain)"
+display_text = "Push"
+duration_secs = 15.0
 color = [219, 36, 32, 255]
 difficulties = ["veteran"]
-conditions = [{ type = "phase_active", phase_ids = ["revan_p4", "revan_core"] }]
 chains_to = "rev_pull_p4"
+display_targets = ["timers_a"]
+roles = []
+queue_countdown_bar = false
+queue_hide_from_next = false
+
+[boss.timer.trigger]
+type = "manual"
+
+[[boss.timer.conditions]]
+type = "phase_active"
+phase_ids = ["revan_p4", "revan_core"]
+
+[boss.timer.audio]
+enabled = true
+file = "Alert.mp3"
+countdown_start = 3
+
 
 # -- Heave in Phase 4 --
 [[boss.timer]]
@@ -744,37 +869,6 @@ phase_ids = ["revan_core"]
 [[boss.challenge.conditions]]
 type = "target"
 match = { selector = [3447583133401088] }
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# HP Threshold Alerts
-# ═══════════════════════════════════════════════════════════════════════════════
-
-[[boss.timer]]
-id = "rev_hp_64"
-name = "Phase 2"
-is_alert = true
-trigger = { type = "boss_hp_below", hp_percent = 64.0, selector = ["Revan"] }
-alert_text = "64% - HK-47 Phase"
-color = [24, 224, 219, 255]
-difficulties = ["story", "veteran"]
-
-[[boss.timer]]
-id = "rev_hp_28"
-name = "Phase 4"
-is_alert = true
-trigger = { type = "boss_hp_below", hp_percent = 28.0, selector = ["Revan"] }
-alert_text = "28% - Floor 3"
-color = [33, 224, 223, 255]
-difficulties = ["story", "veteran"]
-
-[[boss.timer]]
-id = "rev_hp_9"
-name = "Burn Phase"
-is_alert = true
-trigger = { type = "boss_hp_below", hp_percent = 9.0, selector = ["Revan"] }
-alert_text = "Core Burn"
-color = [29, 224, 217, 255]
-difficulties = ["story", "veteran"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Combat Start Timers
