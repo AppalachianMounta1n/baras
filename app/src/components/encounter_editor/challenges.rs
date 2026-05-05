@@ -237,6 +237,7 @@ fn ChallengeRow(
                             ChallengeEditForm {
                                 challenge: challenge.clone(),
                                 encounter_data: encounter_data,
+                                is_builtin: is_builtin,
                                 on_dirty: move |dirty: bool| is_dirty.set(dirty),
                                 on_save: move |updated: ChallengeDefinition| {
                                     // Update parent state synchronously so props refresh and dirty indicator clears
@@ -298,6 +299,7 @@ fn ChallengeRow(
 fn ChallengeEditForm(
     challenge: ChallengeDefinition,
     encounter_data: EncounterData,
+    #[props(default)] is_builtin: bool,
     on_save: EventHandler<ChallengeDefinition>,
     on_delete: EventHandler<ChallengeDefinition>,
     #[props(default)] on_dirty: EventHandler<bool>,
@@ -602,10 +604,12 @@ fn ChallengeEditForm(
                     onclick: handle_save,
                     "Save"
                 }
-                button {
-                    class: "btn btn-danger btn-sm",
-                    onclick: handle_delete,
-                    "Delete"
+                if !is_builtin {
+                    button {
+                        class: "btn btn-danger btn-sm",
+                        onclick: handle_delete,
+                        "Delete"
+                    }
                 }
             }
         }
