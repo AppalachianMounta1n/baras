@@ -10,6 +10,6 @@ is_final_boss = true
 
 [[boss.entities]]
 name = "Xenoanalyst"
-ids = [3213924027596800, 3213928322564096, 3213919732629504]
+ids = [3213924027596800, 3213928322564096, 3213919732629504, 3153545377349632]
 is_boss = true
 is_kill_target = true
