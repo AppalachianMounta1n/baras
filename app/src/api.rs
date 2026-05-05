@@ -525,23 +525,6 @@ pub async fn delete_encounter_item(
     Ok(())
 }
 
-/// Reset user preferences (color/visibility/audio/enabled) for an encounter item to bundled defaults.
-pub async fn reset_encounter_item_preferences(
-    item_type: &str,
-    item_id: &str,
-    boss_id: &str,
-    file_path: &str,
-) -> Result<(), String> {
-    let obj = js_sys::Object::new();
-    js_set(&obj, "itemType", &JsValue::from_str(item_type));
-    js_set(&obj, "itemId", &JsValue::from_str(item_id));
-    js_set(&obj, "bossId", &JsValue::from_str(boss_id));
-    js_set(&obj, "filePath", &JsValue::from_str(file_path));
-
-    try_invoke("reset_encounter_item_preferences", obj.into()).await?;
-    Ok(())
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Encounter Editor Commands
 // ─────────────────────────────────────────────────────────────────────────────

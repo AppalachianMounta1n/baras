@@ -6790,16 +6790,6 @@ details[open] .collapsible-summary::before {
   color: var(--color-success, #2ecc71);
 }
 
-.timer-pref-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #f1c40f;
-  box-shadow: 0 0 4px rgba(241, 196, 15, 0.6);
-  flex-shrink: 0;
-  align-self: center;
-  margin-left: -2px;
-}
 
 .tag-muted {
   background: var(--bg-dark);

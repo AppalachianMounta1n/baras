@@ -862,10 +862,11 @@ impl TimerManager {
         timestamp: NaiveDateTime,
         target_id: Option<i64>,
     ) {
-        // Apply preference overrides
-        let color = self.preferences.get_color(def);
+        // Material fields (color, audio file) come from the definition.
+        // Preferences only override visibility and audio on/off.
+        let color = def.color;
         let audio_enabled = self.preferences.is_audio_enabled(def);
-        let audio_file = self.preferences.get_audio_file(def);
+        let audio_file = def.audio.file.clone();
         let role_hidden = !self.preferences.is_role_visible(def, self.current_role);
 
         // Determine if we should fire an alert on start

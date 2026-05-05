@@ -1,9 +1,9 @@
 //! Timer preferences - user-specific overrides for timer presentation
 //!
-//! Preferences are stored separately from definitions so users can:
-//! - Toggle timers on/off without modifying definition files
-//! - Customize colors and sounds
-//! - Share definition files without personal settings mixed in
+//! Preferences cover only personal toggles (visibility, role filter, audio
+//! on/off). Material changes — color, audio file, anything that alters what
+//! the timer *is* — live on the definition itself so they sync via
+//! `_custom.toml` and round-trip through encounter export.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -51,6 +51,8 @@ impl CounterPreference {
 
 /// Individual timer preference overrides.
 /// All fields are optional - only set fields override the definition.
+///
+/// Material fields (color, audio file, etc.) live on the definition, not here.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TimerPreference {
     /// Override enabled state
@@ -61,14 +63,6 @@ pub struct TimerPreference {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub audio_enabled: Option<bool>,
 
-    /// Override audio file path
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub audio_file: Option<String>,
-
-    /// Override display color [R, G, B, A]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub color: Option<[u8; 4]>,
-
     /// Role filter: which roles should see this timer
     /// None = all roles (default), Some([Tank]) = tank-only, etc.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -78,11 +72,7 @@ pub struct TimerPreference {
 impl TimerPreference {
     /// Check if this preference has any overrides set
     pub fn is_empty(&self) -> bool {
-        self.enabled.is_none()
-            && self.audio_enabled.is_none()
-            && self.audio_file.is_none()
-            && self.color.is_none()
-            && self.roles.is_none()
+        self.enabled.is_none() && self.audio_enabled.is_none() && self.roles.is_none()
     }
 }
 
@@ -165,18 +155,6 @@ impl TimerPreferences {
     pub fn update_audio_enabled(&mut self, key: &str, enabled: bool) {
         let pref = self.timers.entry(key.to_string()).or_default();
         pref.audio_enabled = Some(enabled);
-    }
-
-    /// Update audio file for a timer
-    pub fn update_audio_file(&mut self, key: &str, file: Option<String>) {
-        let pref = self.timers.entry(key.to_string()).or_default();
-        pref.audio_file = file;
-    }
-
-    /// Update color for a timer
-    pub fn update_color(&mut self, key: &str, color: [u8; 4]) {
-        let pref = self.timers.entry(key.to_string()).or_default();
-        pref.color = Some(color);
     }
 
     /// Update role filter for a timer (None = all roles)
@@ -323,15 +301,6 @@ impl TimerPreferences {
             .unwrap_or(def.enabled)
     }
 
-    /// Get effective color for a timer (preference overrides definition)
-    pub fn get_color(&self, def: &TimerDefinition) -> [u8; 4] {
-        let key = Self::key_for_definition(def);
-        self.timers
-            .get(&key)
-            .and_then(|p| p.color)
-            .unwrap_or(def.color)
-    }
-
     /// Get effective audio enabled state (preference overrides definition)
     pub fn is_audio_enabled(&self, def: &TimerDefinition) -> bool {
         let key = Self::key_for_definition(def);
@@ -339,15 +308,6 @@ impl TimerPreferences {
             .get(&key)
             .and_then(|p| p.audio_enabled)
             .unwrap_or(def.audio.enabled)
-    }
-
-    /// Get effective audio file (preference overrides definition)
-    pub fn get_audio_file(&self, def: &TimerDefinition) -> Option<String> {
-        let key = Self::key_for_definition(def);
-        self.timers
-            .get(&key)
-            .and_then(|p| p.audio_file.clone())
-            .or_else(|| def.audio.file.clone())
     }
 
     /// Check if timer should be visible for the given role.
@@ -423,10 +383,10 @@ mod tests {
         prefs.update_enabled("test.timer", false);
         assert_eq!(prefs.get("test.timer").unwrap().enabled, Some(false));
 
-        prefs.update_color("test.timer", [255, 0, 0, 255]);
+        prefs.update_audio_enabled("test.timer", false);
         assert_eq!(
-            prefs.get("test.timer").unwrap().color,
-            Some([255, 0, 0, 255])
+            prefs.get("test.timer").unwrap().audio_enabled,
+            Some(false)
         );
     }
 
