@@ -388,7 +388,6 @@ is_final_boss = true
 has_victory_trigger = true
 victory_trigger = { type = "entity_death", selector = ["Machine Core"] }
 victory_trigger_difficulties = ["veteran"]
-pushes_at = 10.0
 
 # -- Entities --
 [[boss.entities]]
@@ -397,6 +396,7 @@ ids = [3431605855059968]
 is_boss = true
 triggers_encounter = true
 is_kill_target = false    # Core is the actual kill target
+pushes_at = 10.0
 
 [[boss.entities.hp_markers]]
 hp_percent = 65.0
@@ -700,6 +700,12 @@ phase_ids = ["revan_p3"]
 type = "phase_ended"
 phase_id = "revan_p3"
 
+[boss.timer.audio]
+enabled = true
+file = "Push.mp3"
+offset = 5
+countdown_start = 4
+
 [[boss.timer]]
 id = "rev_pull_p3"
 name = "Pull (Floor 2 Chain)"
@@ -724,6 +730,12 @@ phase_ids = ["revan_p3"]
 type = "phase_ended"
 phase_id = "revan_p3"
 
+[boss.timer.audio]
+enabled = true
+file = "Pull.mp3"
+offset = 5
+countdown_start = 4
+
 [[boss.timer]]
 id = "rev_push_p3_loop"
 name = "Push (Floor 2 Chain)"
@@ -747,6 +759,12 @@ phase_ids = ["revan_p3"]
 [boss.timer.cancel_trigger]
 type = "phase_ended"
 phase_id = "revan_p3"
+
+[boss.timer.audio]
+enabled = true
+file = "Push.mp3"
+offset = 5
+countdown_start = 4
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -789,7 +807,8 @@ target = "any"
 [boss.timer.audio]
 enabled = true
 file = "Push.mp3"
-countdown_start = 5
+offset = 5
+countdown_start = 4
 
 [[boss.timer]]
 id = "rev_pull_p4"
@@ -813,8 +832,9 @@ phase_ids = ["revan_p4", "revan_core"]
 
 [boss.timer.audio]
 enabled = true
-file = "Alarm.mp3"
-countdown_start = 3
+file = "Pull.mp3"
+offset = 5
+countdown_start = 4
 
 [[boss.timer]]
 id = "rev_push_p4_loop"
@@ -838,8 +858,9 @@ phase_ids = ["revan_p4", "revan_core"]
 
 [boss.timer.audio]
 enabled = true
-file = "Alert.mp3"
-countdown_start = 3
+file = "Push.mp3"
+offset = 5
+countdown_start = 4
 
 
 # -- Heave in Phase 4 --
