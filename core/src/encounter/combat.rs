@@ -375,6 +375,9 @@ impl CombatEncounter {
         // Track by all identifiers
         npc.current_hp = current;
         npc.max_hp = max;
+        if current < max {
+            npc.is_displayed = true;
+        }
 
         let new_pct = npc.hp_percent();
         if old_percent != new_pct {
@@ -405,6 +408,9 @@ impl CombatEncounter {
     /// definitions with the same slot index remain independent.
     pub fn activate_shield(&mut self, npc_log_id: i64, entity_name: &str, shield_idx: usize, total: i64) {
         self.boss_shields.insert((npc_log_id, entity_name.to_string(), shield_idx), (total, total));
+        if let Some(npc) = self.npcs.get_mut(&npc_log_id) {
+            npc.is_displayed = true;
+        }
     }
 
     /// Deactivate a specific boss shield by NPC instance and entity definition name.
@@ -448,19 +454,10 @@ impl CombatEncounter {
         let mut entries: Vec<OverlayHealthEntry> = self
             .npcs
             .values()
-            // Only show NPCs that have taken damage (under 100% HP) to avoid
-            // cluttering the overlay with spawned-but-inactive enemies. Bosses
-            // at full HP are still shown if they have an active shield, so the
-            // shield bar is visible during pre-damage shield phases.
-            .filter(|npc| {
-                if !entity_class_ids.contains(&npc.class_id) {
-                    return false;
-                }
-                if npc.current_hp < npc.max_hp {
-                    return true;
-                }
-                self.boss_shields.keys().any(|(log_id, _, _)| *log_id == npc.log_id)
-            })
+            // Only show NPCs that have qualified once (took damage or had a
+            // shield applied). The flag is sticky for the encounter, so an NPC
+            // healed back to 100% remains visible instead of disappearing.
+            .filter(|npc| entity_class_ids.contains(&npc.class_id) && npc.is_displayed)
             .map(|npc| {
                 // Look up entity definition for hp_markers and shields
                 let entity_def = def.entity_for_id(npc.class_id);
