@@ -860,7 +860,7 @@ trigger = { type = "phase_ended", phase_id = "fs_shield" }
 icon_ability_id = 2876661720678400
 duration_secs = 26
 color = [219, 94, 32, 255]
-difficulties = ["master"]
+difficulties = ["veteran", "master"]
 cancel_trigger = { type = "phase_entered", phase_id = "fs_shield" }
 
 [[boss.timer]]
