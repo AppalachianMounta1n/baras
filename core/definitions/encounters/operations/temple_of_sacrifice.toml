@@ -456,7 +456,7 @@ hp_percent = 80.0
 label = "Reactive Shield"
 
 [[boss.entities.hp_markers]]
-hp_percent = 9.0
+hp_percent = 10.0
 label = "HK Pushes"
 
 [[boss.entities]]
@@ -550,6 +550,9 @@ color = [219, 32, 28, 255]
 icon_ability_id = 3514803666550784
 difficulties = ["story", "veteran"]
 
+[boss.timer.cancel_trigger]
+type = "any_phase_change"
+
 # -- Force Wield: Spawns two Blades --
 [[boss.timer]]
 id = "rev_blades"
@@ -585,6 +588,17 @@ duration_secs = 30
 color = [255, 187, 0, 255]
 icon_ability_id = 3462632698806272
 difficulties = ["veteran"]
+
+[boss.timer.cancel_trigger]
+type = "any_of"
+
+[[boss.timer.cancel_trigger.conditions]]
+type = "phase_ended"
+phase_id = "revan_p1"
+
+[[boss.timer.cancel_trigger.conditions]]
+type = "phase_ended"
+phase_id = "revan_p3"
 
 # -- Trail of Agony: Tank drops pink circles for 10s (HM) --
 [[boss.timer]]
@@ -626,14 +640,20 @@ color = [200, 0, 0, 255]
 icon_ability_id = 3447673327714304
 difficulties = ["veteran"]
 
+[boss.timer.cancel_trigger]
+type = "any_phase_change"
+
 [[boss.timer]]
 id = "rev_force_imbue"
 name = "Force Imbue"
 trigger = { type = "timer_expires", timer_id = "rev_killshot" }
 duration_secs = 40
 color = [200, 0, 0, 255]
-icon_ability_id = 3447673327714304
+icon_ability_id = 3447677622681600
 difficulties = ["veteran"]
+
+[boss.timer.cancel_trigger]
+type = "any_phase_change"
 
 # -- Handful of Grenades: Planted on everyone, explode after 5s --
 [[boss.timer]]
@@ -671,6 +691,9 @@ duration_secs = 23.5
 color = [104, 33, 224, 255]
 difficulties = ["story", "veteran"]
 
+[boss.timer.cancel_trigger]
+type = "any_phase_change"
+
 # -- Floor 2 Push/Pull Chain (HM) --
 
 [[boss.timer]]
@@ -703,8 +726,7 @@ phase_id = "revan_p3"
 [boss.timer.audio]
 enabled = true
 file = "Push.mp3"
-offset = 5
-countdown_start = 4
+offset = 3
 
 [[boss.timer]]
 id = "rev_pull_p3"
@@ -733,8 +755,7 @@ phase_id = "revan_p3"
 [boss.timer.audio]
 enabled = true
 file = "Pull.mp3"
-offset = 5
-countdown_start = 4
+offset = 3
 
 [[boss.timer]]
 id = "rev_push_p3_loop"
@@ -763,8 +784,7 @@ phase_id = "revan_p3"
 [boss.timer.audio]
 enabled = true
 file = "Push.mp3"
-offset = 5
-countdown_start = 4
+offset = 3
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -807,8 +827,7 @@ target = "any"
 [boss.timer.audio]
 enabled = true
 file = "Push.mp3"
-offset = 5
-countdown_start = 4
+offset = 3
 
 [[boss.timer]]
 id = "rev_pull_p4"
@@ -833,8 +852,7 @@ phase_ids = ["revan_p4", "revan_core"]
 [boss.timer.audio]
 enabled = true
 file = "Pull.mp3"
-offset = 5
-countdown_start = 4
+offset = 3
 
 [[boss.timer]]
 id = "rev_push_p4_loop"
@@ -859,8 +877,7 @@ phase_ids = ["revan_p4", "revan_core"]
 [boss.timer.audio]
 enabled = true
 file = "Push.mp3"
-offset = 5
-countdown_start = 4
+offset = 3
 
 
 # -- Heave in Phase 4 --
@@ -897,7 +914,7 @@ match = { selector = [3447583133401088] }
 
 [[boss.timer]]
 id = "rev_corruption_cs"
-name = "Essence Corruption"
+name = "Essence Corruption Start"
 trigger = { type = "combat_start" }
 duration_secs = 10
 color = [100, 0, 200, 255]
