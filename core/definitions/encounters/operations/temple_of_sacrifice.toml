@@ -192,7 +192,8 @@ icon_ability_id = 3498933762392064
 
 [[boss.timer]]
 id = "sword_squadron_rapid_fire_1st"
-name = "Rapid fire 1st"
+name = "Rapid Fire 1st"
+display_text = "Rapid Fire"
 duration_secs = 16.0
 color = [222, 123, 0, 255]
 icon_ability_id = 3448046989869056
@@ -215,8 +216,8 @@ type = "ability_cast"
 abilities = [3448046989869056]
 
 [[boss.timer]]
-id = "sword_squadron_huge_grenade_on_you"
-name = "Huge grenade on you"
+id = "sword_squadron_grenade Explodes"
+name = "Grenade Explodes"
 duration_secs = 7.0
 color = [175, 75, 0, 255]
 icon_ability_id = 3448055579803648
@@ -229,7 +230,7 @@ target = "local_player"
 
 [[boss.timer]]
 id = "sword_squadron_mega_blast_soon"
-name = "Mega blast soon"
+name = "Mega Blast Soon"
 duration_secs = 16.0
 color = [255, 0, 100, 255]
 icon_ability_id = 3448051284836352
