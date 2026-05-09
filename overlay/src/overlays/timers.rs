@@ -187,7 +187,14 @@ impl TimerOverlay {
             ("Mechanic C", "1:30", 0.10_f32),
         ];
 
-        let mut y = padding;
+        let n = previews.len() as f32;
+        let total_bars_height = n * bar_height + (n - 1.0) * entry_spacing;
+        let window_height = self.frame.height() as f32;
+        let mut y = if self.config.stack_from_bottom {
+            (window_height - padding - total_bars_height).max(padding)
+        } else {
+            padding
+        };
 
         for (name, time_text, progress) in &previews {
             ProgressBar::new(*name, *progress)
@@ -240,17 +247,35 @@ impl TimerOverlay {
         // Compute content height for dynamic background
         let max_display = self.config.max_display as usize;
         let num_entries = self.data.entries.iter().take(max_display).count();
+        let total_bars_height = if num_entries > 0 {
+            num_entries as f32 * bar_height + (num_entries - 1).max(0) as f32 * entry_spacing
+        } else {
+            0.0
+        };
         let content_height = if num_entries > 0 {
-            padding * 2.0
-                + num_entries as f32 * bar_height
-                + (num_entries - 1).max(0) as f32 * entry_spacing
+            padding * 2.0 + total_bars_height
         } else {
             0.0
         };
 
+        // Compute starting y based on stack direction (before begin_frame so we
+        // can position the dynamic background)
+        let window_height = self.frame.height() as f32;
+        let bars_start_y = if self.config.stack_from_bottom {
+            (window_height - padding - total_bars_height).max(padding)
+        } else {
+            padding
+        };
+
         // Begin frame (clear, background, border)
         if self.config.dynamic_background {
-            self.frame.begin_frame_with_content_height(content_height);
+            if self.config.stack_from_bottom {
+                let content_y = (bars_start_y - padding).max(0.0);
+                self.frame
+                    .begin_frame_with_content_rect(content_y, content_height);
+            } else {
+                self.frame.begin_frame_with_content_height(content_height);
+            }
         } else {
             self.frame.begin_frame();
         }
@@ -269,7 +294,7 @@ impl TimerOverlay {
         let icon_padding = 2.0 * self.frame.scale_factor();
         let icon_size_u32 = icon_size.round() as u32;
 
-        let mut y = padding;
+        let mut y = bars_start_y;
 
         for entry in self.data.entries.iter().take(max_display) {
             let bar_color = color_from_rgba(entry.color);

@@ -396,6 +396,7 @@ impl OverlayManager {
                     header_title: "Effects A".to_string(),
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
+                    stack_from_bottom: cfg.stack_from_bottom,
                 };
                 OverlayConfigUpdate::EffectsA(buffs_config, settings.effects_a_opacity, eu)
             }
@@ -419,6 +420,7 @@ impl OverlayManager {
                     header_title: "Effects B".to_string(),
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
+                    stack_from_bottom: cfg.stack_from_bottom,
                 };
                 OverlayConfigUpdate::EffectsB(debuffs_config, settings.effects_b_opacity, eu)
             }
@@ -435,6 +437,7 @@ impl OverlayManager {
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
                     layout_bar: cfg.layout_bar,
+                    stack_from_bottom: cfg.stack_from_bottom,
                 };
                 OverlayConfigUpdate::Cooldowns(cooldowns_config, settings.cooldown_tracker_opacity, eu)
             }
@@ -450,6 +453,7 @@ impl OverlayManager {
                     show_countdown: cfg.show_countdown,
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
+                    stack_from_bottom: cfg.stack_from_bottom,
                 };
                 OverlayConfigUpdate::DotTracker(dot_config, settings.dot_tracker_opacity, eu)
             }

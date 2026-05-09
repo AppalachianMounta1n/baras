@@ -95,6 +95,8 @@ pub struct EffectsABConfig {
     pub font_scale: f32,
     /// When true, background shrinks to fit content instead of filling the window
     pub dynamic_background: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    pub stack_from_bottom: bool,
 }
 
 impl Default for EffectsABConfig {
@@ -110,6 +112,7 @@ impl Default for EffectsABConfig {
             header_title: String::new(),
             font_scale: 1.0,
             dynamic_background: true,
+            stack_from_bottom: false,
         }
     }
 }
@@ -254,24 +257,49 @@ impl EffectsABOverlay {
         // Count visible entries for dynamic background
         let num_visible = self.data.effects.iter().take(max_display).count();
 
-        // Compute content height for dynamic background
-        let content_height = if num_visible == 0 {
-            if self.config.show_header {
-                padding * 2.0 + header_space
-            } else {
-                0.0
-            }
+        // Inner content height (without padding) and total content height
+        let inner_height = if num_visible == 0 {
+            if self.config.show_header { header_space } else { 0.0 }
         } else {
-            let mut h = padding * 2.0 + header_space + icon_size;
+            let mut h = header_space + icon_size;
             if self.config.show_effect_names {
                 let name_font_size = font_size * 0.85;
                 h += name_font_size + 2.0;
             }
             h
         };
+        let content_height = if num_visible == 0 && !self.config.show_header {
+            0.0
+        } else {
+            padding * 2.0 + inner_height
+        };
+
+        // Compute icon row y position based on stack direction
+        let window_height = self.frame.height() as f32;
+        let icon_row_y = if self.config.stack_from_bottom && num_visible > 0 {
+            let extra_below = if self.config.show_effect_names {
+                font_size * 0.85 + 2.0
+            } else {
+                0.0
+            };
+            (window_height - padding - icon_size - extra_below).max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom && num_visible > 0 {
+            (icon_row_y - header_space).max(padding)
+        } else {
+            padding
+        };
 
         if self.config.dynamic_background {
-            self.frame.begin_frame_with_content_height(content_height);
+            if self.config.stack_from_bottom && num_visible > 0 {
+                let content_y = (header_y - padding).max(0.0);
+                self.frame
+                    .begin_frame_with_content_rect(content_y, content_height);
+            } else {
+                self.frame.begin_frame_with_content_height(content_height);
+            }
         } else {
             self.frame.begin_frame();
         }
@@ -284,7 +312,7 @@ impl EffectsABOverlay {
                 .render(
                     &mut self.frame,
                     padding,
-                    padding,
+                    header_y,
                     content_width,
                     header_font_size,
                     spacing,
@@ -297,7 +325,7 @@ impl EffectsABOverlay {
         }
 
         let mut x = padding;
-        let y = padding + header_space;
+        let y = icon_row_y;
         let icon_size_u32 = icon_size as u32;
 
         // Clone effects to avoid borrow issues
@@ -429,8 +457,31 @@ impl EffectsABOverlay {
             padding * 2.0 + header_space + num_visible as f32 * row_height
         };
 
+        // Position rows based on stack direction. Vertical layout uses row_height
+        // (icon_size + row_spacing); the bottom of the last row should sit at
+        // window_height - padding minus the trailing inter-row spacing.
+        let window_height = self.frame.height() as f32;
+        let total_rows_height = num_visible as f32 * row_height;
+        let rows_start_y = if self.config.stack_from_bottom && num_visible > 0 {
+            (window_height - padding - total_rows_height + row_spacing)
+                .max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom && num_visible > 0 {
+            (rows_start_y - header_space).max(padding)
+        } else {
+            padding
+        };
+
         if self.config.dynamic_background {
-            self.frame.begin_frame_with_content_height(content_height);
+            if self.config.stack_from_bottom && num_visible > 0 {
+                let content_y = (header_y - padding).max(0.0);
+                self.frame
+                    .begin_frame_with_content_rect(content_y, content_height);
+            } else {
+                self.frame.begin_frame_with_content_height(content_height);
+            }
         } else {
             self.frame.begin_frame();
         }
@@ -443,7 +494,7 @@ impl EffectsABOverlay {
                 .render(
                     &mut self.frame,
                     padding,
-                    padding,
+                    header_y,
                     content_width,
                     header_font_size,
                     row_spacing,
@@ -455,7 +506,7 @@ impl EffectsABOverlay {
             return;
         }
 
-        let mut y = padding + header_space;
+        let mut y = rows_start_y;
         let icon_size_u32 = icon_size as u32;
 
         // Clone effects to avoid borrow issues
@@ -581,17 +632,37 @@ impl EffectsABOverlay {
         };
 
         let num_visible = self.data.effects.iter().take(max_display).count();
+        let total_bars_height = if num_visible > 0 {
+            num_visible as f32 * bar_height + (num_visible - 1) as f32 * entry_spacing
+        } else {
+            0.0
+        };
         let content_height = if num_visible == 0 {
             if self.config.show_header { padding * 2.0 + header_space } else { 0.0 }
         } else {
-            padding * 2.0
-                + header_space
-                + num_visible as f32 * bar_height
-                + (num_visible - 1) as f32 * entry_spacing
+            padding * 2.0 + header_space + total_bars_height
+        };
+
+        let window_height = self.frame.height() as f32;
+        let bars_start_y = if self.config.stack_from_bottom && num_visible > 0 {
+            (window_height - padding - total_bars_height).max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom && num_visible > 0 {
+            (bars_start_y - header_space).max(padding)
+        } else {
+            padding
         };
 
         if self.config.dynamic_background {
-            self.frame.begin_frame_with_content_height(content_height);
+            if self.config.stack_from_bottom && num_visible > 0 {
+                let content_y = (header_y - padding).max(0.0);
+                self.frame
+                    .begin_frame_with_content_rect(content_y, content_height);
+            } else {
+                self.frame.begin_frame_with_content_height(content_height);
+            }
         } else {
             self.frame.begin_frame();
         }
@@ -599,7 +670,7 @@ impl EffectsABOverlay {
         if self.config.show_header && !self.config.header_title.is_empty() {
             Header::new(&self.config.header_title)
                 .with_color(colors::white())
-                .render(&mut self.frame, padding, padding, content_width, header_font_size, entry_spacing);
+                .render(&mut self.frame, padding, header_y, content_width, header_font_size, entry_spacing);
         }
 
         if self.data.effects.is_empty() {
@@ -608,7 +679,7 @@ impl EffectsABOverlay {
         }
 
         let effects: Vec<_> = self.data.effects.iter().take(max_display).cloned().collect();
-        let mut y = padding + header_space;
+        let mut y = bars_start_y;
 
         for effect in &effects {
             // Build label: stacks prefix + optional name + optional source
@@ -836,6 +907,23 @@ impl EffectsABOverlay {
 
         self.frame.begin_frame();
 
+        let window_height = self.frame.height() as f32;
+        let extra_below = if self.config.show_effect_names {
+            font_size * 0.85 + 2.0
+        } else {
+            0.0
+        };
+        let icon_row_y = if self.config.stack_from_bottom {
+            (window_height - padding - icon_size - extra_below).max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom {
+            (icon_row_y - header_space).max(padding)
+        } else {
+            padding
+        };
+
         // Render header if enabled
         if self.config.show_header && !self.config.header_title.is_empty() {
             let content_width = self.frame.width() as f32 - 2.0 * padding;
@@ -844,7 +932,7 @@ impl EffectsABOverlay {
                 .render(
                     &mut self.frame,
                     padding,
-                    padding,
+                    header_y,
                     content_width,
                     header_font_size,
                     spacing,
@@ -852,7 +940,7 @@ impl EffectsABOverlay {
         }
 
         let mut x = padding;
-        let y = padding + header_space;
+        let y = icon_row_y;
 
         // Sample preview data: (time, stacks)
         let previews = [("12.3", 3u8), ("45", 1u8), ("8.5", 2u8)];
@@ -919,6 +1007,24 @@ impl EffectsABOverlay {
 
         self.frame.begin_frame();
 
+        // Sample preview data: (time, stacks)
+        let previews = [("12.3", 3u8), ("45", 1u8), ("8.5", 2u8)];
+
+        let window_height = self.frame.height() as f32;
+        let n = previews.len() as f32;
+        let total_rows_height = n * row_height;
+        let rows_start_y = if self.config.stack_from_bottom {
+            (window_height - padding - total_rows_height + row_spacing)
+                .max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom {
+            (rows_start_y - header_space).max(padding)
+        } else {
+            padding
+        };
+
         // Render header if enabled
         if self.config.show_header && !self.config.header_title.is_empty() {
             let content_width = self.frame.width() as f32 - 2.0 * padding;
@@ -927,17 +1033,14 @@ impl EffectsABOverlay {
                 .render(
                     &mut self.frame,
                     padding,
-                    padding,
+                    header_y,
                     content_width,
                     header_font_size,
                     row_spacing,
                 );
         }
 
-        let mut y = padding + header_space;
-
-        // Sample preview data: (time, stacks)
-        let previews = [("12.3", 3u8), ("45", 1u8), ("8.5", 2u8)];
+        let mut y = rows_start_y;
 
         for (_time_text, stacks) in &previews {
             let x = padding;
@@ -1014,19 +1117,33 @@ impl EffectsABOverlay {
 
         self.frame.begin_frame();
 
-        if self.config.show_header && !self.config.header_title.is_empty() {
-            Header::new(&self.config.header_title)
-                .with_color(colors::white())
-                .render(&mut self.frame, padding, padding, content_width, header_font_size, entry_spacing);
-        }
-
         let previews = [
             ("3x Effect Name", "12.3", 0.75_f32),
             ("Effect Name", "45.0", 0.40_f32),
             ("2x Effect Name (Source)", "8.5", 0.10_f32),
         ];
 
-        let mut y = padding + header_space;
+        let window_height = self.frame.height() as f32;
+        let n = previews.len() as f32;
+        let total_bars_height = n * bar_height + (n - 1.0) * entry_spacing;
+        let bars_start_y = if self.config.stack_from_bottom {
+            (window_height - padding - total_bars_height).max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom {
+            (bars_start_y - header_space).max(padding)
+        } else {
+            padding
+        };
+
+        if self.config.show_header && !self.config.header_title.is_empty() {
+            Header::new(&self.config.header_title)
+                .with_color(colors::white())
+                .render(&mut self.frame, padding, header_y, content_width, header_font_size, entry_spacing);
+        }
+
+        let mut y = bars_start_y;
         for (name, time_text, progress) in &previews {
             let mut bar = ProgressBar::new(*name, *progress)
                 .with_fill_color(colors::effect_icon_bg())

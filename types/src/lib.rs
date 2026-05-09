@@ -1710,6 +1710,9 @@ pub struct TimerOverlayConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
 }
 
 fn default_timer_bar_color() -> Color {
@@ -1728,6 +1731,7 @@ impl Default for TimerOverlayConfig {
             sort_by_remaining: true,
             font_scale: 1.0,
             dynamic_background: false,
+            stack_from_bottom: false,
         }
     }
 }
@@ -1907,6 +1911,9 @@ pub struct EffectsAConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
 }
 
 fn default_icon_size() -> u8 {
@@ -1929,6 +1936,7 @@ impl Default for EffectsAConfig {
             show_header: false,
             font_scale: 1.0,
             dynamic_background: false,
+            stack_from_bottom: false,
         }
     }
 }
@@ -1966,6 +1974,9 @@ pub struct EffectsBConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
 }
 
 impl Default for EffectsBConfig {
@@ -1981,6 +1992,7 @@ impl Default for EffectsBConfig {
             show_header: false,
             font_scale: 1.0,
             dynamic_background: false,
+            stack_from_bottom: false,
         }
     }
 }
@@ -2026,6 +2038,9 @@ pub struct CooldownTrackerConfig {
     /// Render cooldowns as stacked progress bars instead of icons
     #[serde(default)]
     pub layout_bar: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
 }
 
 fn default_max_cooldowns() -> u8 {
@@ -2045,6 +2060,7 @@ impl Default for CooldownTrackerConfig {
             font_scale: 1.0,
             dynamic_background: false,
             layout_bar: false,
+            stack_from_bottom: false,
         }
     }
 }
@@ -2086,6 +2102,9 @@ pub struct DotTrackerConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
 }
 
 fn default_max_targets() -> u8 {
@@ -2111,6 +2130,7 @@ impl Default for DotTrackerConfig {
             show_countdown: true,
             font_scale: 1.0,
             dynamic_background: false,
+            stack_from_bottom: false,
         }
     }
 }

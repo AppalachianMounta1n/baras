@@ -807,6 +807,7 @@ pub fn create_effects_a_overlay(
         header_title: "Effects A".to_string(),
         font_scale: effects_config.font_scale,
         dynamic_background: effects_config.dynamic_background,
+        stack_from_bottom: effects_config.stack_from_bottom,
     };
 
     let factory = move || {
@@ -862,6 +863,7 @@ pub fn create_effects_b_overlay(
         header_title: "Effects B".to_string(),
         font_scale: effects_config.font_scale,
         dynamic_background: effects_config.dynamic_background,
+        stack_from_bottom: effects_config.stack_from_bottom,
     };
 
     let factory = move || {
@@ -909,6 +911,7 @@ pub fn create_cooldowns_overlay(
         font_scale: cooldowns_config.font_scale,
         dynamic_background: cooldowns_config.dynamic_background,
         layout_bar: cooldowns_config.layout_bar,
+        stack_from_bottom: cooldowns_config.stack_from_bottom,
     };
 
     let factory = move || {
@@ -955,6 +958,7 @@ pub fn create_dot_tracker_overlay(
         show_countdown: dot_config.show_countdown,
         font_scale: dot_config.font_scale,
         dynamic_background: dot_config.dynamic_background,
+        stack_from_bottom: dot_config.stack_from_bottom,
     };
 
     let factory = move || {

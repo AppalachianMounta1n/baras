@@ -949,6 +949,18 @@ pub fn SettingsPanel(
                             }
                         }
                     }
+                    div { class: "setting-row",
+                        label { "Stack from Bottom" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.timers_a_overlay.stack_from_bottom,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.timers_a_overlay.stack_from_bottom = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
 
                     div { class: "setting-row reset-row",
                         button {
@@ -1021,6 +1033,18 @@ pub fn SettingsPanel(
                             onchange: move |e: Event<FormData>| {
                                 let mut new_settings = draft_settings();
                                 new_settings.timers_b_overlay.dynamic_background = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Stack from Bottom" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.timers_b_overlay.stack_from_bottom,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.timers_b_overlay.stack_from_bottom = e.checked();
                                 update_draft(new_settings);
                             }
                         }
@@ -1203,6 +1227,18 @@ pub fn SettingsPanel(
                             }
                         }
                     }
+                    div { class: "setting-row",
+                        label { "Stack from Bottom" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.effects_a.stack_from_bottom,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.effects_a.stack_from_bottom = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
 
                     div { class: "setting-row reset-row",
                         button {
@@ -1381,6 +1417,18 @@ pub fn SettingsPanel(
                             }
                         }
                     }
+                    div { class: "setting-row",
+                        label { "Stack from Bottom" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.effects_b.stack_from_bottom,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.effects_b.stack_from_bottom = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
 
                     div { class: "setting-row reset-row",
                         button {
@@ -1527,6 +1575,18 @@ pub fn SettingsPanel(
                             onchange: move |e: Event<FormData>| {
                                 let mut new_settings = draft_settings();
                                 new_settings.cooldown_tracker.dynamic_background = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Stack from Bottom" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.cooldown_tracker.stack_from_bottom,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.cooldown_tracker.stack_from_bottom = e.checked();
                                 update_draft(new_settings);
                             }
                         }
@@ -1699,6 +1759,18 @@ pub fn SettingsPanel(
                             onchange: move |e: Event<FormData>| {
                                 let mut new_settings = draft_settings();
                                 new_settings.dot_tracker.dynamic_background = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Stack from Bottom" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.dot_tracker.stack_from_bottom,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.dot_tracker.stack_from_bottom = e.checked();
                                 update_draft(new_settings);
                             }
                         }

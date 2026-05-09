@@ -91,6 +91,8 @@ pub struct DotTrackerConfig {
     pub font_scale: f32,
     /// When true, background shrinks to fit content instead of filling the window
     pub dynamic_background: bool,
+    /// When true, target rows stack from the bottom of the overlay window
+    pub stack_from_bottom: bool,
 }
 
 impl Default for DotTrackerConfig {
@@ -105,6 +107,7 @@ impl Default for DotTrackerConfig {
             show_countdown: true,
             font_scale: 1.0,
             dynamic_background: true,
+            stack_from_bottom: false,
         }
     }
 }
@@ -255,9 +258,30 @@ impl DotTrackerOverlay {
             0.0
         };
 
+        // Compute starting y based on stack direction
+        let window_height = self.frame.height() as f32;
+        let total_rows_height = num_visible as f32 * row_height;
+        let rows_start_y = if self.config.stack_from_bottom && num_visible > 0 {
+            (window_height - padding - total_rows_height + row_spacing)
+                .max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom && num_visible > 0 {
+            (rows_start_y - header_space).max(padding)
+        } else {
+            padding
+        };
+
         // Begin frame (clear, background, border)
         if self.config.dynamic_background {
-            self.frame.begin_frame_with_content_height(content_height);
+            if self.config.stack_from_bottom && num_visible > 0 {
+                let content_y = (header_y - padding).max(0.0);
+                self.frame
+                    .begin_frame_with_content_rect(content_y, content_height);
+            } else {
+                self.frame.begin_frame_with_content_height(content_height);
+            }
         } else {
             self.frame.begin_frame();
         }
@@ -270,7 +294,7 @@ impl DotTrackerOverlay {
                 .render(
                     &mut self.frame,
                     padding,
-                    padding,
+                    header_y,
                     content_width,
                     header_font_size,
                     row_spacing,
@@ -282,7 +306,7 @@ impl DotTrackerOverlay {
             return;
         }
 
-        let mut y = padding + header_space;
+        let mut y = rows_start_y;
         let icon_size_u32 = icon_size as u32;
 
         for target in self.data.targets.iter().take(max_targets) {
@@ -443,6 +467,27 @@ impl DotTrackerOverlay {
 
         self.frame.begin_frame();
 
+        // Sample preview data: 2 targets with 3 DOTs each
+        let targets = [
+            ("Target 1", [("12.3", 2u8), ("8.5", 1u8), ("45", 0u8)]),
+            ("Target 2", [("5.2", 3u8), ("18", 1u8), ("3.1", 0u8)]),
+        ];
+
+        let window_height = self.frame.height() as f32;
+        let n = targets.len() as f32;
+        let total_rows_height = n * row_height;
+        let rows_start_y = if self.config.stack_from_bottom {
+            (window_height - padding - total_rows_height + row_spacing)
+                .max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom {
+            (rows_start_y - header_space).max(padding)
+        } else {
+            padding
+        };
+
         // Render header if enabled
         if self.config.show_header {
             let content_width = self.frame.width() as f32 - 2.0 * padding;
@@ -451,20 +496,14 @@ impl DotTrackerOverlay {
                 .render(
                     &mut self.frame,
                     padding,
-                    padding,
+                    header_y,
                     content_width,
                     header_font_size,
                     row_spacing,
                 );
         }
 
-        let mut y = padding + header_space;
-
-        // Sample preview data: 2 targets with 3 DOTs each
-        let targets = [
-            ("Target 1", [("12.3", 2u8), ("8.5", 1u8), ("45", 0u8)]),
-            ("Target 2", [("5.2", 3u8), ("18", 1u8), ("3.1", 0u8)]),
-        ];
+        let mut y = rows_start_y;
 
         for (target_name, dots) in &targets {
             let x = padding;
