@@ -1549,7 +1549,7 @@ target = "local_player"
 
 [[boss.timer]]
 id = "the_terror_from_beyond_tentacle_under_10"
-name = "Tentacle under 10%"
+name = "Tentacle Sub-10%"
 is_alert = true
 color = [0, 225, 255, 255]
 difficulties = ["veteran", "master"]
@@ -1561,7 +1561,7 @@ selector = ["Tunneling Tentacle"]
 
 [[boss.timer]]
 id = "the_terror_from_beyond_enraged_tentacle"
-name = "Enraged tentacle"
+name = "Tentacle Enrage"
 duration_secs = 70.0
 color = [200, 0, 0, 255]
 icon_ability_id = 3041244867461120
@@ -1570,6 +1570,10 @@ show_at_secs = 10.0
 
 [boss.timer.trigger]
 type = "npc_appears"
+selector = ["Tunneling Tentacle"]
+
+[boss.timer.cancel_trigger]
+type = "entity_death"
 selector = ["Tunneling Tentacle"]
 
 #---------- Dreadful Entity
