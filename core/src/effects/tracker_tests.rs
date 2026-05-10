@@ -11,7 +11,7 @@ use crate::combat_log::EntityType;
 use crate::context::empty_istr;
 use crate::dsl::{AudioConfig, EffectSelector, EntityFilter, Trigger};
 use crate::signal_processor::{GameSignal, SignalHandler};
-use baras_types::{AlertTrigger, RefreshAbility};
+use baras_types::{AlertTrigger, RefreshAbility, RefreshScope};
 
 fn now() -> chrono::NaiveDateTime {
     Local::now().naive_local()
@@ -46,6 +46,7 @@ fn make_effect(
         display_source: false,
         disciplines: vec![],
         ignore_refreshes: false,
+        refresh_scope: RefreshScope::Both,
         persist_past_death: false,
         track_outside_combat: true,
         on_apply_trigger_timer: None,

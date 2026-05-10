@@ -19,7 +19,7 @@ use crate::signal_processor::{GameSignal, SignalHandler};
 
 use crate::timers::FiredAlert;
 
-use super::{ActiveEffect, AlertTrigger, DisplayTarget, EffectDefinition, EffectKey, RefreshTrigger};
+use super::{ActiveEffect, AlertTrigger, DisplayTarget, EffectDefinition, EffectKey, RefreshScope, RefreshTrigger};
 
 /// Grace period (ms) after the app's duration timer expires before hard-removing
 /// an effect from the tracker. During this window, `refresh_abilities` can still
@@ -925,7 +925,7 @@ impl EffectTracker {
                 continue;
             }
 
-            let key = EffectKey::new(&def.id, source_id, target_id);
+            let key = EffectKey::for_scope(&def.id, def.refresh_scope, source_id, target_id);
 
             let duration = self.effective_duration(def);
 
@@ -1162,6 +1162,7 @@ impl EffectTracker {
             default_charges: Option<u8>,
             /// Minimum stacks required for this refresh (None = any)
             min_stacks: Option<u8>,
+            refresh_scope: RefreshScope,
         }
 
         let local_discipline = self.local_player_discipline;
@@ -1219,6 +1220,7 @@ impl EffectTracker {
                     alert_on_expire: def.alert_on == AlertTrigger::OnExpire,
                     default_charges: def.default_charges,
                     min_stacks: refresh_ability.min_stacks(),
+                    refresh_scope: def.refresh_scope,
                 })
             })
             .collect();
@@ -1240,7 +1242,7 @@ impl EffectTracker {
                 continue;
             }
 
-            let key = EffectKey::new(&def.id, source_id, target_id);
+            let key = EffectKey::for_scope(&def.id, def.refresh_scope, source_id, target_id);
             // Fallback: if the resolved target is an NPC, also try source_id as target.
             // Handles self-cast abilities (e.g. Dark Ward) where target resolution
             // resolves to the combat target but the effect is keyed to the caster.
@@ -1248,7 +1250,7 @@ impl EffectTracker {
             let fallback_key = if target_id != source_id
                 && target_entity_type != EntityType::Player
             {
-                Some(EffectKey::new(&def.id, source_id, source_id))
+                Some(EffectKey::for_scope(&def.id, def.refresh_scope, source_id, source_id))
             } else {
                 None
             };
@@ -1427,13 +1429,13 @@ impl EffectTracker {
             .definitions
             .find_refreshable_by(collecting.ability_id as u64, None)
             .into_iter()
-            .map(|def| (def.id.clone(), self.effective_duration(def)))
+            .map(|def| (def.id.clone(), def.refresh_scope, self.effective_duration(def)))
             .collect();
 
         // Refresh effects on all collected targets
         for target_id in collecting.targets {
-            for (def_id, duration) in &refreshable_def_ids {
-                let key = EffectKey::new(def_id, collecting.source_id, target_id);
+            for (def_id, scope, duration) in &refreshable_def_ids {
+                let key = EffectKey::for_scope(def_id, *scope, collecting.source_id, target_id);
                 if let Some(effect) = self.active_effects.get_mut(&key) {
                     effect.refresh(collecting.anchor_timestamp, *duration);
                 }
@@ -1486,11 +1488,11 @@ impl EffectTracker {
             .find_refreshable_by(ability_id as u64, None)
             .into_iter()
             .filter(|def| def.display_targets.contains(&DisplayTarget::DotTracker))
-            .map(|def| (def.id.clone(), self.effective_duration(def)))
+            .map(|def| (def.id.clone(), def.refresh_scope, self.effective_duration(def)))
             .collect();
 
-        for (def_id, duration) in &refreshable_def_ids {
-            let key = EffectKey::new(def_id, source_id, target_id);
+        for (def_id, scope, duration) in &refreshable_def_ids {
+            let key = EffectKey::for_scope(def_id, *scope, source_id, target_id);
             if let Some(effect) = self.active_effects.get_mut(&key) {
                 if effect.removed_at.is_none() {
                     effect.refresh(timestamp, *duration);
@@ -1593,7 +1595,7 @@ impl EffectTracker {
             }
 
             // AbilityCast trigger matched — track the effect on the caster (source)
-            let key = EffectKey::new(&def.id, source_id, source_id);
+            let key = EffectKey::for_scope(&def.id, def.refresh_scope, source_id, source_id);
 
             let duration = self.effective_duration(def);
 
@@ -1732,7 +1734,7 @@ impl EffectTracker {
                 continue;
             }
 
-            let key = EffectKey::new(&def.id, source_id, target_id);
+            let key = EffectKey::for_scope(&def.id, def.refresh_scope, source_id, target_id);
             let duration = self.effective_duration(def);
 
             if let Some(existing) = self.active_effects.get_mut(&key) {
@@ -1855,7 +1857,7 @@ impl EffectTracker {
         let is_from_local = local_player_id == Some(source_id);
 
         for def in matching_defs {
-            let key = EffectKey::new(&def.id, source_id, target_id);
+            let key = EffectKey::for_scope(&def.id, def.refresh_scope, source_id, target_id);
 
             if def.is_effect_applied_trigger() {
                 // Mark existing effect as removed (normal behavior)
@@ -1963,7 +1965,7 @@ impl EffectTracker {
             .collect();
 
         for def in matching_defs {
-            let key = EffectKey::new(&def.id, source_id, target_id);
+            let key = EffectKey::for_scope(&def.id, def.refresh_scope, source_id, target_id);
 
             // Calculate duration before borrowing active_effects mutably
             let duration = if def.is_refreshed_on_modify {

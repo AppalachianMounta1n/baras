@@ -18,7 +18,7 @@ use baras_core::effects::{
     AlertTrigger, DefinitionConfig, DisplayTarget, EFFECTS_DSL_VERSION, EffectDefinition,
 };
 use baras_core::game_data::Discipline;
-use baras_types::RefreshAbility;
+use baras_types::{RefreshAbility, RefreshScope};
 
 use crate::service::ServiceHandle;
 use tracing::warn;
@@ -70,6 +70,8 @@ pub struct EffectListItem {
     // Behavior
     #[serde(default)]
     pub ignore_refreshes: bool,
+    #[serde(default)]
+    pub refresh_scope: RefreshScope,
     pub persist_past_death: bool,
     pub track_outside_combat: bool,
 
@@ -113,6 +115,7 @@ impl EffectListItem {
             cooldown_ready_secs: def.cooldown_ready_secs,
             disciplines: def.disciplines.iter().map(|d| d.name().to_string()).collect(),
             ignore_refreshes: def.ignore_refreshes,
+            refresh_scope: def.refresh_scope,
             persist_past_death: def.persist_past_death,
             track_outside_combat: def.track_outside_combat,
             on_apply_trigger_timer: def.on_apply_trigger_timer.clone(),
@@ -143,6 +146,7 @@ impl EffectListItem {
                 .filter_map(|name| Discipline::from_name(name))
                 .collect(),
             ignore_refreshes: self.ignore_refreshes,
+            refresh_scope: self.refresh_scope,
             persist_past_death: self.persist_past_death,
             track_outside_combat: self.track_outside_combat,
             on_apply_trigger_timer: self.on_apply_trigger_timer.clone(),

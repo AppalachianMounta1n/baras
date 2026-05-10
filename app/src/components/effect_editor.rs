@@ -15,8 +15,8 @@ use super::encounter_editor::triggers::{
 use crate::api;
 use crate::types::{
     AbilitySelector, AlertTrigger, AudioConfig, DisplayTarget, EffectImportPreview,
-    EffectListItem, EffectSelector, EntityFilter, RefreshAbility, Trigger, UiSessionState,
-    effect_alert_label,
+    EffectListItem, EffectSelector, EntityFilter, RefreshAbility, RefreshScope, Trigger,
+    UiSessionState, effect_alert_label,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -219,6 +219,7 @@ fn default_effect(name: String) -> EffectListItem {
         cooldown_ready_secs: 0.0,
         disciplines: vec![],
         ignore_refreshes: false,
+        refresh_scope: Default::default(),
         persist_past_death: false,
         track_outside_combat: true,
         on_apply_trigger_timer: None,
@@ -1457,6 +1458,51 @@ fn EffectEditForm(
                                                 let mut d = draft();
                                                 d.refresh_abilities = ids.into_iter().map(RefreshAbility::Simple).collect();
                                                 draft.set(d);
+                                            }
+                                        }
+                                    }
+
+                                    label {
+                                        class: "flex items-center gap-xs text-sm",
+                                        span { class: "flex items-center",
+                                            "Refresh Scope"
+                                            span {
+                                                class: "help-icon",
+                                                title: "Which (source, target) axis identifies the same effect for refresh / Ignore Refreshes. Both = per (source, target) (default). Source = collapse across targets (e.g. one HealingTaken timer regardless of who was healed). Target = collapse across sources (e.g. one debuff entry regardless of which player applied it).",
+                                                "?"
+                                            }
+                                        }
+                                        select {
+                                            class: "select-inline",
+                                            value: match draft().refresh_scope {
+                                                RefreshScope::Both => "Both",
+                                                RefreshScope::Source => "Source",
+                                                RefreshScope::Target => "Target",
+                                            },
+                                            onchange: move |e| {
+                                                let mut d = draft();
+                                                d.refresh_scope = match e.value().as_str() {
+                                                    "Source" => RefreshScope::Source,
+                                                    "Target" => RefreshScope::Target,
+                                                    _ => RefreshScope::Both,
+                                                };
+                                                draft.set(d);
+                                            },
+                                            for scope in RefreshScope::all() {
+                                                {
+                                                    let label = match scope {
+                                                        RefreshScope::Both => "Both",
+                                                        RefreshScope::Source => "Source",
+                                                        RefreshScope::Target => "Target",
+                                                    };
+                                                    rsx! {
+                                                        option {
+                                                            value: "{label}",
+                                                            selected: *scope == draft().refresh_scope,
+                                                            "{label}"
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }

@@ -237,7 +237,8 @@ impl TimerOverlay {
 
         let font_color = color_from_rgba(self.config.font_color);
 
-        // Sort entries in place if needed
+        // Sort entries soonest-first so max_display retains the most urgent
+        // timers; rendering order is reversed below when stacking from bottom.
         if self.config.sort_by_remaining {
             self.data
                 .entries
@@ -296,7 +297,15 @@ impl TimerOverlay {
 
         let mut y = bars_start_y;
 
-        for entry in self.data.entries.iter().take(max_display) {
+        // When stacking from bottom, render the visible window in reverse so
+        // the soonest-to-expire entry sits at the bottom (closest to the eye).
+        let visible: Vec<&TimerEntry> = if self.config.stack_from_bottom {
+            self.data.entries.iter().take(max_display).rev().collect()
+        } else {
+            self.data.entries.iter().take(max_display).collect()
+        };
+
+        for entry in visible {
             let bar_color = color_from_rgba(entry.color);
             let time_text = entry.format_time(self.european_number_format);
 

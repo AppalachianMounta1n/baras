@@ -18,6 +18,7 @@ use chrono::NaiveDateTime;
 
 use super::DisplayTarget;
 use crate::context::IStr;
+use baras_types::RefreshScope;
 
 // Instant is still used for `removed_at` (a boolean-like flag for GC)
 
@@ -509,24 +510,49 @@ impl ActiveEffect {
 
 /// Key for identifying unique effect instances
 ///
-/// An effect is unique per (definition, source, target) triple.
+/// An effect is unique per (definition, source, target) triple by default.
 /// Source is included so that two healers of the same class tracking
 /// the same game effect (e.g., Kolto Shell from local vs other player)
 /// don't collide — each source entity gets its own slot.
 /// If the same source reapplies the same effect to the same target, it refreshes.
+///
+/// `RefreshScope::Source` and `Target` collapse one axis by setting the
+/// corresponding field to `None`. `Option<i64>` is used (not a sentinel like 0)
+/// because `target_id == 0` is a real value in the combat log meaning AoE / no target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EffectKey {
     pub definition_id: String,
-    pub source_entity_id: i64,
-    pub target_entity_id: i64,
+    pub source_entity_id: Option<i64>,
+    pub target_entity_id: Option<i64>,
 }
 
 impl EffectKey {
     pub fn new(definition_id: &str, source_entity_id: i64, target_entity_id: i64) -> Self {
         Self {
             definition_id: definition_id.to_string(),
-            source_entity_id,
-            target_entity_id,
+            source_entity_id: Some(source_entity_id),
+            target_entity_id: Some(target_entity_id),
+        }
+    }
+
+    /// Construct a key for a definition, dropping one axis when scope is
+    /// `Source` or `Target`. This is the canonical constructor for both
+    /// storage and lookup so they always agree.
+    pub fn for_scope(
+        definition_id: &str,
+        scope: RefreshScope,
+        source_entity_id: i64,
+        target_entity_id: i64,
+    ) -> Self {
+        let (s, t) = match scope {
+            RefreshScope::Both => (Some(source_entity_id), Some(target_entity_id)),
+            RefreshScope::Source => (Some(source_entity_id), None),
+            RefreshScope::Target => (None, Some(target_entity_id)),
+        };
+        Self {
+            definition_id: definition_id.to_string(),
+            source_entity_id: s,
+            target_entity_id: t,
         }
     }
 }

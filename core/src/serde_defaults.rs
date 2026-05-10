@@ -62,6 +62,11 @@ pub fn is_alert_trigger_none(t: &baras_types::AlertTrigger) -> bool {
     *t == baras_types::AlertTrigger::None
 }
 
+/// Skip serializing if RefreshScope is the default (Both)
+pub fn is_default_refresh_scope(s: &baras_types::RefreshScope) -> bool {
+    *s == baras_types::RefreshScope::Both
+}
+
 /// Default entity filter for boss timer source/target (matches any entity)
 /// Boss timers need permissive defaults since abilities come from NPCs, not players.
 pub fn default_entity_filter_any() -> crate::effects::EntityFilter {

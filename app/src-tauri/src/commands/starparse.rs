@@ -405,6 +405,7 @@ fn convert_to_effect(xml: &XmlConfigTimer) -> EffectDefinition {
         display_source: false,
         disciplines: vec![],
         ignore_refreshes: false,
+        refresh_scope: Default::default(),
         persist_past_death: false,
         track_outside_combat: true,
         on_apply_trigger_timer: None,

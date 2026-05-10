@@ -12,7 +12,7 @@ use crate::game_data::Discipline;
 // Re-export from shared modules
 pub use crate::dsl::EntityFilter;
 pub use crate::dsl::{AbilitySelector, EffectSelector};
-pub use baras_types::{AlertTrigger, RefreshAbility, RefreshTrigger};
+pub use baras_types::{AlertTrigger, RefreshAbility, RefreshScope, RefreshTrigger};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Effect Definitions
@@ -178,6 +178,13 @@ pub struct EffectDefinition {
     /// reset the timer. Refresh abilities still operate normally.
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
     pub ignore_refreshes: bool,
+
+    /// Scoping for refresh/dedup logic. Controls which axis of the
+    /// (source, target) pair is used to identify "the same effect instance".
+    /// Default (`Both`) preserves the existing per-(source, target) behavior.
+    /// `Source` collapses across targets; `Target` collapses across sources.
+    #[serde(default, skip_serializing_if = "crate::serde_defaults::is_default_refresh_scope")]
+    pub refresh_scope: RefreshScope,
 
     /// Should this effect persist after target dies?
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]

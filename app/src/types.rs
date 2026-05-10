@@ -45,6 +45,7 @@ pub use baras_types::{
     PersonalStat,
     RaidOverlaySettings,
     RefreshAbility,
+    RefreshScope,
     SortColumn,
     SortDirection,
     StackAggregation,
@@ -902,6 +903,8 @@ pub struct EffectListItem {
     // Behavior
     #[serde(default)]
     pub ignore_refreshes: bool,
+    #[serde(default)]
+    pub refresh_scope: RefreshScope,
     #[serde(default)]
     pub persist_past_death: bool,
     #[serde(default)]

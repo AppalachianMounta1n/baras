@@ -555,6 +555,32 @@ impl AbilitySelector {
     }
 }
 
+/// Scoping for effect refresh/dedup logic.
+///
+/// Controls which axis of the (source, target) pair is used to identify
+/// "the same effect instance" for refresh and `ignore_refreshes` checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefreshScope {
+    /// Per-(source, target) pair (default — preserves existing behavior).
+    #[default]
+    Both,
+    /// Per-source only — collapses across targets. Useful when a single
+    /// caster shouldn't trigger multiple instances when retargeting
+    /// (e.g., HealingTaken triggers on different raid members).
+    Source,
+    /// Per-target only — collapses across sources. Useful for global
+    /// debuffs that get overwritten when any caster reapplies the ability.
+    Target,
+}
+
+impl RefreshScope {
+    /// Returns all variants for UI dropdowns.
+    pub fn all() -> &'static [RefreshScope] {
+        &[Self::Both, Self::Source, Self::Target]
+    }
+}
+
 /// When an ability can trigger a refresh
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
