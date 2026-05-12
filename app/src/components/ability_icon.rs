@@ -41,24 +41,26 @@ pub fn AbilityIcon(
 ) -> Element {
     let mut icon_url = use_signal(|| None::<String>);
     let mut loaded = use_signal(|| false);
-    let id = ability_id as u64;
 
-    use_effect(move || {
-        // Check cache first
+    // Use use_reactive so the effect re-fires when ability_id changes — without it,
+    // a parent re-rendering this component at the same position with a new ability_id
+    // (e.g. rotation cycles after a time-range change) would keep the previous icon.
+    use_effect(use_reactive!(|ability_id| {
+        let id = ability_id as u64;
         if let Some(cached) = get_cached(id) {
             icon_url.set(cached);
             loaded.set(true);
             return;
         }
-
-        // Not in cache - fetch and store
+        icon_url.set(None);
+        loaded.set(false);
         spawn(async move {
             let result = api::get_icon_preview(id).await;
             set_cached(id, result.clone());
             icon_url.set(result);
             loaded.set(true);
         });
-    });
+    }));
 
     rsx! {
         if let Some(ref url) = icon_url() {
