@@ -11,6 +11,7 @@ use chrono::NaiveDateTime;
 
 use crate::combat_log::CombatEvent;
 use crate::encounter::EncounterState;
+use crate::encounter::summary::determine_success;
 use crate::game_data::{effect_id, effect_type_id};
 use crate::state::SessionCache;
 
@@ -172,9 +173,14 @@ fn handle_in_combat(
                 encounter_id
             );
 
+            let success = cache
+                .current_encounter()
+                .map(determine_success)
+                .unwrap_or(false);
             signals.push(GameSignal::CombatEnded {
                 timestamp: last_activity,
                 encounter_id,
+                success,
             });
 
             cache.push_new_encounter();
@@ -231,6 +237,7 @@ fn handle_in_combat(
                     signals.push(GameSignal::CombatEnded {
                         timestamp: revive_time,
                         encounter_id,
+                        success: false,
                     });
 
                     cache.push_new_encounter();
@@ -379,6 +386,7 @@ fn handle_in_combat(
             signals.push(GameSignal::CombatEnded {
                 timestamp,
                 encounter_id,
+                success: false,
             });
 
             // Create new encounter and immediately start it with this EnterCombat event
@@ -427,9 +435,14 @@ fn handle_in_combat(
             enc.challenge_tracker.finalize(timestamp, duration);
         }
 
+        let success = cache
+            .current_encounter()
+            .map(determine_success)
+            .unwrap_or(false);
         signals.push(GameSignal::CombatEnded {
             timestamp,
             encounter_id,
+            success,
         });
 
         cache.push_new_encounter();
@@ -474,9 +487,14 @@ fn handle_in_combat(
                 exit_time
             );
 
+            let success = cache
+                .current_encounter()
+                .map(determine_success)
+                .unwrap_or(false);
             signals.push(GameSignal::CombatEnded {
                 timestamp: exit_time,
                 encounter_id,
+                success,
             });
 
             cache.last_combat_exit_time = None;
@@ -590,9 +608,14 @@ fn handle_post_combat(
 fn finalize_pending_combat_exit(cache: &mut SessionCache, signals: &mut Vec<GameSignal>) {
     if let Some(exit_time) = cache.last_combat_exit_time.take() {
         let encounter_id = cache.current_encounter().map(|e| e.id).unwrap_or(0);
+        let success = cache
+            .current_encounter()
+            .map(determine_success)
+            .unwrap_or(false);
         signals.push(GameSignal::CombatEnded {
             timestamp: exit_time,
             encounter_id,
+            success,
         });
     }
 }
@@ -688,6 +711,7 @@ pub fn tick_combat_state(cache: &mut SessionCache, now: NaiveDateTime) -> Vec<Ga
                 signals.push(GameSignal::CombatEnded {
                     timestamp: revive_time,
                     encounter_id,
+                    success: false,
                 });
                 cache.push_new_encounter();
 
@@ -713,9 +737,14 @@ pub fn tick_combat_state(cache: &mut SessionCache, now: NaiveDateTime) -> Vec<Ga
                 EncounterState::PostCombat { .. } => {
                     // Grace expired while in PostCombat - finalize the encounter
                     let encounter_id = cache.current_encounter().map(|e| e.id).unwrap_or(0);
+                    let success = cache
+                        .current_encounter()
+                        .map(determine_success)
+                        .unwrap_or(false);
                     signals.push(GameSignal::CombatEnded {
                         timestamp: exit_time,
                         encounter_id,
+                        success,
                     });
 
                     cache.last_combat_exit_time = None;
@@ -763,12 +792,18 @@ pub fn tick_combat_state(cache: &mut SessionCache, now: NaiveDateTime) -> Vec<Ga
                 enc.challenge_tracker.finalize(last_activity, duration);
             }
 
+            let success = cache
+                .current_encounter()
+                .map(determine_success)
+                .unwrap_or(false);
+
             cache.last_combat_exit_time = None;
             cache.push_new_encounter();
 
             return vec![GameSignal::CombatEnded {
                 timestamp: last_activity,
                 encounter_id,
+                success,
             }];
         }
     }

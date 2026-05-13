@@ -249,6 +249,7 @@ fn test_anyof_condition_triggers_on_either() {
         &GameSignal::CombatEnded {
             timestamp: now(),
             encounter_id: 1,
+            success: false,
         },
         None,
     );
@@ -454,6 +455,7 @@ fn test_combat_end_clears_timers() {
         &GameSignal::CombatEnded {
             timestamp: now(),
             encounter_id: 1,
+            success: false,
         },
         None,
     );

@@ -15,6 +15,9 @@ pub enum GameSignal {
     CombatEnded {
         timestamp: NaiveDateTime,
         encounter_id: u64,
+        /// True if the encounter was a kill (kill targets dead or victory trigger fired).
+        /// False for wipes, timeouts, and area-exit terminations.
+        success: bool,
     },
 
     // Entity state changes

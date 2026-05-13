@@ -434,32 +434,24 @@ impl SignalHandler for CombatSignalHandler {
                         .try_send(OverlayUpdate::NotLiveStateChanged { is_live: true });
                 }
             }
-            GameSignal::CombatEnded { timestamp, .. } => {
+            GameSignal::CombatEnded { timestamp, success, .. } => {
                 self.shared.in_combat.store(false, Ordering::SeqCst);
                 let _ = self.trigger_tx.try_send(MetricsTrigger::CombatEnded);
                 let _ = self.session_event_tx.send(SessionEvent::CombatEnded);
                 // Clear boss health and timer overlays
                 let _ = self.overlay_tx.try_send(OverlayUpdate::CombatEnded);
 
-                // Auto-stop operation timer when the final boss is killed.
+                // Auto-stop operation timer when the final boss is KILLED (not wiped).
+                // `success` comes from the signal and is set by determine_success() at the
+                // emit site; `current_boss_is_final` was snapshotted at BossEncounterDetected
+                // because `_encounter` here is the new empty encounter (push_new_encounter()
+                // already ran).
                 //
-                // NOTE: `_encounter` at this point is the brand-new empty encounter
-                // (push_new_encounter() already ran before signal dispatch), so we
-                // cannot call enc.active_boss_definition() here — it would return None.
-                // Instead we use `current_boss_is_final`, which was snapshotted in the
-                // preceding BossEncounterDetected signal.
-                //
-                // We use `_encounter` (the new encounter's predecessor in history) only
-                // to determine success — but since the encounter has already been moved to
-                // history by the time we get here, we rely on the fact that if is_final_boss
-                // is set and we were in an operation, combat ending == a successful clear.
-                // (Wipes also fire CombatEnded, so we additionally check determine_success
-                // on the encounter that was passed — but since _encounter is now the new
-                // one, we check the area type alone for ops and trust that a wipe restarts
-                // the fight without hitting is_final_boss again.)
-                //
-                // Only in live mode - historical replays should not drive the timer.
-                if self.shared.is_live_tailing.load(Ordering::SeqCst) && self.current_boss_is_final {
+                // Only in live mode — historical replays should not drive the timer.
+                if self.shared.is_live_tailing.load(Ordering::SeqCst)
+                    && self.current_boss_is_final
+                    && *success
+                {
                     let area_kind = self.current_area_kind;
                     if matches!(area_kind, AreaKind::Operation | AreaKind::Flashpoint) {
                         let mut timer = self.shared.operation_timer.lock().unwrap();
@@ -472,8 +464,12 @@ impl SignalHandler for CombatSignalHandler {
                         let _ = self.cmd_tx.try_send(ServiceCommand::EmitOperationTimerTick);
                     }
                 }
-                // Reset the flag — next boss may or may not be final
-                self.current_boss_is_final = false;
+                // Only reset the final-boss flag on a successful kill. On a wipe the
+                // group will retry the same boss, so we must keep the flag set so the
+                // next CombatEnded (the actual kill) can stop the timer.
+                if *success {
+                    self.current_boss_is_final = false;
+                }
             }
             GameSignal::DisciplineChanged {
                 entity_id,
