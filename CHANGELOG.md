@@ -1,52 +1,29 @@
-# v2026.4.27
+# v2026.5.13
 
-## v2026.4.28 Hotfix
+## Bug Fixes
 
-- Fixed edge case where huntmaster classification could be wrong
-- Readded Master Blaster Victory trigger
-
-## macOS Support
-
-All features should now be working on macOS
-
-- Overlays now show over the game window
-- Application icon now shows in system tray
-- Installing the application now displays a message saying it's unsigned, rather than damaged
-
-## Linux Support
-
-- Updated monitor ID on Linux Wayland to always include connector port
+- Parsely guilds will save properly when added
+- Fixed issue with boss shields not properly updating with damage
+- Improved detection of effects applied in previous encounters in data explorer
+- Removed invalid delete button from built in challenges
+- Fixed issue where rotation analyzer icons did not update correctly with time range selection change
+- Timer preferences now function correctly; toggling audio on/off and changing timer visibility does not mark timers as modified
 
 ## Overlays
 
-- Switched over overlay font to bundled `Inter` font
-- All text is now rendered with text glow for enhanced readability
-- Improved formatting of discipline icons on metrics overlays
-- Updated Text/icon formatting of challenges overlay to match regular metrics overlays
-- Reduced the amount of spacing between text and HP bar on HP overlay
-- Major improvements to boss ability queue overlay, though feature is still in beta
-- Entities with shields will always appear on HP overlay, even if HP bar is full
-- Added option to display timers on multiple overlays simultaneously
+- Font size and metrics bars can now be scaled by values less than 1
+- Timers and effects overlays now have the ability to stack from the bottom
+- Ability Queue now supports conditions and audio
 
-## Encounters
+## Effects Tracking
 
-- Definition files have been added for all remaining flashpoints (thanks Sinrai)
-- Dxun II and III are now detected immediately on encounter start
-- NAHUT is now detected when a player picks up the candle
-- Olok encounter is now detected on Wealthy Buyer
-- Added EV Pylons encounter (lol)
-- Corruptor Zero gravity timer should now be accurate
-- Operator IX phase timers should now be accurate without requiring the player to direct cast on the hologram
-- Added Styrak timers
-- Added Master and Blaster Timers
-- Various updates to TFB and DF timers
+- Added `Ignore Refreshes` option to ignore repeated triggers
+- Added `Refresh Scope` option for tracking local player procs and global debuffs
 
-## Parsely
+## Encounter Definitions
 
-- Parsely upload now supports multiple guilds
-
-## Bugfixes
-
-- Operation timer is no longer reset upon re-entering an operation area
-- When multiple shields of the same name are active, the application now checks for the proper entity before removing them
-- Various rendering performance fixes and optimizations
+- Overhauled ToS Revan timers and encounter definitions
+- Revan timers/stats should no longer break after a battle rez
+- Added Lord Renning MM Id
+- Added Xenoanlyst 8m SM Id
+- Icons added to many timers as well as tweaks
