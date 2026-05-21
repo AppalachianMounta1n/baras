@@ -2438,12 +2438,12 @@ pub fn SettingsPanel(
                                 input {
                                     r#type: "range",
                                     min: "0",
-                                    max: "20",
+                                    max: "75",
                                     value: "{current_settings.raid_overlay.frame_spacing as i32}",
                                     oninput: move |e| {
                                         if let Ok(val) = e.value().parse::<f32>() {
                                             let mut new_settings = draft_settings();
-                                            new_settings.raid_overlay.frame_spacing = val.clamp(0.0, 20.0);
+                                            new_settings.raid_overlay.frame_spacing = val.clamp(0.0, 75.0);
                                             update_draft(new_settings);
                                         }
                                     }

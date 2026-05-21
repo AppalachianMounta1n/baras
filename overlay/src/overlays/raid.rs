@@ -448,7 +448,7 @@ impl From<baras_core::context::RaidOverlaySettings> for RaidOverlayConfig {
             effect_vertical_offset: settings.effect_vertical_offset,
             effect_fill_opacity: settings.effect_fill_opacity,
             show_effect_icons: settings.show_effect_icons,
-            frame_spacing: settings.frame_spacing.clamp(0.0, 20.0),
+            frame_spacing: settings.frame_spacing.clamp(0.0, 75.0),
         }
     }
 }
