@@ -2913,7 +2913,7 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                 }
                                                 if show_ability_col {
                                                     for (idx, ability) in abilities.iter().enumerate() {
-                                                        tr { key: "{stats.target.as_deref().unwrap_or(\"\")}-{idx}-{ability.ability_id}", class: if ability.is_shield { "ability-row shield-row" } else if stats.target.is_some() { "ability-row indented" } else { "ability-row" },
+                                                        tr { key: "{stats.target.as_deref().unwrap_or(\"\")}-{idx}-{ability.ability_id}", class: if ability.is_shield { if stats.target.is_some() { "ability-row shield-row indented" } else { "ability-row shield-row" } } else if stats.target.is_some() { "ability-row indented" } else { "ability-row" },
                                                             td { class: "ability-name-cell",
                                                                 span { class: "ability-name-inner",
                                                                     AbilityIcon { ability_id: ability.ability_id }
