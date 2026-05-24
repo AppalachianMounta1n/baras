@@ -35,8 +35,8 @@ fn extract_values(m: &PlayerMetrics, overlay_type: MetricType) -> MetricValues {
             split_color: None,
         },
         MetricType::EDps => MetricValues {
-            rate: m.edps,
-            total: m.total_damage_effective,
+            rate: m.dps,
+            total: m.total_damage,
             split_rate: Some(m.bossdps),
             split_total: Some(m.total_damage_boss),
             split_color: None, // Uses default lighter color for adds
