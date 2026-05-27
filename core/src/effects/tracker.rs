@@ -511,6 +511,7 @@ impl EffectTracker {
             audio_enabled: def.audio.enabled,
             audio_file: def.audio.file.clone(),
             icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
         }
     }
 
@@ -852,8 +853,63 @@ impl EffectTracker {
                     audio_enabled,
                     audio_file,
                     icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
                 });
             }
+        }
+
+        // Emit live countdown alerts for active effects whose remaining time
+        // has entered their configured trailing window. Each tick pushes a
+        // fresh FiredAlert carrying remaining_secs — the alerts overlay
+        // dedupes by id and auto-suppresses when remaining hits zero.
+        //
+        // For cooldown effects (`cooldown_ready_secs > 0`) the alert tracks
+        // the BASE cooldown, not the total time-to-expiry. We want the
+        // countdown to fire in the last N seconds before the cooldown becomes
+        // ready, then disappear — not during the ready-state tail.
+        for effect in self.active_effects.values() {
+            if effect.removed_at.is_some() || effect.timer_expired {
+                continue;
+            }
+            let Some(def) = self.definitions.effects.get(&effect.definition_id) else {
+                continue;
+            };
+            if def.alert_on != AlertTrigger::Countdown {
+                continue;
+            }
+            let Some(window) = def.alert_countdown_secs else {
+                continue;
+            };
+            if window <= 0.0 {
+                continue;
+            }
+            let Some(remaining_total) = effect.remaining_secs(interp_time) else {
+                continue;
+            };
+            // Base = total - ready_state. For non-cooldown effects this
+            // collapses to `remaining_total`.
+            let remaining_base = effect.remaining_base_secs(remaining_total);
+            if remaining_base <= 0.0 || remaining_base > window {
+                continue;
+            }
+
+            let raw_name = def
+                .alert_text
+                .as_deref()
+                .unwrap_or(&def.name);
+            let text = format!("{} ({:.1})", raw_name, remaining_base);
+            self.fired_alerts.push(FiredAlert {
+                id: def.id.clone(),
+                name: def.name.clone(),
+                text,
+                color: def.color,
+                timestamp: current_time,
+                alert_text_enabled: true,
+                audio_enabled: false,
+                audio_file: None,
+                icon_ability_id: def.icon_ability_id,
+                remaining_secs: Some(remaining_base),
+            });
         }
 
         // Remove effects that have been marked removed (immediate, no fade delay)
@@ -1025,6 +1081,7 @@ impl EffectTracker {
                         audio_enabled: false,
                         audio_file: None,
                         icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
                     });
                 }
             } else {
@@ -1077,6 +1134,7 @@ impl EffectTracker {
                         audio_enabled: false,
                         audio_file: None,
                         icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
                     });
                 }
             }
@@ -1623,6 +1681,7 @@ impl EffectTracker {
                         audio_enabled: false,
                         audio_file: None,
                         icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
                     });
                 }
             } else {
@@ -1668,6 +1727,7 @@ impl EffectTracker {
                         audio_enabled: false,
                         audio_file: None,
                         icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
                     });
                 }
             }
@@ -1761,6 +1821,7 @@ impl EffectTracker {
                         audio_enabled: false,
                         audio_file: None,
                         icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
                     });
                 }
             } else {
@@ -1806,6 +1867,7 @@ impl EffectTracker {
                         audio_enabled: false,
                         audio_file: None,
                         icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
                     });
                 }
             }
@@ -1936,6 +1998,7 @@ impl EffectTracker {
                         audio_enabled: false,
                         audio_file: None,
                         icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
                     });
                 }
             }

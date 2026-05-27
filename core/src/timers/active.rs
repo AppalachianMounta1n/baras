@@ -58,6 +58,10 @@ pub struct ActiveTimer {
     /// Custom alert text (from definition, None = use timer name)
     pub alert_text: Option<String>,
 
+    /// When `Some(N)`, fire a live-updating alert during the final N seconds
+    /// of the timer (from alert_on == Countdown).
+    pub alert_countdown_secs: Option<f32>,
+
     // ─── Display (cached from definition) ───────────────────────────────────
     /// RGBA color for display
     pub color: [u8; 4],
@@ -153,6 +157,7 @@ impl ActiveTimer {
         display_targets: Vec<crate::timers::TimerDisplayTarget>,
         alert_on_expire: bool,
         alert_text: Option<String>,
+        alert_countdown_secs: Option<f32>,
         role_hidden: bool,
         queue_on_expire: bool,
         queue_priority: u8,
@@ -177,6 +182,7 @@ impl ActiveTimer {
             alert_fired: false,
             alert_on_expire,
             alert_text,
+            alert_countdown_secs,
             color,
             icon_ability_id,
             triggers_timer,

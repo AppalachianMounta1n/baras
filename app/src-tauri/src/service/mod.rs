@@ -3498,6 +3498,7 @@ async fn build_timer_data_with_audio(
                 audio_enabled: true,
                 audio_file: audio.file.clone(),
                 icon_ability_id: timer.icon_ability_id,
+                remaining_secs: None,
             });
         }
     }

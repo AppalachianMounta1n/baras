@@ -28,6 +28,7 @@ fn make_timer(id: &str, name: &str, trigger: TimerTrigger, duration: f32) -> Tim
         repeats: 0,
         alert_at_secs: None,
         alert_text: None,
+        alert_countdown_secs: None,
         audio: AudioConfig::default(),
         icon_ability_id: None,
         show_on_raid_frames: false,
@@ -48,6 +49,8 @@ fn make_timer(id: &str, name: &str, trigger: TimerTrigger, duration: f32) -> Tim
         queue_priority: 0,
         queue_remove_trigger: None,
         queue_blocking_timers: Vec::new(),
+        queue_blocking_condition: None,
+        queue_next_audio: None,
         queue_countdown_bar: false,
         queue_hide_from_next: false,
     }

@@ -54,6 +54,7 @@ fn make_effect(
         is_alert: false,
         alert_text: None,
         alert_on: AlertTrigger::None,
+        alert_countdown_secs: None,
         audio: AudioConfig::default(),
     }
 }

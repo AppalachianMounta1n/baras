@@ -223,6 +223,11 @@ pub struct EffectDefinition {
     )]
     pub alert_on: AlertTrigger,
 
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alert_countdown_secs: Option<f32>,
+
     // ─── Audio ─────────────────────────────────────────────────────────────────
     /// Audio configuration (alerts, custom sounds)
     #[serde(default, skip_serializing_if = "AudioConfig::is_default")]

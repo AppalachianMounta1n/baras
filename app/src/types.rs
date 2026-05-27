@@ -504,6 +504,10 @@ pub struct BossTimerDefinition {
     pub alert_on: AlertTrigger,
     #[serde(default)]
     pub alert_text: Option<String>,
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown.
+    #[serde(default)]
+    pub alert_countdown_secs: Option<f32>,
     #[serde(default = "default_timer_color")]
     pub color: [u8; 4],
     #[serde(default)]
@@ -825,6 +829,7 @@ pub fn effect_alert_label(trigger: &AlertTrigger) -> &'static str {
         AlertTrigger::None => "None",
         AlertTrigger::OnApply => "Effect Start",
         AlertTrigger::OnExpire => "Effect End",
+        AlertTrigger::Countdown => "Countdown",
     }
 }
 
@@ -834,6 +839,7 @@ pub fn timer_alert_label(trigger: &AlertTrigger) -> &'static str {
         AlertTrigger::None => "None",
         AlertTrigger::OnApply => "Timer Start",
         AlertTrigger::OnExpire => "Timer End",
+        AlertTrigger::Countdown => "Countdown",
     }
 }
 
@@ -921,6 +927,10 @@ pub struct EffectListItem {
     pub alert_text: Option<String>,
     #[serde(default)]
     pub alert_on: AlertTrigger,
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown.
+    #[serde(default)]
+    pub alert_countdown_secs: Option<f32>,
 
     // Audio
     #[serde(default)]

@@ -17,6 +17,10 @@ use crate::widgets::colors;
 /// A single alert entry for display
 #[derive(Debug, Clone)]
 pub struct AlertEntry {
+    /// Stable identifier for dedup. When two alerts share the same
+    /// `Some(id)`, the newer one replaces the older one in-place instead of
+    /// stacking. Used for live-updating countdown alerts.
+    pub id: Option<String>,
     /// Alert display text
     pub text: String,
     /// Text color (RGBA)
@@ -25,6 +29,11 @@ pub struct AlertEntry {
     pub created_at: Instant,
     /// Duration to show at full opacity (seconds)
     pub duration_secs: f32,
+    /// When `Some`, this entry represents a live-updating countdown whose
+    /// natural lifetime is the carried value (in seconds from `created_at`).
+    /// Once `created_at.elapsed()` exceeds this, the entry is suppressed
+    /// instantly — no fade. None means use the normal duration+fade flow.
+    pub remaining_secs: Option<f32>,
     /// Optional ability ID for icon lookup
     pub icon_ability_id: Option<u64>,
     /// Pre-loaded icon RGBA data (width, height, rgba_bytes)
@@ -35,19 +44,26 @@ impl AlertEntry {
     /// Create a new alert entry with current timestamp
     pub fn new(text: String, color: [u8; 4], duration_secs: f32) -> Self {
         Self {
+            id: None,
             text,
             color,
             created_at: Instant::now(),
             duration_secs,
+            remaining_secs: None,
             icon_ability_id: None,
             icon: None,
         }
     }
 
     /// Calculate opacity based on elapsed time and fade duration
-    /// Returns 1.0 during duration, then fades to 0.0 over fade_duration
+    /// Returns 1.0 during duration, then fades to 0.0 over fade_duration.
+    /// Countdown-bound entries (`remaining_secs.is_some()`) skip the fade —
+    /// they're either fully visible or suppressed.
     pub fn opacity(&self, fade_duration: f32) -> f32 {
         let elapsed = self.created_at.elapsed().as_secs_f32();
+        if let Some(remaining) = self.remaining_secs {
+            return if elapsed >= remaining { 0.0 } else { 1.0 };
+        }
         if elapsed < self.duration_secs {
             1.0 // Full opacity during main duration
         } else {
@@ -56,9 +72,15 @@ impl AlertEntry {
         }
     }
 
-    /// Check if this alert has fully expired (past duration + fade)
+    /// Check if this alert has fully expired (past duration + fade).
+    /// For countdown-bound entries, expired the moment `remaining_secs`
+    /// elapses since `created_at`.
     pub fn is_expired(&self, fade_duration: f32) -> bool {
-        self.created_at.elapsed().as_secs_f32() > self.duration_secs + fade_duration
+        let elapsed = self.created_at.elapsed().as_secs_f32();
+        if let Some(remaining) = self.remaining_secs {
+            return elapsed >= remaining;
+        }
+        elapsed > self.duration_secs + fade_duration
     }
 }
 
@@ -117,7 +139,9 @@ impl AlertsOverlay {
         self.frame.set_background_alpha(alpha);
     }
 
-    /// Add new alerts (prepends to show newest first) and pre-cache icons
+    /// Add new alerts (prepends to show newest first) and pre-cache icons.
+    /// Alerts carrying an id replace the existing entry with that id in-place
+    /// rather than stacking — used for live-updating countdown timers.
     pub fn add_alerts(&mut self, new_alerts: Vec<AlertEntry>) {
         // Pre-cache icons at current display size before inserting
         let icon_size = self.frame.scaled(self.config.font_size as f32) as u32;
@@ -129,8 +153,17 @@ impl AlertsOverlay {
             }
         }
 
-        // Prepend new alerts (newest at top)
         for alert in new_alerts.into_iter().rev() {
+            // Dedup by id: if an entry with this id already exists, replace it
+            // in place (preserving position) so the countdown text updates
+            // smoothly without re-sorting or stacking duplicates.
+            if let Some(ref id) = alert.id
+                && let Some(existing) = self.entries.iter_mut().find(|e| e.id.as_deref() == Some(id.as_str()))
+            {
+                *existing = alert;
+                continue;
+            }
+            // Prepend new alerts (newest at top)
             self.entries.insert(0, alert);
         }
         // Trim to max display count
@@ -280,15 +313,35 @@ impl AlertsOverlay {
             let has_icon = show_icons && entry.icon_ability_id.is_some() && entry.icon.is_some();
 
             // Center the icon+text group horizontally within the overlay.
+            // For live-updating countdown entries, measure against a
+            // digit-normalized form so the row's anchor doesn't shift as
+            // digits change width frame-to-frame.
+            let measure_text: std::borrow::Cow<'_, str> = if entry.remaining_secs.is_some() {
+                std::borrow::Cow::Owned(
+                    entry
+                        .text
+                        .chars()
+                        .map(|c| if c.is_ascii_digit() { '8' } else { c })
+                        .collect(),
+                )
+            } else {
+                std::borrow::Cow::Borrowed(entry.text.as_str())
+            };
             let (text_width, _) =
                 self.frame
-                    .measure_text_styled(&entry.text, font_size, true, false);
+                    .measure_text_styled(&measure_text, font_size, true, false);
             let group_width = if has_icon {
                 icon_size + icon_gap + text_width
             } else {
                 text_width
             };
-            let group_x = ((frame_width - group_width) / 2.0).max(padding);
+            // Pixel-snap the group anchor for live-countdown entries so
+            // sub-pixel measurement variance can't translate into 1px row
+            // jitter when the text re-rasterizes each tick.
+            let mut group_x = ((frame_width - group_width) / 2.0).max(padding);
+            if entry.remaining_secs.is_some() {
+                group_x = group_x.floor();
+            }
 
             let text_x = if has_icon {
                 let icon_y = y - icon_size;

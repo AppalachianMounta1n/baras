@@ -628,6 +628,7 @@ fn test_bestia_complete_encounter() {
             color: bt.color,
             alert_at_secs: None,
             alert_text: None,
+            alert_countdown_secs: None,
             audio: Default::default(),
             repeats: 0,
             show_on_raid_frames: false,
@@ -649,6 +650,8 @@ fn test_bestia_complete_encounter() {
             queue_priority: 0,
             queue_remove_trigger: None,
             queue_blocking_timers: Vec::new(),
+            queue_blocking_condition: None,
+            queue_next_audio: None,
             queue_countdown_bar: false,
             queue_hide_from_next: false,
         })

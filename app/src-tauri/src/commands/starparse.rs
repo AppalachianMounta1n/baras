@@ -338,6 +338,7 @@ fn convert_to_boss_timer(xml: &XmlConfigTimer) -> BossTimerDefinition {
         is_alert,
         alert_on: if is_alert { AlertTrigger::OnApply } else { Default::default() },
         alert_text: if is_alert { Some(name.to_string()) } else { None },
+        alert_countdown_secs: None,
         color,
         icon_ability_id: None,
         conditions: Vec::new(),
@@ -413,6 +414,7 @@ fn convert_to_effect(xml: &XmlConfigTimer) -> EffectDefinition {
         is_alert,
         alert_text: if is_alert { Some(name.to_string()) } else { None },
         alert_on: if is_alert { AlertTrigger::OnApply } else { Default::default() },
+        alert_countdown_secs: None,
         audio: convert_audio(xml),
     }
 }

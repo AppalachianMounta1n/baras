@@ -43,6 +43,9 @@ pub struct FiredAlert {
     pub audio_file: Option<String>,
     /// Optional ability ID for icon display in the alerts overlay
     pub icon_ability_id: Option<u64>,
+    /// For live-updating countdown alerts: seconds until this alert should
+    /// be auto-suppressed by the overlay (no fade). `None` for normal alerts.
+    pub remaining_secs: Option<f32>,
 }
 
 /// Manages ability cooldown and buff timers.
@@ -579,6 +582,10 @@ impl TimerManager {
 
             self.process_expirations(interp_time, encounter);
 
+            // Emit live countdown alerts for active timers whose remaining
+            // time has entered their configured trailing window.
+            self.process_countdown_alerts(interp_time);
+
             // Process cancellation chains (timer_canceled triggers)
             for timer_id in self.canceled_this_tick.clone() {
                 self.start_timers_on_cancel(&timer_id, ts, encounter);
@@ -767,6 +774,7 @@ impl TimerManager {
                     audio_enabled: true,
                     audio_file,
                     icon_ability_id,
+                    remaining_secs: None,
                 }
             })
             .collect()
@@ -895,6 +903,7 @@ impl TimerManager {
                 audio_enabled: alert_audio_enabled,
                 audio_file: alert_audio_file,
                 icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
             });
         }
 
@@ -959,6 +968,7 @@ impl TimerManager {
             def.display_targets.clone(),
             alert_on_expire,
             def.alert_text.clone(),
+            def.alert_countdown_secs,
             role_hidden,
             def.queue_on_expire,
             def.queue_priority,
@@ -1240,6 +1250,46 @@ impl TimerManager {
         }
     }
 
+    /// Emit a fresh FiredAlert each tick for any active timer whose
+    /// remaining time is inside its configured countdown window. The alert
+    /// carries the timer's definition id so the alerts overlay can dedupe
+    /// and replace the entry in-place rather than stacking.
+    fn process_countdown_alerts(&mut self, current_time: NaiveDateTime) {
+        for timer in self.active_timers.values() {
+            if timer.is_queued || timer.role_hidden {
+                continue;
+            }
+            let Some(window) = timer.alert_countdown_secs else {
+                continue;
+            };
+            if window <= 0.0 {
+                continue;
+            }
+            let remaining = (timer.expires_at - current_time)
+                .num_milliseconds()
+                .max(0) as f32
+                / 1000.0;
+            if remaining > window {
+                continue;
+            }
+
+            let name = timer.alert_text.as_deref().unwrap_or(&timer.name);
+            let text = format!("{} ({:.1})", name, remaining);
+            self.fired_alerts.push(FiredAlert {
+                id: timer.definition_id.clone(),
+                name: timer.name.clone(),
+                text,
+                color: Some(timer.color),
+                timestamp: current_time,
+                alert_text_enabled: true,
+                audio_enabled: false,
+                audio_file: None,
+                icon_ability_id: timer.icon_ability_id,
+                remaining_secs: Some(remaining),
+            });
+        }
+    }
+
     /// Process timer expirations, repeats, and chains
     fn process_expirations(
         &mut self,
@@ -1293,6 +1343,7 @@ impl TimerManager {
                             audio_enabled: should_fire_audio,
                             audio_file: timer.audio_file.clone(),
                             icon_ability_id: timer.icon_ability_id,
+                    remaining_secs: None,
                         });
                     }
 
@@ -1347,6 +1398,7 @@ impl TimerManager {
                         audio_enabled: should_fire_audio,
                         audio_file,
                         icon_ability_id: timer.icon_ability_id,
+                    remaining_secs: None,
                     });
                 }
                 // Prepare chain to next timer (take ownership of triggers_timer)

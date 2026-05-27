@@ -84,6 +84,8 @@ pub struct EffectListItem {
     pub is_alert: bool,
     pub alert_text: Option<String>,
     pub alert_on: AlertTrigger,
+    #[serde(default)]
+    pub alert_countdown_secs: Option<f32>,
 
     // Audio
     pub audio: AudioConfig,
@@ -123,6 +125,7 @@ impl EffectListItem {
             is_alert: def.is_alert,
             alert_text: def.alert_text.clone(),
             alert_on: def.alert_on,
+            alert_countdown_secs: def.alert_countdown_secs,
             audio: def.audio.clone(),
         }
     }
@@ -154,6 +157,7 @@ impl EffectListItem {
             is_alert: self.is_alert,
             alert_text: self.alert_text.clone(),
             alert_on: self.alert_on,
+            alert_countdown_secs: self.alert_countdown_secs,
             audio: self.audio.clone(),
             display_targets: self.display_targets.clone(),
             icon_ability_id: self.icon_ability_id,

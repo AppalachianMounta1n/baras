@@ -652,6 +652,10 @@ impl RefreshAbility {
 /// Used by both the effect and timer systems to control when alert text
 /// is displayed. For effects: OnApply = effect starts, OnExpire = effect ends.
 /// For timers: OnApply = timer starts, OnExpire = timer expires.
+/// `Countdown` (timers and effects) fires repeatedly during the last N
+/// seconds (N configured via `alert_countdown_secs`) with live-updating
+/// remaining-time text. The alerts overlay dedupes by id and auto-suppresses
+/// when the carried `remaining_secs` reaches zero — no fade tail.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AlertTrigger {
@@ -662,12 +666,14 @@ pub enum AlertTrigger {
     OnApply,
     /// Alert on end (effect expired / timer expired)
     OnExpire,
+    /// Live-updating alert during the last N seconds before expiry.
+    Countdown,
 }
 
 impl AlertTrigger {
     /// Returns all variants for UI dropdowns.
     pub fn all() -> &'static [AlertTrigger] {
-        &[Self::None, Self::OnApply, Self::OnExpire]
+        &[Self::None, Self::OnApply, Self::OnExpire, Self::Countdown]
     }
 }
 
@@ -1691,6 +1697,12 @@ pub struct BossHealthConfig {
     /// When true (default), boss health clears after combat ends
     #[serde(default = "default_true")]
     pub clear_after_combat: bool,
+    /// When true, draw an outline around each boss HP bar
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-HP-bar border outline
+    #[serde(default = "default_overlay_border_color")]
+    pub border_color: Color,
 }
 
 fn default_boss_bar_color() -> Color {
@@ -1707,6 +1719,8 @@ impl Default for BossHealthConfig {
             font_scale: 1.0,
             dynamic_background: false,
             clear_after_combat: true,
+            show_border: true,
+            border_color: default_overlay_border_color(),
         }
     }
 }

@@ -281,10 +281,12 @@ async fn process_overlay_update(
                             icon_cache.and_then(|cache| cache.get_icon(id))
                         });
                         AlertEntry {
+                            id: Some(a.id),
                             text: a.text,
                             color: a.color.unwrap_or([255, 255, 255, 255]),
                             created_at: Instant::now(),
                             duration_secs: 5.0, // Default duration, could come from config
+                            remaining_secs: a.remaining_secs,
                             icon_ability_id: a.icon_ability_id,
                             icon: icon.map(|d| Arc::new((d.width, d.height, d.rgba))),
                         }

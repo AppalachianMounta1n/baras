@@ -121,6 +121,10 @@ pub struct TimerDefinition {
     /// Custom alert text (None = use timer name)
     pub alert_text: Option<String>,
 
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown.
+    pub alert_countdown_secs: Option<f32>,
+
     // ─── Audio ───────────────────────────────────────────────────────────────
     /// Audio configuration (alerts, countdown, custom sounds)
     #[serde(default)]

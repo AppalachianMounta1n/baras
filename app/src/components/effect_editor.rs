@@ -227,6 +227,7 @@ fn default_effect(name: String) -> EffectListItem {
         is_alert: false,
         alert_text: None,
         alert_on: AlertTrigger::None,
+        alert_countdown_secs: None,
         audio: AudioConfig::default(),
     }
 }
@@ -1844,8 +1845,15 @@ fn EffectEditForm(
                                                 d.alert_on = match e.value().as_str() {
                                                     "Effect Start" => AlertTrigger::OnApply,
                                                     "Effect End" => AlertTrigger::OnExpire,
+                                                    "Countdown" => AlertTrigger::Countdown,
                                                     _ => AlertTrigger::None,
                                                 };
+                                                // Seed a sensible default the first time Countdown is selected.
+                                                if d.alert_on == AlertTrigger::Countdown
+                                                    && d.alert_countdown_secs.is_none()
+                                                {
+                                                    d.alert_countdown_secs = Some(3.0);
+                                                }
                                                 draft.set(d);
                                             },
                                             for trigger in AlertTrigger::all() {
@@ -1857,6 +1865,33 @@ fn EffectEditForm(
                                                             selected: *trigger == draft().alert_on,
                                                             "{label}"
                                                         }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if draft().alert_on == AlertTrigger::Countdown {
+                                        div { class: "form-row-hz",
+                                            label { class: "flex items-center",
+                                                "Countdown Window (s)"
+                                                span {
+                                                    class: "help-icon",
+                                                    title: "Show a live-updating alert during the last N seconds before the effect expires (0-10). Alert text shows remaining time to one decimal.",
+                                                    "?"
+                                                }
+                                            }
+                                            input {
+                                                r#type: "number",
+                                                min: "0",
+                                                max: "10",
+                                                step: "0.5",
+                                                class: "input-inline",
+                                                value: "{draft().alert_countdown_secs.unwrap_or(3.0)}",
+                                                oninput: move |e| {
+                                                    if let Ok(v) = e.value().parse::<f32>() {
+                                                        let mut d = draft();
+                                                        d.alert_countdown_secs = Some(v.clamp(0.0, 10.0));
+                                                        draft.set(d);
                                                     }
                                                 }
                                             }

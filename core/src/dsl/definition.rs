@@ -494,6 +494,12 @@ pub struct BossTimerDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alert_text: Option<String>,
 
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown. None disables Countdown
+    /// even if alert_on is set to it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alert_countdown_secs: Option<f32>,
+
     /// Display color [R, G, B, A]
     #[serde(
         default = "crate::serde_defaults::default_timer_color",
@@ -684,6 +690,7 @@ impl BossTimerDefinition {
             alert_on: self.alert_on,
             alert_at_secs: self.alert_at_secs,
             alert_text: self.alert_text.clone(),
+            alert_countdown_secs: self.alert_countdown_secs,
             audio: self.audio.clone(),
             triggers_timer: self.chains_to.clone(),
             cancel_trigger: self.cancel_trigger.clone(),

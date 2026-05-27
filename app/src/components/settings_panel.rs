@@ -873,6 +873,34 @@ pub fn SettingsPanel(
                             }
                         }
                     }
+                    div { class: "setting-row",
+                        label { "Show Border" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.boss_health.show_border,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.boss_health.show_border = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Border Color" }
+                        input {
+                            r#type: "color",
+                            value: "{color_to_hex(&current_settings.boss_health.border_color)}",
+                            class: "color-picker",
+                            disabled: !current_settings.boss_health.show_border,
+                            oninput: move |e: Event<FormData>| {
+                                if let Some(color) = parse_hex_color(&e.value()) {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.boss_health.border_color = color;
+                                    update_draft(new_settings);
+                                }
+                            }
+                        }
+                    }
 
                     div { class: "setting-row reset-row",
                         button {

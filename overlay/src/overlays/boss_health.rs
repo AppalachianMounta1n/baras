@@ -332,6 +332,18 @@ impl BossHealthOverlay {
                 bar_radius,
             );
 
+        if self.config.show_border {
+            self.frame.stroke_rounded_rect(
+                padding,
+                y,
+                content_width,
+                bar_height,
+                bar_radius,
+                1.0 * self.frame.scale_factor(),
+                color_from_rgba(self.config.border_color),
+            );
+        }
+
         self.frame.end_frame();
     }
 
@@ -526,6 +538,19 @@ impl BossHealthOverlay {
                     bar_font_size,
                     bar_radius,
                 );
+
+            // Per-bar border outline (user-configurable colour, toggleable).
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    bar_y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    1.0 * self.frame.scale_factor(),
+                    color_from_rgba(self.config.border_color),
+                );
+            }
 
             // ── HP Marker Line (vertical line through the bar) ──────────
             if let Some((hp_pct, _)) = marker {
