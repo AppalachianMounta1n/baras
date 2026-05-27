@@ -961,6 +961,34 @@ pub fn SettingsPanel(
                             }
                         }
                     }
+                    div { class: "setting-row",
+                        label { "Show Border" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.timers_a_overlay.show_border,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.timers_a_overlay.show_border = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Border Color" }
+                        input {
+                            r#type: "color",
+                            value: "{color_to_hex(&current_settings.timers_a_overlay.border_color)}",
+                            class: "color-picker",
+                            disabled: !current_settings.timers_a_overlay.show_border,
+                            oninput: move |e: Event<FormData>| {
+                                if let Some(color) = parse_hex_color(&e.value()) {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.timers_a_overlay.border_color = color;
+                                    update_draft(new_settings);
+                                }
+                            }
+                        }
+                    }
 
                     div { class: "setting-row reset-row",
                         button {
@@ -1046,6 +1074,34 @@ pub fn SettingsPanel(
                                 let mut new_settings = draft_settings();
                                 new_settings.timers_b_overlay.stack_from_bottom = e.checked();
                                 update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Show Border" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.timers_b_overlay.show_border,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.timers_b_overlay.show_border = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Border Color" }
+                        input {
+                            r#type: "color",
+                            value: "{color_to_hex(&current_settings.timers_b_overlay.border_color)}",
+                            class: "color-picker",
+                            disabled: !current_settings.timers_b_overlay.show_border,
+                            oninput: move |e: Event<FormData>| {
+                                if let Some(color) = parse_hex_color(&e.value()) {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.timers_b_overlay.border_color = color;
+                                    update_draft(new_settings);
+                                }
                             }
                         }
                     }
@@ -1239,6 +1295,35 @@ pub fn SettingsPanel(
                             }
                         }
                     }
+                    div { class: "setting-row",
+                        label { "Show Border (bar layout)" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.effects_a.show_border,
+                            disabled: !current_settings.effects_a.layout_bar,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.effects_a.show_border = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Border Color" }
+                        input {
+                            r#type: "color",
+                            value: "{color_to_hex(&current_settings.effects_a.border_color)}",
+                            class: "color-picker",
+                            disabled: !(current_settings.effects_a.layout_bar && current_settings.effects_a.show_border),
+                            oninput: move |e: Event<FormData>| {
+                                if let Some(color) = parse_hex_color(&e.value()) {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.effects_a.border_color = color;
+                                    update_draft(new_settings);
+                                }
+                            }
+                        }
+                    }
 
                     div { class: "setting-row reset-row",
                         button {
@@ -1429,6 +1514,35 @@ pub fn SettingsPanel(
                             }
                         }
                     }
+                    div { class: "setting-row",
+                        label { "Show Border (bar layout)" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.effects_b.show_border,
+                            disabled: !current_settings.effects_b.layout_bar,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.effects_b.show_border = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Border Color" }
+                        input {
+                            r#type: "color",
+                            value: "{color_to_hex(&current_settings.effects_b.border_color)}",
+                            class: "color-picker",
+                            disabled: !(current_settings.effects_b.layout_bar && current_settings.effects_b.show_border),
+                            oninput: move |e: Event<FormData>| {
+                                if let Some(color) = parse_hex_color(&e.value()) {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.effects_b.border_color = color;
+                                    update_draft(new_settings);
+                                }
+                            }
+                        }
+                    }
 
                     div { class: "setting-row reset-row",
                         button {
@@ -1588,6 +1702,35 @@ pub fn SettingsPanel(
                                 let mut new_settings = draft_settings();
                                 new_settings.cooldown_tracker.stack_from_bottom = e.checked();
                                 update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Show Border (bar layout)" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.cooldown_tracker.show_border,
+                            disabled: !current_settings.cooldown_tracker.layout_bar,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.cooldown_tracker.show_border = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Border Color" }
+                        input {
+                            r#type: "color",
+                            value: "{color_to_hex(&current_settings.cooldown_tracker.border_color)}",
+                            class: "color-picker",
+                            disabled: !(current_settings.cooldown_tracker.layout_bar && current_settings.cooldown_tracker.show_border),
+                            oninput: move |e: Event<FormData>| {
+                                if let Some(color) = parse_hex_color(&e.value()) {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.cooldown_tracker.border_color = color;
+                                    update_draft(new_settings);
+                                }
                             }
                         }
                     }

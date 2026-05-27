@@ -97,6 +97,10 @@ pub struct EffectsABConfig {
     pub dynamic_background: bool,
     /// When true, entries stack from the bottom of the overlay window
     pub stack_from_bottom: bool,
+    /// When true (and in bar layout), draw an outline around each entry
+    pub show_border: bool,
+    /// Color of the per-entry border outline (bar layout only)
+    pub border_color: [u8; 4],
 }
 
 impl Default for EffectsABConfig {
@@ -113,6 +117,8 @@ impl Default for EffectsABConfig {
             font_scale: 1.0,
             dynamic_background: true,
             stack_from_bottom: false,
+            show_border: true,
+            border_color: [128, 128, 128, 255],
         }
     }
 }
@@ -713,6 +719,19 @@ impl EffectsABOverlay {
             }
 
             bar.render(&mut self.frame, padding, y, content_width, bar_height, font_size, bar_radius);
+
+            // Per-entry border outline (user-configurable colour, toggleable).
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    1.0 * scale,
+                    color_from_rgba(self.config.border_color),
+                );
+            }
 
             // Draw icon with glow border (identical to timer overlay pattern)
             if has_icon {

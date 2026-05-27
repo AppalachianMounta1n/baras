@@ -107,7 +107,7 @@ const BASE_HEIGHT: f32 = 150.0;
 
 /// Base layout values (at BASE_WIDTH x BASE_HEIGHT)
 const BASE_BAR_HEIGHT: f32 = 18.0;
-const BASE_ENTRY_SPACING: f32 = 4.0;
+const BASE_ENTRY_SPACING: f32 = 2.0;
 const BASE_PADDING: f32 = 6.0;
 const BASE_FONT_SIZE: f32 = 11.0;
 
@@ -179,7 +179,7 @@ impl TimerOverlay {
         self.frame.begin_frame();
 
         let content_width = width - padding * 2.0;
-        let bar_radius = 3.0 * self.frame.scale_factor();
+        let bar_radius = 2.0 * self.frame.scale_factor();
 
         let previews = [
             ("Mechanic A", "12.3", 0.75_f32),
@@ -213,6 +213,18 @@ impl TimerOverlay {
                     font_size,
                     bar_radius,
                 );
+
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    1.0 * self.frame.scale_factor(),
+                    color_from_rgba(self.config.border_color),
+                );
+            }
 
             y += bar_height + entry_spacing;
         }
@@ -288,7 +300,7 @@ impl TimerOverlay {
         }
 
         let content_width = width - padding * 2.0;
-        let bar_radius = 3.0 * self.frame.scale_factor();
+        let bar_radius = 2.0 * self.frame.scale_factor();
 
         // Icon rendering setup (scale with bar, not text)
         let icon_size = bar_height - 4.0 * self.frame.scale_factor(); // Slightly smaller than bar
@@ -335,6 +347,19 @@ impl TimerOverlay {
                 font_size,
                 bar_radius,
             );
+
+            // Per-entry border outline (user-configurable colour, toggleable).
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    1.0 * self.frame.scale_factor(),
+                    color_from_rgba(self.config.border_color),
+                );
+            }
 
             // Draw icon on top of bar if available
             if has_icon {

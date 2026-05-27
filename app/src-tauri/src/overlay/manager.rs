@@ -397,6 +397,8 @@ impl OverlayManager {
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
                     stack_from_bottom: cfg.stack_from_bottom,
+                    show_border: cfg.show_border,
+                    border_color: cfg.border_color,
                 };
                 OverlayConfigUpdate::EffectsA(buffs_config, settings.effects_a_opacity, eu)
             }
@@ -421,6 +423,8 @@ impl OverlayManager {
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
                     stack_from_bottom: cfg.stack_from_bottom,
+                    show_border: cfg.show_border,
+                    border_color: cfg.border_color,
                 };
                 OverlayConfigUpdate::EffectsB(debuffs_config, settings.effects_b_opacity, eu)
             }
@@ -438,6 +442,8 @@ impl OverlayManager {
                     dynamic_background: cfg.dynamic_background,
                     layout_bar: cfg.layout_bar,
                     stack_from_bottom: cfg.stack_from_bottom,
+                    show_border: cfg.show_border,
+                    border_color: cfg.border_color,
                 };
                 OverlayConfigUpdate::Cooldowns(cooldowns_config, settings.cooldown_tracker_opacity, eu)
             }

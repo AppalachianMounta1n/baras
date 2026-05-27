@@ -1739,6 +1739,12 @@ pub struct TimerOverlayConfig {
     /// When true, entries stack from the bottom of the overlay window
     #[serde(default)]
     pub stack_from_bottom: bool,
+    /// When true, draw an outline around each timer entry
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-entry border outline
+    #[serde(default = "default_timer_border_color")]
+    pub border_color: Color,
 }
 
 fn default_timer_bar_color() -> Color {
@@ -1746,6 +1752,13 @@ fn default_timer_bar_color() -> Color {
 }
 fn default_max_timers() -> u8 {
     10
+}
+fn default_timer_border_color() -> Color {
+    default_overlay_border_color()
+}
+
+fn default_overlay_border_color() -> Color {
+    [128, 128, 128, 255]
 }
 
 impl Default for TimerOverlayConfig {
@@ -1758,6 +1771,8 @@ impl Default for TimerOverlayConfig {
             font_scale: 1.0,
             dynamic_background: false,
             stack_from_bottom: false,
+            show_border: true,
+            border_color: default_timer_border_color(),
         }
     }
 }
@@ -1940,6 +1955,12 @@ pub struct EffectsAConfig {
     /// When true, entries stack from the bottom of the overlay window
     #[serde(default)]
     pub stack_from_bottom: bool,
+    /// When true (and in bar layout), draw an outline around each entry
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-entry border outline (bar layout only)
+    #[serde(default = "default_overlay_border_color")]
+    pub border_color: Color,
 }
 
 fn default_icon_size() -> u8 {
@@ -1963,6 +1984,8 @@ impl Default for EffectsAConfig {
             font_scale: 1.0,
             dynamic_background: false,
             stack_from_bottom: false,
+            show_border: true,
+            border_color: default_overlay_border_color(),
         }
     }
 }
@@ -2003,6 +2026,12 @@ pub struct EffectsBConfig {
     /// When true, entries stack from the bottom of the overlay window
     #[serde(default)]
     pub stack_from_bottom: bool,
+    /// When true (and in bar layout), draw an outline around each entry
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-entry border outline (bar layout only)
+    #[serde(default = "default_overlay_border_color")]
+    pub border_color: Color,
 }
 
 impl Default for EffectsBConfig {
@@ -2019,6 +2048,8 @@ impl Default for EffectsBConfig {
             font_scale: 1.0,
             dynamic_background: false,
             stack_from_bottom: false,
+            show_border: true,
+            border_color: default_overlay_border_color(),
         }
     }
 }
@@ -2067,6 +2098,12 @@ pub struct CooldownTrackerConfig {
     /// When true, entries stack from the bottom of the overlay window
     #[serde(default)]
     pub stack_from_bottom: bool,
+    /// When true (and in bar layout), draw an outline around each entry
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-entry border outline (bar layout only)
+    #[serde(default = "default_overlay_border_color")]
+    pub border_color: Color,
 }
 
 fn default_max_cooldowns() -> u8 {
@@ -2087,6 +2124,8 @@ impl Default for CooldownTrackerConfig {
             dynamic_background: false,
             layout_bar: false,
             stack_from_bottom: false,
+            show_border: true,
+            border_color: default_overlay_border_color(),
         }
     }
 }

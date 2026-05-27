@@ -91,6 +91,10 @@ pub struct CooldownConfig {
     pub layout_bar: bool,
     /// When true, entries stack from the bottom of the overlay window
     pub stack_from_bottom: bool,
+    /// When true (and in bar layout), draw an outline around each entry
+    pub show_border: bool,
+    /// Color of the per-entry border outline (bar layout only)
+    pub border_color: [u8; 4],
 }
 
 impl Default for CooldownConfig {
@@ -107,6 +111,8 @@ impl Default for CooldownConfig {
             dynamic_background: true,
             layout_bar: false,
             stack_from_bottom: false,
+            show_border: true,
+            border_color: [128, 128, 128, 255],
         }
     }
 }
@@ -746,6 +752,20 @@ impl CooldownOverlay {
 
             bar.render(&mut self.frame, padding, y, content_width, bar_height, font_size, bar_radius);
 
+            // Per-entry border outline (user-configurable colour, toggleable).
+            // Drawn before the ready-state border so the ready highlight wins.
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    1.0 * scale,
+                    color_from_rgba(self.config.border_color),
+                );
+            }
+
             // Light-blue border for ready state
             if entry.is_in_ready_state {
                 let c = tiny_skia::Color::from_rgba(
@@ -836,6 +856,18 @@ impl CooldownOverlay {
                 .with_bold_text()
                 .with_text_glow()
                 .render(&mut self.frame, padding, y, content_width, bar_height, font_size, bar_radius);
+
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    1.0 * self.frame.scale_factor(),
+                    color_from_rgba(self.config.border_color),
+                );
+            }
 
             if is_ready {
                 let c = tiny_skia::Color::from_rgba(

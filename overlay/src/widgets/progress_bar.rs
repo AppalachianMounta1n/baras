@@ -285,7 +285,7 @@ impl ProgressBar {
         // Draw right text (rightmost position)
         if let Some(ref right) = self.right_text {
             let (text_width, _) = frame.measure_text(right, effective_font_size);
-            let right_x = x + width - text_width - text_padding;
+            let right_x = x + width - text_width - 8.0 * frame.scale_factor();
             draw_bar_text(frame, right, right_x, text_y);
         }
 

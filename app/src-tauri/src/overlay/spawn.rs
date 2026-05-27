@@ -808,6 +808,8 @@ pub fn create_effects_a_overlay(
         font_scale: effects_config.font_scale,
         dynamic_background: effects_config.dynamic_background,
         stack_from_bottom: effects_config.stack_from_bottom,
+        show_border: effects_config.show_border,
+        border_color: effects_config.border_color,
     };
 
     let factory = move || {
@@ -864,6 +866,8 @@ pub fn create_effects_b_overlay(
         font_scale: effects_config.font_scale,
         dynamic_background: effects_config.dynamic_background,
         stack_from_bottom: effects_config.stack_from_bottom,
+        show_border: effects_config.show_border,
+        border_color: effects_config.border_color,
     };
 
     let factory = move || {
@@ -912,6 +916,8 @@ pub fn create_cooldowns_overlay(
         dynamic_background: cooldowns_config.dynamic_background,
         layout_bar: cooldowns_config.layout_bar,
         stack_from_bottom: cooldowns_config.stack_from_bottom,
+        show_border: cooldowns_config.show_border,
+        border_color: cooldowns_config.border_color,
     };
 
     let factory = move || {
