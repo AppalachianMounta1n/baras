@@ -831,18 +831,31 @@ pub fn SettingsPanel(
                                 }
                             }
 
+                            div { class: "setting-row",
+                                label { "Show HP value" }
+                                input {
+                                    r#type: "checkbox",
+                                    checked: current_settings.boss_health.show_hp_value,
+                                    onchange: move |e: Event<FormData>| {
+                                        let mut new_settings = draft_settings();
+                                        new_settings.boss_health.show_hp_value = e.checked();
+                                        update_draft(new_settings);
+                                    }
+                                }
+                            }
+
                     div { class: "setting-row",
                         label { "Font Scale" }
                         input {
                             r#type: "range",
-                            min: "100",
+                            min: "30",
                             max: "200",
                             step: "10",
                             value: "{(current_settings.boss_health.font_scale * 100.0) as i32}",
                             oninput: move |e| {
                                 if let Ok(val) = e.value().parse::<i32>() {
                                     let mut new_settings = draft_settings();
-                                    new_settings.boss_health.font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
+                                    new_settings.boss_health.font_scale = (val as f32 / 100.0).clamp(0.3, 2.0);
                                     update_draft(new_settings);
                                 }
                             }

@@ -728,7 +728,7 @@ impl EffectsABOverlay {
                     content_width,
                     bar_height,
                     bar_radius,
-                    1.0 * scale,
+                    0.8 * scale,
                     color_from_rgba(self.config.border_color),
                 );
             }

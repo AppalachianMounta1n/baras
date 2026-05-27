@@ -62,7 +62,6 @@ const BASE_HEIGHT: f32 = 100.0;
 
 /// Base layout values (at BASE_WIDTH x BASE_HEIGHT)
 const BASE_BAR_HEIGHT: f32 = 20.0;
-const BASE_LABEL_HEIGHT: f32 = 11.0;
 const BASE_ENTRY_SPACING: f32 = 8.0;
 const BASE_LABEL_BAR_GAP: f32 = 1.0;
 const BASE_PADDING: f32 = 8.0;
@@ -74,6 +73,16 @@ const BASE_SHIELD_BAR_HEIGHT: f32 = 12.0;
 
 fn shield_bar_color() -> Color {
     Color::from_rgba8(100, 180, 255, 200)
+}
+
+/// Replace each ASCII digit with '8' (typically the widest digit in
+/// proportional fonts). Used to size column reservations so the actual
+/// rendered text never exceeds the reserved width, regardless of which
+/// digits appear.
+fn digit_normalize(s: &str) -> String {
+    s.chars()
+        .map(|c| if c.is_ascii_digit() { '8' } else { c })
+        .collect()
 }
 
 fn marker_line_color() -> Color {
@@ -158,20 +167,25 @@ impl BossHealthOverlay {
         &self,
         entry: &OverlayHealthEntry,
         bar_height: f32,
-        label_height: f32,
         label_bar_gap: f32,
         label_font_size: f32,
         shield_bar_height: f32,
         icon_row_height: Option<f32>,
     ) -> f32 {
-        let mut h = label_height + label_bar_gap;
+        // Compact inline layout: name + HP + percent live on the HP bar
+        // itself. Target renders as a "badge" half-overlapping the bar's
+        // bottom-right corner — its lower half extends below the bar.
+        let mut h = 0.0;
 
-        // Shield bar (between name and HP bar)
+        // Shield bar (above the HP bar, when present)
         if !entry.active_shields.is_empty() {
             h += shield_bar_height + label_bar_gap;
         }
 
         h += bar_height;
+
+        // Target badge floats over the layout — does not contribute to
+        // height. It overlaps the icons/marker row visually if present.
 
         if let Some(row_h) = icon_row_height {
             h += row_h;
@@ -184,16 +198,15 @@ impl BossHealthOverlay {
 
     /// Icon row height for a given bar height (3px gap above icons + icon size + 3px gap below).
     fn icon_row_height(bar_height: f32) -> f32 {
-        bar_height * 0.9 + 6.0
+        bar_height * 0.6 + 6.0
     }
 
     /// Calculate compression factor to fit entries in available height
     fn compression_factor(&self, entries: &[OverlayHealthEntry]) -> f32 {
         let height = self.frame.height() as f32;
-        let font_scale = self.config.font_scale.clamp(1.0, 2.0);
+        let font_scale = self.config.font_scale.clamp(0.3, 2.0);
         let padding = self.frame.scaled(BASE_PADDING);
         let bar_height = self.frame.scaled(BASE_BAR_HEIGHT);
-        let label_height = self.frame.scaled(BASE_LABEL_HEIGHT) * font_scale;
         let entry_spacing = self.frame.scaled(BASE_ENTRY_SPACING);
         let label_bar_gap = self.frame.scaled(BASE_LABEL_BAR_GAP);
         let label_font_size = self.frame.scaled(BASE_LABEL_FONT_SIZE) * font_scale;
@@ -210,7 +223,6 @@ impl BossHealthOverlay {
                     self.entry_height(
                         e,
                         bar_height,
-                        label_height,
                         label_bar_gap,
                         label_font_size,
                         shield_bar_height,
@@ -229,10 +241,9 @@ impl BossHealthOverlay {
 
     /// Pre-compute the total content height for all visible entries.
     fn compute_content_height(&self, entries: &[OverlayHealthEntry], compression: f32) -> f32 {
-        let font_scale = self.config.font_scale.clamp(1.0, 2.0);
+        let font_scale = self.config.font_scale.clamp(0.3, 2.0);
         let padding = self.frame.scaled(BASE_PADDING);
         let bar_height = self.frame.scaled(BASE_BAR_HEIGHT) * compression;
-        let label_height = self.frame.scaled(BASE_LABEL_HEIGHT) * compression * font_scale;
         let entry_spacing = self.frame.scaled(BASE_ENTRY_SPACING) * compression;
         let label_bar_gap = self.frame.scaled(BASE_LABEL_BAR_GAP) * compression;
         let label_font_size = self.frame.scaled(BASE_LABEL_FONT_SIZE) * compression * font_scale;
@@ -247,7 +258,6 @@ impl BossHealthOverlay {
             y += self.entry_height(
                 entry,
                 bar_height,
-                label_height,
                 label_bar_gap,
                 label_font_size,
                 shield_bar_height,
@@ -284,13 +294,10 @@ impl BossHealthOverlay {
     fn render_preview(&mut self) {
         let width = self.frame.width() as f32;
 
-        let font_scale = self.config.font_scale.clamp(1.0, 2.0);
+        let font_scale = self.config.font_scale.clamp(0.3, 2.0);
         let padding = self.frame.scaled(BASE_PADDING);
         let bar_height = self.frame.scaled(BASE_BAR_HEIGHT);
-        let label_height = self.frame.scaled(BASE_LABEL_HEIGHT);
-        let label_bar_gap = self.frame.scaled(BASE_LABEL_BAR_GAP);
         let font_size = self.frame.scaled(BASE_FONT_SIZE) * font_scale;
-        let label_font_size = self.frame.scaled(BASE_LABEL_FONT_SIZE) * font_scale;
         let bar_radius = 4.0 * self.frame.scale_factor();
 
         let bar_color = color_from_rgba(self.config.bar_color);
@@ -300,28 +307,21 @@ impl BossHealthOverlay {
 
         self.frame.begin_frame();
 
-        let mut y = padding;
+        let y = padding;
 
-        // Boss name label
-        let name_y = y + label_font_size;
-        self.frame
-            .draw_text_glowed("Boss", padding, name_y, label_font_size, font_color);
-        y += label_height + label_bar_gap;
-
-        // HP bar
-        let health_text = "1.2M / 1.2M";
+        let name = "Boss";
+        let health_text = "1.2M";
         let percent_text = if self.config.show_percent {
             "72.0%".to_string()
         } else {
             String::new()
         };
         let bar_font_size = font_size * 0.70;
-        ProgressBar::new(health_text, 0.72)
+
+        // Bar background + fill (no inline text — three columns layered next).
+        ProgressBar::new("", 0.72)
             .with_fill_color(bar_color)
             .with_bg_color(colors::dps_bar_bg())
-            .with_text_color(font_color)
-            .with_right_text(percent_text)
-            .with_text_glow()
             .render(
                 &mut self.frame,
                 padding,
@@ -339,8 +339,61 @@ impl BossHealthOverlay {
                 content_width,
                 bar_height,
                 bar_radius,
-                1.0 * self.frame.scale_factor(),
+                0.8 * self.frame.scale_factor(),
                 color_from_rgba(self.config.border_color),
+            );
+        }
+
+        // Three-column inline text matching the live render path.
+        let inline_text_pad = 6.0 * self.frame.scale_factor();
+        let inline_col_gap = 8.0 * self.frame.scale_factor();
+        let (hp_col_w, _) = self.frame.measure_text("123.45M", bar_font_size);
+        let (pct_col_w, _) = if self.config.show_percent {
+            self.frame.measure_text("12.3%", bar_font_size)
+        } else {
+            (0.0, 0.0)
+        };
+        let pct_section = if self.config.show_percent {
+            inline_col_gap + pct_col_w
+        } else {
+            0.0
+        };
+        let name_col_w = (content_width
+            - inline_text_pad * 2.0
+            - inline_col_gap
+            - hp_col_w
+            - pct_section)
+            .max(0.0);
+
+        let name_font_size = self.scaled_font_for_text(name, name_col_w, bar_font_size);
+        let text_y = y + bar_height / 2.0 + bar_font_size / 3.0;
+        self.frame.draw_text_glowed(
+            name,
+            padding + inline_text_pad,
+            text_y,
+            name_font_size,
+            font_color,
+        );
+
+        let hp_col_x = padding + inline_text_pad + name_col_w + inline_col_gap;
+        let (hp_w, _) = self.frame.measure_text(health_text, bar_font_size);
+        self.frame.draw_text_glowed(
+            health_text,
+            hp_col_x + hp_col_w - hp_w,
+            text_y,
+            bar_font_size,
+            font_color,
+        );
+
+        if self.config.show_percent {
+            let pct_col_x = hp_col_x + hp_col_w + inline_col_gap;
+            let (pct_w, _) = self.frame.measure_text(&percent_text, bar_font_size);
+            self.frame.draw_text_glowed(
+                &percent_text,
+                pct_col_x + pct_col_w - pct_w,
+                text_y,
+                bar_font_size,
+                font_color,
             );
         }
 
@@ -389,16 +442,14 @@ impl BossHealthOverlay {
         }
 
         // Clamp font_scale to sensible range
-        let font_scale = self.config.font_scale.clamp(1.0, 2.0);
+        let font_scale = self.config.font_scale.clamp(0.3, 2.0);
 
         // Apply compression to entry-specific dimensions
         let padding = self.frame.scaled(BASE_PADDING);
         let bar_height = self.frame.scaled(BASE_BAR_HEIGHT) * compression;
-        let label_height = self.frame.scaled(BASE_LABEL_HEIGHT) * compression * font_scale;
         let entry_spacing = self.frame.scaled(BASE_ENTRY_SPACING) * compression;
         let label_bar_gap = self.frame.scaled(BASE_LABEL_BAR_GAP) * compression;
         let font_size = self.frame.scaled(BASE_FONT_SIZE) * compression * font_scale;
-        let label_font_size = self.frame.scaled(BASE_LABEL_FONT_SIZE) * compression * font_scale;
         let shield_bar_height = self.frame.scaled(BASE_SHIELD_BAR_HEIGHT) * compression;
 
         let bar_color = color_from_rgba(self.config.bar_color);
@@ -406,7 +457,7 @@ impl BossHealthOverlay {
 
         let content_width = width - padding * 2.0;
         let bar_radius = 4.0 * self.frame.scale_factor() * compression;
-        let icon_size = bar_height * 0.9;
+        let icon_size = bar_height * 0.6;
         let icon_spacing = 2.0;
         let time_font_size = icon_size * 0.38;
 
@@ -415,67 +466,15 @@ impl BossHealthOverlay {
         for entry in &entries {
             let progress = entry.percent() / 100.0;
 
-            // ── Boss Name + Target Name ────────────────────────────────
-            // Measure both texts at base sizes, then scale down as needed to
-            // prevent the boss name and target from clipping into each other.
-            let gap = label_font_size * 0.5;
-
-            let target_info = if self.config.show_target {
-                if let Some(ref target) = entry.target_name {
-                    let text = format!("⌖ {}", target);
-                    Some(text)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
-            // Compute boss name font size, reserving space for target if present
-            let (actual_font_size, target_font_size) = if let Some(ref target_text) = target_info {
-                let base_target_font = label_font_size * 0.85;
-                let (target_w, _) = self.frame.measure_text(target_text, base_target_font);
-                let reserved = target_w + gap;
-
-                let name_max_width = (content_width - reserved).max(content_width * 0.3);
-                let name_font =
-                    self.scaled_font_for_text(&entry.name, name_max_width, label_font_size);
-
-                // Scale target text to fit its allocated space too
-                let (name_w, _) = self.frame.measure_text(&entry.name, name_font);
-                let target_max_width = (content_width - name_w - gap).max(content_width * 0.2);
-                let target_font =
-                    self.scaled_font_for_text(target_text, target_max_width, base_target_font);
-
-                (name_font, target_font)
-            } else {
-                let name_font =
-                    self.scaled_font_for_text(&entry.name, content_width, label_font_size);
-                (name_font, 0.0)
-            };
-
-            let name_y = y + actual_font_size;
-
             // Find the next relevant HP marker (used for line + label below bar)
             let marker = Self::next_marker(entry);
 
-            self.frame
-                .draw_text_glowed(&entry.name, padding, name_y, actual_font_size, font_color);
-
-            // Target name on the right (same line as boss name)
-            if let Some(ref target_text) = target_info {
-                let (text_width, _) = self.frame.measure_text(target_text, target_font_size);
-                let target_x = padding + content_width - text_width;
-                self.frame.draw_text_glowed(
-                    target_text,
-                    target_x,
-                    name_y,
-                    target_font_size,
-                    font_color,
-                );
-            }
-
-            y += label_height + label_bar_gap;
+            // Target name (rendered below the HP bar, if present and enabled)
+            let target_info = if self.config.show_target {
+                entry.target_name.as_ref().map(|t| format!("⌖ {}", t))
+            } else {
+                None
+            };
 
             // ── Shield Bar (above HP bar, only when shields active) ─────
             if !entry.active_shields.is_empty() {
@@ -512,7 +511,7 @@ impl BossHealthOverlay {
                 y += shield_bar_height + label_bar_gap;
             }
 
-            // ── HP Bar ──────────────────────────────────────────────────
+            // ── HP Bar (inline: Name | HP | Percent) ────────────────────
             let health_text =
                 formatting::format_compact(entry.current as i64, self.european_number_format);
             let percent_text = if self.config.show_percent {
@@ -523,12 +522,12 @@ impl BossHealthOverlay {
 
             let bar_font_size = font_size * 0.70;
             let bar_y = y;
-            ProgressBar::new(&health_text, progress)
+
+            // Render bar background + fill (no inline text — we'll layer the
+            // three columns ourselves so the name can scale down independently).
+            ProgressBar::new("", progress)
                 .with_fill_color(bar_color)
                 .with_bg_color(colors::dps_bar_bg())
-                .with_text_color(font_color)
-                .with_right_text(percent_text)
-                .with_text_glow()
                 .render(
                     &mut self.frame,
                     padding,
@@ -547,7 +546,7 @@ impl BossHealthOverlay {
                     content_width,
                     bar_height,
                     bar_radius,
-                    1.0 * self.frame.scale_factor(),
+                    0.8 * self.frame.scale_factor(),
                     color_from_rgba(self.config.border_color),
                 );
             }
@@ -565,7 +564,180 @@ impl BossHealthOverlay {
                 );
             }
 
+            // Three-column inline text on top of the bar.
+            // HP column is wide enough for "123.45M" without scaling; percent
+            // column wide enough for "12.3%". Name takes the remainder and
+            // scales down to fit if needed. When a target badge is present
+            // we shrink the inline content width so the badge's bar-overlap
+            // never collides with the right-aligned HP/percent text.
+            let inline_text_pad = 6.0 * self.frame.scale_factor() * compression;
+            let inline_col_gap = 8.0 * self.frame.scale_factor() * compression;
+
+            // Pick a unified font size for Name + HP + Percent that respects
+            // the configured `font_scale` (via `bar_font_size`) and only
+            // shrinks when the three would otherwise overflow.
+            //
+            // Reservations are digit-normalized versions of the actual text
+            // (each digit replaced with the widest glyph "8"), so the slot
+            // is just-wide-enough for the current value's character count
+            // rather than the absolute maximum. This avoids wasting space
+            // when the boss's HP is e.g. "1.85M" — the reservation collapses
+            // from "888.88M" down to "8.88M", giving the row more headroom
+            // to grow with `font_scale`.
+            let gap_count =
+                self.config.show_hp_value as i32 + self.config.show_percent as i32;
+            let fixed_padding =
+                inline_text_pad * 2.0 + inline_col_gap * gap_count as f32;
+
+            let hp_reserve = digit_normalize(&health_text);
+            let pct_reserve = digit_normalize(&percent_text);
+
+            let (name_w_at_bar, _) = self.frame.measure_text(&entry.name, bar_font_size);
+            let (hp_w_at_bar, _) = if self.config.show_hp_value {
+                self.frame.measure_text(&hp_reserve, bar_font_size)
+            } else {
+                (0.0, 0.0)
+            };
+            let (pct_w_at_bar, _) = if self.config.show_percent {
+                self.frame.measure_text(&pct_reserve, bar_font_size)
+            } else {
+                (0.0, 0.0)
+            };
+            let total_at_bar = name_w_at_bar + hp_w_at_bar + pct_w_at_bar;
+
+            // Default: respect bar_font_size (so font_scale takes effect).
+            // Only shrink if the three texts plus padding actually overflow.
+            let mut row_font_size = bar_font_size;
+            if total_at_bar + fixed_padding > content_width && total_at_bar > 0.0 {
+                let ratio = ((content_width - fixed_padding).max(0.0)) / total_at_bar;
+                row_font_size = (bar_font_size * ratio).max(bar_font_size * 0.30);
+            }
+
+            // Re-measure the three slot widths at the final row_font_size so
+            // they hug the right edge cleanly with no leftover empty space.
+            let (hp_col_w, _) = if self.config.show_hp_value {
+                self.frame.measure_text(&hp_reserve, row_font_size)
+            } else {
+                (0.0, 0.0)
+            };
+            let hp_section = if self.config.show_hp_value {
+                inline_col_gap + hp_col_w
+            } else {
+                0.0
+            };
+            let (pct_col_w, _) = if self.config.show_percent {
+                self.frame.measure_text(&pct_reserve, row_font_size)
+            } else {
+                (0.0, 0.0)
+            };
+            let pct_section = if self.config.show_percent {
+                inline_col_gap + pct_col_w
+            } else {
+                0.0
+            };
+            let name_col_w = (content_width
+                - inline_text_pad * 2.0
+                - hp_section
+                - pct_section)
+                .max(0.0);
+
+            // ── Target badge geometry (floating, rendered after the bar) ─
+            // Badge font scales with the actual HP text (row_font_size) so
+            // it stays proportional when the row shrank for a long name.
+            let badge_info: Option<(String, f32, f32, f32, f32)> = target_info
+                .as_ref()
+                .map(|t| {
+                    let badge_pad_x = 4.0 * self.frame.scale_factor() * compression;
+                    let badge_pad_y = 1.5 * self.frame.scale_factor() * compression;
+                    let base_badge_font = row_font_size * 0.50;
+                    let max_text_w = (content_width * 0.45).max(40.0);
+                    let badge_font = self.scaled_font_for_text(t, max_text_w, base_badge_font);
+                    let (text_w, _) = self.frame.measure_text(t, badge_font);
+                    let badge_w = text_w + badge_pad_x * 2.0;
+                    let badge_h = badge_font + badge_pad_y * 2.0;
+                    (t.clone(), badge_w, badge_h, badge_font, badge_pad_x)
+                });
+
+            let text_y = bar_y + bar_height / 2.0 + row_font_size / 3.0;
+
+            // Name (left-aligned within its column). All three texts share
+            // row_font_size — the iterative fit above guarantees they all fit.
+            self.frame.draw_text_glowed(
+                &entry.name,
+                padding + inline_text_pad,
+                text_y,
+                row_font_size,
+                font_color,
+            );
+
+            // HP value (right-aligned within its column)
+            let hp_col_x = padding + inline_text_pad + name_col_w + inline_col_gap;
+            if self.config.show_hp_value {
+                let (hp_w, _) = self.frame.measure_text(&health_text, row_font_size);
+                self.frame.draw_text_glowed(
+                    &health_text,
+                    hp_col_x + hp_col_w - hp_w,
+                    text_y,
+                    row_font_size,
+                    font_color,
+                );
+            }
+
+            // Percent (right-aligned within its column)
+            if self.config.show_percent {
+                // When HP is hidden, percent column abuts the name column
+                // directly (no extra gap from the empty HP slot).
+                let pct_col_x = if self.config.show_hp_value {
+                    hp_col_x + hp_col_w + inline_col_gap
+                } else {
+                    padding + inline_text_pad + name_col_w + inline_col_gap
+                };
+                let (pct_w, _) = self.frame.measure_text(&percent_text, row_font_size);
+                self.frame.draw_text_glowed(
+                    &percent_text,
+                    pct_col_x + pct_col_w - pct_w,
+                    text_y,
+                    row_font_size,
+                    font_color,
+                );
+            }
+
+            // ── Target Badge (half on / half off the bar's bottom-right) ─
+            if let Some((badge_text, badge_w, badge_h, badge_font, badge_pad_x)) = &badge_info {
+                let bw = *badge_w;
+                let bh = *badge_h;
+                let bfont = *badge_font;
+                let bpad = *badge_pad_x;
+                let badge_x = padding + content_width - bw;
+                let badge_y = bar_y + bar_height - bh / 2.0;
+                let badge_radius = bh / 2.0;
+                let badge_bg =
+                    tiny_skia::Color::from_rgba(0.10, 0.10, 0.10, 0.88).unwrap_or(Color::BLACK);
+                self.frame.fill_rounded_rect(badge_x, badge_y, bw, bh, badge_radius, badge_bg);
+                if self.config.show_border {
+                    self.frame.stroke_rounded_rect(
+                        badge_x,
+                        badge_y,
+                        bw,
+                        bh,
+                        badge_radius,
+                        0.4 * self.frame.scale_factor(),
+                        color_from_rgba(self.config.border_color),
+                    );
+                }
+                let badge_text_y = badge_y + bh / 2.0 + bfont / 3.0;
+                self.frame.draw_text_glowed(
+                    badge_text,
+                    badge_x + bpad,
+                    badge_text_y,
+                    bfont,
+                    font_color,
+                );
+            }
+
             y += bar_height;
+            // Badge floats — it overlaps subsequent rows visually but does
+            // not push them down. No vertical reserve.
 
             // ── Icon + Marker Row (below bar) ──────────────────────────
             let entry_icons = self.data.boss_icons.get(&entry.entity_id);
@@ -627,7 +799,7 @@ impl BossHealthOverlay {
 
                 // Marker text to the right of icons (same row, vertically centered)
                 if let Some((hp_pct, label)) = marker {
-                    let marker_font_size = label_font_size * 0.85;
+                    let marker_font_size = row_font_size * 0.55;
                     let marker_label = format!("{}% {}", hp_pct as u32, label);
                     self.frame.draw_text_glowed(
                         &marker_label,
@@ -640,16 +812,13 @@ impl BossHealthOverlay {
 
                 y += icon_size + 6.0;
             } else if let Some((hp_pct, label)) = marker {
-                let marker_font_size = label_font_size * 0.85;
+                // Left-aligned at the bar's content padding (no icons row to
+                // anchor against).
+                let marker_font_size = row_font_size * 0.55;
                 let marker_label = format!("{}% {}", hp_pct as u32, label);
-                let marker_x = padding + (hp_pct / 100.0) * content_width;
-                let (marker_text_w, _) = self.frame.measure_text(&marker_label, marker_font_size);
-                let marker_label_x = (marker_x - marker_text_w / 2.0)
-                    .max(padding)
-                    .min(padding + content_width - marker_text_w);
                 self.frame.draw_text_glowed(
                     &marker_label,
-                    marker_label_x,
+                    padding,
                     y + marker_font_size + 1.0,
                     marker_font_size,
                     marker_line_color(),

@@ -761,7 +761,7 @@ impl CooldownOverlay {
                     content_width,
                     bar_height,
                     bar_radius,
-                    1.0 * scale,
+                    0.8 * scale,
                     color_from_rgba(self.config.border_color),
                 );
             }
@@ -864,7 +864,7 @@ impl CooldownOverlay {
                     content_width,
                     bar_height,
                     bar_radius,
-                    1.0 * self.frame.scale_factor(),
+                    0.8 * self.frame.scale_factor(),
                     color_from_rgba(self.config.border_color),
                 );
             }

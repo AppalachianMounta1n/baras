@@ -1688,6 +1688,9 @@ pub struct BossHealthConfig {
     pub show_percent: bool,
     #[serde(default = "default_true")]
     pub show_target: bool,
+    /// When true, show the current HP value (e.g. "1.90M") inline on the bar
+    #[serde(default = "default_true")]
+    pub show_hp_value: bool,
     /// Font scale multiplier (1.0 - 2.0, default 1.0)
     #[serde(default = "default_scaling_factor")]
     pub font_scale: f32,
@@ -1716,6 +1719,7 @@ impl Default for BossHealthConfig {
             font_color: overlay_colors::WHITE,
             show_percent: true,
             show_target: true,
+            show_hp_value: true,
             font_scale: 1.0,
             dynamic_background: false,
             clear_after_combat: true,
