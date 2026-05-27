@@ -797,13 +797,13 @@ mod examples {
             width: 240,
             height: 180,
             namespace: "baras-timers".to_string(),
-            click_through: false,
+            click_through: true,
             target_monitor_id: None,
         };
 
         let timer_config = TimerOverlayConfig::default();
 
-        let mut overlay = match TimerOverlay::new(config, timer_config, 180, "Timers") {
+        let mut overlay = match TimerOverlay::new(config, timer_config, 0, "Timers") {
             Ok(o) => o,
             Err(e) => {
                 tracing::error!(error = %e, "Failed to create timer overlay");
@@ -811,8 +811,7 @@ mod examples {
             }
         };
 
-        // Enable move mode for repositioning
-        overlay.set_move_mode(true);
+        let icons = load_demo_icons();
 
         let start = Instant::now();
         let mut last_frame = Instant::now();
@@ -821,9 +820,7 @@ mod examples {
         println!("┌─────────────────────────────────────────────────────────────┐");
         println!("│           Timer Overlay - Boss Mechanic Countdown           │");
         println!("├─────────────────────────────────────────────────────────────┤");
-        println!("│  Timers tick down in real-time                              │");
-        println!("│  Drag anywhere to move the overlay                          │");
-        println!("│  Drag bottom-right corner to resize                         │");
+        println!("│  Timers tick down in real-time (click-through demo mode)    │");
         println!("├─────────────────────────────────────────────────────────────┤");
         println!("│  Press Ctrl+C to exit                                       │");
         println!("└─────────────────────────────────────────────────────────────┘");
@@ -838,7 +835,7 @@ mod examples {
                 let elapsed = start.elapsed().as_secs_f32();
 
                 // Create sample timer entries with staggered durations
-                let entries = create_sample_timers(elapsed);
+                let entries = create_sample_timers(elapsed, &icons);
                 overlay.set_data(TimerData { entries });
                 overlay.render();
                 last_frame = now;
@@ -849,30 +846,34 @@ mod examples {
         }
     }
 
-    /// Create sample boss timers that tick down based on elapsed time
-    fn create_sample_timers(elapsed: f32) -> Vec<TimerEntry> {
-        // Define sample boss mechanics with their cycle times
-        let mechanics = [
-            ("Doom", 30.0, [200, 50, 50, 255]), // Red - big mechanic
-            ("Lightning Storm", 20.0, [100, 150, 255, 255]), // Blue
-            ("Adds Spawn", 45.0, [180, 100, 220, 255]), // Purple
-            ("Enrage Check", 60.0, [255, 180, 50, 255]), // Orange
-            ("A VERY LONG Tank Swap", 15.0, [100, 220, 100, 255]), // Green
+    /// Create sample boss timers that tick down based on elapsed time.
+    /// A few entries get a demo icon so the icon-rendering path is exercised.
+    fn create_sample_timers(elapsed: f32, icons: &DemoIcons) -> Vec<TimerEntry> {
+        // (name, cycle, color, optional icon entry)
+        let mechanics: [(&str, f32, [u8; 4], Option<&(u64, Option<IconArc>)>); 5] = [
+            ("Doom", 30.0, [200, 50, 50, 255], Some(&icons.thundering_blast)),
+            ("Lightning Storm", 20.0, [100, 150, 255, 255], Some(&icons.lightning_strike)),
+            ("Adds Spawn", 45.0, [180, 100, 220, 255], None),
+            ("Enrage Check", 60.0, [255, 180, 50, 255], Some(&icons.recklessness)),
+            ("A VERY LONG Tank Swap", 15.0, [100, 220, 100, 255], None),
         ];
 
         mechanics
             .iter()
-            .map(|(name, cycle, color)| {
-                // Calculate remaining time in the current cycle
+            .map(|(name, cycle, color, icon_entry)| {
                 let remaining = cycle - (elapsed % cycle);
+                let (icon_ability_id, icon) = match icon_entry {
+                    Some((id, arc)) => (Some(*id), arc.clone()),
+                    None => (None, None),
+                };
 
                 TimerEntry {
                     name: name.to_string(),
                     remaining_secs: remaining,
                     total_secs: *cycle,
                     color: *color,
-                    icon_ability_id: None,
-                    icon: None,
+                    icon_ability_id,
+                    icon,
                 }
             })
             .collect()
@@ -1895,6 +1896,7 @@ mod examples {
 
         if gcd_phase < gcd_active {
             entries.push(AbilityQueueEntry {
+                definition_id: "gcd".to_string(),
                 name: "GCD".to_string(),
                 remaining_secs: gcd_active - gcd_phase,
                 total_secs: gcd_active,
@@ -1927,8 +1929,10 @@ mod examples {
             let total = cooldown + ready_window;
             let phase = elapsed % total;
             let (ability_id, icon) = (entry.0, entry.1.clone());
+            let definition_id = name.to_lowercase().replace(' ', "_");
             if phase < cooldown {
                 AbilityQueueEntry {
+                    definition_id,
                     name: name.to_string(),
                     remaining_secs: cooldown - phase,
                     total_secs: cooldown,
@@ -1944,6 +1948,7 @@ mod examples {
                 }
             } else {
                 AbilityQueueEntry {
+                    definition_id,
                     name: name.to_string(),
                     remaining_secs: 0.0,
                     total_secs: cooldown,
@@ -1974,6 +1979,7 @@ mod examples {
         // stealing it from real castable abilities beneath it.
         if lockout_active {
             entries.push(AbilityQueueEntry {
+                definition_id: "lockout".to_string(),
                 name: "Lockout".to_string(),
                 remaining_secs: 4.0 - lockout_phase,
                 total_secs: 4.0,
@@ -2007,6 +2013,7 @@ mod examples {
         // trigger time and trickles down to empty, distinguishing it from the
         // filling-up progress bars used by the other cooldown entries.
         entries.push(AbilityQueueEntry {
+            definition_id: "recklessness".to_string(),
             name: "Recklessness".to_string(),
             remaining_secs: long_remaining,
             total_secs: long_cycle,
@@ -2024,6 +2031,7 @@ mod examples {
         // Always-available filler. Lowest priority — bottom of the static
         // list. Only glows gold when nothing higher is eligible.
         entries.push(AbilityQueueEntry {
+            definition_id: "force_lightning".to_string(),
             name: "Force Lightning".to_string(),
             remaining_secs: 0.0,
             total_secs: 0.0,
