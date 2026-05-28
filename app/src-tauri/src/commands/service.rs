@@ -8,7 +8,9 @@ use tauri::{AppHandle, State};
 use baras_core::EncounterSummary;
 use baras_core::PlayerMetrics;
 use baras_core::context::{AppConfig, AppConfigExt, OverlayAppearanceConfig};
+use baras_types::SoundCategory;
 
+use crate::audio::{resolve_bundled_definitions_dir, resolve_sound_path};
 use crate::overlay::{MetricType, OverlayManager, OverlayType, SharedOverlayState};
 use crate::service::{LogFileInfo, ServiceHandle, SessionInfo};
 
@@ -107,52 +109,29 @@ pub async fn resume_live_tailing(handle: State<'_, ServiceHandle>) -> Result<(),
 pub fn is_live_tailing(handle: State<'_, ServiceHandle>) -> Result<bool, String> {
     Ok(handle.is_live_tailing())
 }
-/// Preview (play) a sound file so the user can hear it in the editor
+/// Preview (play) a sound file so the user can hear it in the editor.
+///
+/// `filename` may be a folder-relative reference like `"mechanic-sounds/Acid Deluge.mp3"`,
+/// a legacy bare filename (resolved against the General sounds folder), or an absolute path.
 #[tauri::command]
 pub async fn preview_sound(
     filename: String,
     app: tauri::AppHandle,
     handle: State<'_, ServiceHandle>,
 ) -> Result<(), String> {
-    use tauri::Manager;
-
     if filename.is_empty() {
         return Err("No sound file specified".into());
     }
 
-    // Read volume from current audio settings
     let volume = handle.config().await.audio.volume;
 
-    // Resolve sound file path: user dir takes priority over bundled
-    let user_path = dirs::config_dir()
-        .map(|p| p.join("baras").join("sounds").join(&filename))
-        .unwrap_or_else(|| PathBuf::from(&filename));
+    let user_sounds_dir = dirs::config_dir()
+        .map(|p| p.join("baras").join("sounds"))
+        .unwrap_or_else(|| PathBuf::from("."));
+    let bundled_root = resolve_bundled_definitions_dir(&app);
 
-    let bundled_path = app
-        .path()
-        .resolve(
-            format!("definitions/sounds/{}", filename),
-            tauri::path::BaseDirectory::Resource,
-        )
-        .ok()
-        .filter(|p| p.exists())
-        .unwrap_or_else(|| {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .ancestors()
-                .nth(2)
-                .map(|p| p.to_path_buf())
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("core/definitions/sounds")
-                .join(&filename)
-        });
-
-    let path = if user_path.exists() {
-        user_path
-    } else if bundled_path.exists() {
-        bundled_path
-    } else {
-        return Err(format!("Sound file not found: {}", filename));
-    };
+    let path = resolve_sound_path(&filename, &user_sounds_dir, &bundled_root)
+        .ok_or_else(|| format!("Sound file not found: {}", filename))?;
 
     std::thread::spawn(move || {
         use rodio::{Decoder, OutputStream, Sink};
@@ -178,52 +157,56 @@ pub async fn preview_sound(
     Ok(())
 }
 
-/// List available sound files from both bundled and user directories
+/// List available sound files grouped by category for the picker UI.
+///
+/// Returns:
+/// - "General": bundled `sounds/` + user `~/.config/baras/sounds/`
+/// - "Mechanic Names": bundled `mechanic-sounds/` (bundled-only, no user override)
 #[tauri::command]
-pub async fn list_sound_files(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+pub async fn list_sound_files(app: tauri::AppHandle) -> Result<Vec<SoundCategory>, String> {
     use std::collections::BTreeSet;
-    use tauri::Manager;
 
-    let mut files = BTreeSet::new();
-
-    // Bundled sounds dir
-    let bundled = app
-        .path()
-        .resolve("definitions/sounds", tauri::path::BaseDirectory::Resource)
-        .ok()
-        .filter(|p: &std::path::PathBuf| p.exists())
-        .unwrap_or_else(|| {
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .ancestors()
-                .nth(2)
-                .map(|p| p.to_path_buf())
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join("core/definitions/sounds")
-        });
-
-    // User sounds dir
-    let user = dirs::config_dir()
-        .map(|p| p.join("baras").join("sounds"))
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
-
-    for dir in [&bundled, &user] {
-        if let Ok(entries) = std::fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                        if ext.eq_ignore_ascii_case("mp3") || ext.eq_ignore_ascii_case("wav") {
-                            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                                files.insert(name.to_string());
-                            }
-                        }
-                    }
-                }
+    fn collect_audio(dir: &std::path::Path, out: &mut BTreeSet<String>) {
+        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let Some(ext) = path.extension().and_then(|e| e.to_str()) else { continue };
+            if !(ext.eq_ignore_ascii_case("mp3") || ext.eq_ignore_ascii_case("wav")) {
+                continue;
+            }
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                out.insert(name.to_string());
             }
         }
     }
 
-    Ok(files.into_iter().collect())
+    let bundled_root = resolve_bundled_definitions_dir(&app);
+    let user_sounds_dir = dirs::config_dir()
+        .map(|p| p.join("baras").join("sounds"))
+        .unwrap_or_else(|| PathBuf::from("."));
+
+    let mut general = BTreeSet::new();
+    collect_audio(&bundled_root.join("sounds"), &mut general);
+    collect_audio(&user_sounds_dir, &mut general);
+
+    let mut mechanics = BTreeSet::new();
+    collect_audio(&bundled_root.join("mechanic-sounds"), &mut mechanics);
+
+    Ok(vec![
+        SoundCategory {
+            name: "General".to_string(),
+            folder: "sounds".to_string(),
+            files: general.into_iter().collect(),
+        },
+        SoundCategory {
+            name: "Mechanic Names".to_string(),
+            folder: "mechanic-sounds".to_string(),
+            files: mechanics.into_iter().collect(),
+        },
+    ])
 }
 
 #[tauri::command]

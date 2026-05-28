@@ -9,7 +9,10 @@ pub struct AudioConfig {
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
     pub enabled: bool,
 
-    /// Audio file to play (relative to sounds directory)
+    /// Audio file to play. Folder-relative under `core/definitions/`
+    /// (e.g. `"sounds/Alert.mp3"`, `"mechanic-sounds/Acid Deluge.mp3"`).
+    /// A bare filename (no `/`) is resolved against the General `sounds/`
+    /// folder for backward compatibility; an absolute path is used verbatim.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<String>,
 

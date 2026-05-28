@@ -20,11 +20,12 @@ pub struct AudioService {
     /// Shared audio settings (can be updated at runtime)
     settings: Arc<RwLock<AudioSettings>>,
 
-    /// Path to user custom sounds directory (overrides bundled)
+    /// Path to user custom sounds directory (overrides bundled for the General category)
     user_sounds_dir: PathBuf,
 
-    /// Path to bundled sounds directory (fallback)
-    bundled_sounds_dir: PathBuf,
+    /// Path to bundled `core/definitions/` directory — parent of `sounds/`,
+    /// `mechanic-sounds/`, etc.
+    bundled_definitions_dir: PathBuf,
 
     /// TTS engine (None if initialization failed or unavailable on platform)
     #[cfg(not(target_os = "linux"))]
@@ -32,12 +33,15 @@ pub struct AudioService {
 }
 
 impl AudioService {
-    /// Create a new audio service
+    /// Create a new audio service.
+    ///
+    /// `bundled_definitions_dir` is the `core/definitions/` root (parent of
+    /// `sounds/` and `mechanic-sounds/`).
     pub fn new(
         event_rx: mpsc::Receiver<AudioEvent>,
         settings: Arc<RwLock<AudioSettings>>,
         user_sounds_dir: PathBuf,
-        bundled_sounds_dir: PathBuf,
+        bundled_definitions_dir: PathBuf,
     ) -> Self {
         #[cfg(not(target_os = "linux"))]
         let tts = {
@@ -55,7 +59,7 @@ impl AudioService {
             event_rx,
             settings,
             user_sounds_dir,
-            bundled_sounds_dir,
+            bundled_definitions_dir,
             #[cfg(not(target_os = "linux"))]
             tts,
         }
@@ -126,11 +130,18 @@ impl AudioService {
         });
     }
 
-    /// Play a countdown number using a voice pack (returns false if not found)
+    /// Play a countdown number using a voice pack (returns false if not found).
+    ///
+    /// Voice packs are subfolders under the `sounds/` directory containing
+    /// per-second `1.mp3`, `2.mp3`, ... files.
     fn play_countdown_voice(&self, voice: &str, seconds: u8, volume: u8) -> bool {
         let filename = format!("{}.mp3", seconds);
         let user_path = self.user_sounds_dir.join(voice).join(&filename);
-        let bundled_path = self.bundled_sounds_dir.join(voice).join(&filename);
+        let bundled_path = self
+            .bundled_definitions_dir
+            .join("sounds")
+            .join(voice)
+            .join(&filename);
 
         let path = if user_path.exists() {
             user_path
@@ -164,16 +175,14 @@ impl AudioService {
         true
     }
 
-    /// Play a custom sound file
+    /// Play a custom sound file. Accepts folder-relative refs, legacy bare
+    /// filenames, or absolute paths — see [`super::resolve_sound_path`].
     fn play_custom_sound(&self, filename: &str, volume: u8) {
-        let user_path = self.user_sounds_dir.join(filename);
-        let bundled_path = self.bundled_sounds_dir.join(filename);
-
-        let path = if user_path.exists() {
-            user_path
-        } else if bundled_path.exists() {
-            bundled_path
-        } else {
+        let Some(path) = super::resolve_sound_path(
+            filename,
+            &self.user_sounds_dir,
+            &self.bundled_definitions_dir,
+        ) else {
             return;
         };
 

@@ -16,6 +16,7 @@ pub mod parsely_upload_modal;
 pub mod phase_timeline;
 pub mod rotation_view;
 pub mod settings_panel;
+pub mod sound_picker;
 pub mod toast;
 
 pub use data_explorer::DataExplorerPanel;
@@ -24,4 +25,5 @@ pub use encounter_editor::EncounterEditorPanel;
 pub use hotkey_input::HotkeyInput;
 pub use parsely_upload_modal::{ParselyUploadModal, use_parsely_upload, use_parsely_upload_provider};
 pub use settings_panel::SettingsPanel;
+pub use sound_picker::SoundPicker;
 pub use toast::{ToastFrame, ToastSeverity, use_toast, use_toast_provider};

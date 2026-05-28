@@ -13,6 +13,7 @@ use super::encounter_editor::triggers::{
     AbilitySelectorEditor, EffectSelectorEditor, EntityFilterDropdown,
 };
 use crate::api;
+use super::sound_picker::SoundPicker;
 use crate::types::{
     AbilitySelector, AlertTrigger, AudioConfig, DisplayTarget, EffectImportPreview,
     EffectListItem, EffectSelector, EntityFilter, RefreshAbility, RefreshScope, Trigger,
@@ -1021,12 +1022,6 @@ fn EffectEditForm(
     let mut trigger_type = use_signal(|| EffectTriggerType::from_effect(&effect_for_trigger));
     let mut icon_preview_url = use_signal(|| None::<String>);
 
-    // Load available sound files once
-    let mut sound_files = use_signal(Vec::<String>::new);
-    use_future(move || async move {
-        sound_files.set(api::list_sound_files().await);
-    });
-
     // Track if form was just saved (resets dirty state)
     let mut just_saved = use_signal(|| false);
 
@@ -1922,68 +1917,13 @@ fn EffectEditForm(
                                 }
 
                                 if draft().audio.enabled {
-                                    div { class: "form-row-hz mt-sm",
-                                        label { "Sound" }
-                                        div { class: "flex items-center gap-xs", style: "flex: 1; min-width: 0;",
-                                            select {
-                                                class: "select-inline",
-                                                style: "flex: 1; min-width: 0;",
-                                                value: "{draft().audio.file.clone().unwrap_or_default()}",
-                                                onchange: move |e| {
-                                                    let mut d = draft();
-                                                    d.audio.file = if e.value().is_empty() { None } else { Some(e.value()) };
-                                                    draft.set(d);
-                                                },
-                                                option { value: "", selected: draft().audio.file.is_none(), "(none)" }
-                                                for name in sound_files().iter() {
-                                                    {
-                                                        let is_selected = draft().audio.file.as_deref() == Some(name.as_str());
-                                                        rsx! {
-                                                            option { key: "{name}", value: "{name}", selected: is_selected, "{name}" }
-                                                        }
-                                                    }
-                                                }
-                                                // Show custom path if set and not in the bundled list
-                                                if let Some(ref path) = draft().audio.file {
-                                                    if !path.is_empty() && !sound_files().contains(path) {
-                                                        option { value: "{path}", selected: true, "{path} (custom)" }
-                                                    }
-                                                }
-                                            }
-                                            button {
-                                                class: "btn btn-sm",
-                                                r#type: "button",
-                                                onclick: move |_| {
-                                                    spawn(async move {
-                                                        if let Some(path) = api::pick_audio_file().await {
-                                                            let lower = path.to_lowercase();
-                                                            if lower.ends_with(".mp3") || lower.ends_with(".wav") {
-                                                                let mut d = draft();
-                                                                d.audio.file = Some(path);
-                                                                draft.set(d);
-                                                            }
-                                                        }
-                                                    });
-                                                },
-                                                "Browse"
-                                            }
-                                            if draft().audio.file.is_some() {
-                                                button {
-                                                    class: "btn btn-sm",
-                                                    r#type: "button",
-                                                    title: "Preview sound",
-                                                    onclick: move |_| {
-                                                        if let Some(ref file) = draft().audio.file {
-                                                            let file = file.clone();
-                                                            spawn(async move {
-                                                                api::preview_sound(&file).await;
-                                                            });
-                                                        }
-                                                    },
-                                                    "Play"
-                                                }
-                                            }
-                                        }
+                                    SoundPicker {
+                                        value: draft().audio.file.clone(),
+                                        on_change: move |v| {
+                                            let mut d = draft();
+                                            d.audio.file = v;
+                                            draft.set(d);
+                                        },
                                     }
 
                                     if !draft().is_alert {

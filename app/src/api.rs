@@ -933,8 +933,8 @@ pub async fn set_encounter_parsely_link(encounter_id: u64, link: &str) -> Result
 // Audio File Picker
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// List available sound files from bundled and user directories
-pub async fn list_sound_files() -> Vec<String> {
+/// List available sound files grouped by category for the picker UI.
+pub async fn list_sound_files() -> Vec<crate::types::SoundCategory> {
     let result = invoke("list_sound_files", JsValue::NULL).await;
     from_js(result).unwrap_or_default()
 }

@@ -472,6 +472,20 @@ impl TimeRange {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Sound Picker
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A grouped set of available sound files for the audio picker UI.
+/// `folder` is the bundled subdirectory under `core/definitions/`, also used
+/// as the persisted prefix (e.g. `"sounds/Alert.mp3"`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SoundCategory {
+    pub name: String,
+    pub folder: String,
+    pub files: Vec<String>,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Color Type
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -3105,6 +3119,8 @@ pub enum SortColumn {
     DamageType,
     ShldPct,
     Absorbed,
+    MaxHit,
+    AvgPerActivation,
 }
 
 /// Sort column for ability usage table

@@ -743,21 +743,7 @@ impl CombatService {
         let user_sounds_dir = dirs::config_dir()
             .map(|p| p.join("baras").join("sounds"))
             .unwrap_or_else(|| PathBuf::from("."));
-        // In release: bundled resources. In dev: fall back to source directory
-        let bundled_sounds_dir = app_handle
-            .path()
-            .resolve("definitions/sounds", tauri::path::BaseDirectory::Resource)
-            .ok()
-            .filter(|p| p.exists())
-            .unwrap_or_else(|| {
-                // Dev fallback: relative to project root
-                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .ancestors()
-                    .nth(2)
-                    .map(|p| p.to_path_buf())
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join("core/definitions/sounds")
-            });
+        let bundled_definitions_dir = crate::audio::resolve_bundled_definitions_dir(&app_handle);
         let audio_settings = Arc::new(tokio::sync::RwLock::new(
             shared.config.blocking_read().audio.clone(),
         ));
@@ -765,7 +751,7 @@ impl CombatService {
             audio_rx,
             audio_settings,
             user_sounds_dir,
-            bundled_sounds_dir,
+            bundled_definitions_dir,
         );
         tauri::async_runtime::spawn(audio_service.run());
 

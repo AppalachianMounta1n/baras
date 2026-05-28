@@ -1240,6 +1240,8 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
         // DamageTaken-specific
         shield_count: i64,
         absorbed_total: f64,
+        // Single-value metrics
+        max_hit: f64,
     }
 
     // Memoized grouped abilities - groups by target when breakdown mode is enabled
@@ -1319,6 +1321,12 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                         a_pct.partial_cmp(&b_pct).unwrap_or(std::cmp::Ordering::Equal)
                     }
                     SortColumn::Absorbed => a.absorbed_total.partial_cmp(&b.absorbed_total).unwrap_or(std::cmp::Ordering::Equal),
+                    SortColumn::MaxHit => a.max_hit.partial_cmp(&b.max_hit).unwrap_or(std::cmp::Ordering::Equal),
+                    SortColumn::AvgPerActivation => {
+                        let a_val = if a.activation_count > 0 { a.total_value / a.activation_count as f64 } else { 0.0 };
+                        let b_val = if b.activation_count > 0 { b.total_value / b.activation_count as f64 } else { 0.0 };
+                        a_val.partial_cmp(&b_val).unwrap_or(std::cmp::Ordering::Equal)
+                    }
                 };
                 match dir {
                     SortDirection::Asc => cmp,
@@ -1376,6 +1384,7 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                 let shield_rate: f64 = abilities.iter().filter(|a| a.is_shield).map(|a| a.dps).sum();
                 let shield_count: i64 = abilities.iter().map(|a| a.shield_count).sum();
                 let absorbed_total: f64 = abilities.iter().map(|a| a.absorbed_total).sum();
+                let max_hit: f64 = abilities.iter().map(|a| a.max_hit).fold(0.0_f64, f64::max);
 
                 let stats = GroupStats {
                     target: Some(target),
@@ -1394,6 +1403,7 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                     shield_rate,
                     shield_count,
                     absorbed_total,
+                    max_hit,
                 };
                 (stats, sort_abilities(abilities))
             })
@@ -2642,6 +2652,7 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                 let is_damage_tab = tab == DataTab::Damage || tab == DataTab::DamageTaken;
                                 let is_damage_taken = tab == DataTab::DamageTaken;
                                 let is_healing_tab = tab.is_healing();
+                                let is_outgoing_tab = tab.is_outgoing();
                                 let current_sort = *sort_column.read();
                                 let current_dir = *sort_direction.read();
 
@@ -2826,6 +2837,18 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                     onclick: sort_click(SortColumn::AvgCrit, false),
                                                     "Crit"
                                                 }
+                                                th {
+                                                    class: "num col-avg {sort_class(SortColumn::MaxHit)}",
+                                                    onclick: sort_click(SortColumn::MaxHit, false),
+                                                    "Max"
+                                                }
+                                                if is_outgoing_tab {
+                                                    th {
+                                                        class: "num col-avg {sort_class(SortColumn::AvgPerActivation)}",
+                                                        onclick: sort_click(SortColumn::AvgPerActivation, false),
+                                                        "Avg/Act"
+                                                    }
+                                                }
                                             }
                                         }
                                         tbody {
@@ -2909,6 +2932,20 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                             td { class: "num group-stat col-avg", "{format_number(group_avg_hit(stats))}" }
                                                         }
                                                         td { class: "num group-stat col-avg", "{format_number(group_avg_crit(stats))}" }
+                                                        td { class: "num group-stat col-avg",
+                                                            if stats.max_hit > 0.0 { "{format_number(stats.max_hit)}" } else { "-" }
+                                                        }
+                                                        if is_outgoing_tab {
+                                                            td { class: "num group-stat col-avg",
+                                                                {
+                                                                    if stats.activation_count > 0 {
+                                                                        format_number(stats.total / stats.activation_count as f64)
+                                                                    } else {
+                                                                        "-".to_string()
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                                 if show_ability_col {
@@ -3023,6 +3060,20 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                             td { class: "num col-avg",
                                                                 if ability.is_shield || ability.crit_count == 0 { "-" } else { "{format_number(ability_avg_crit(ability))}" }
                                                             }
+                                                            td { class: "num col-avg",
+                                                                if ability.max_hit > 0.0 { "{format_number(ability.max_hit)}" } else { "-" }
+                                                            }
+                                                            if is_outgoing_tab {
+                                                                td { class: "num col-avg",
+                                                                    {
+                                                                        if ability.activation_count > 0 {
+                                                                            format_number(ability.total_value / ability.activation_count as f64)
+                                                                        } else {
+                                                                            "-".to_string()
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -3042,6 +3093,7 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                 let total_shield_rate: f64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().filter(|a| a.is_shield).map(|a| a.dps)).sum();
                                                 let total_shield_count: i64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().map(|a| a.shield_count)).sum();
                                                 let total_absorbed: f64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().map(|a| a.absorbed_total)).sum();
+                                                let total_max_hit: f64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().map(|a| a.max_hit)).fold(0.0_f64, f64::max);
                                                 let crit_pct = if total_hits > 0 { total_crits as f64 / total_hits as f64 * 100.0 } else { 0.0 };
                                                 let avg = if is_damage_tab {
                                                     let attempts = total_hits + total_miss;
@@ -3103,6 +3155,20 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                             td { class: "num col-avg" }
                                                         }
                                                         td { class: "num col-avg" }
+                                                        td { class: "num col-avg",
+                                                            if total_max_hit > 0.0 { "{format_number(total_max_hit)}" } else { "-" }
+                                                        }
+                                                        if is_outgoing_tab {
+                                                            td { class: "num col-avg",
+                                                                {
+                                                                    if total_activations > 0 {
+                                                                        format_number(total_val / total_activations as f64)
+                                                                    } else {
+                                                                        "-".to_string()
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }

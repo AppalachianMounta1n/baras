@@ -48,6 +48,7 @@ pub use baras_types::{
     RefreshScope,
     SortColumn,
     SortDirection,
+    SoundCategory,
     StackAggregation,
     TimerOverlayConfig,
     // Trigger type (shared across timers, phases, counters)

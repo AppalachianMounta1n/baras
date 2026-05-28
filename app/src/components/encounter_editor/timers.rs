@@ -6,6 +6,7 @@
 use dioxus::prelude::*;
 
 use crate::api;
+use crate::components::SoundPicker;
 use crate::types::{
     AlertTrigger, AudioConfig, BossTimerDefinition, BossWithPath, Condition, EncounterItem,
     TimerDisplayTarget, Trigger, timer_alert_label,
@@ -498,12 +499,6 @@ fn TimerEditForm(
     let mut draft = use_signal(|| timer_for_draft);
     let mut confirm_delete = use_signal(|| false);
     let mut just_saved = use_signal(|| false);
-
-    // Load available sound files once
-    let mut sound_files = use_signal(Vec::<String>::new);
-    use_future(move || async move {
-        sound_files.set(api::list_sound_files().await);
-    });
 
     // Reset just_saved when user makes new changes after saving
     let timer_original_for_effect = timer_original.clone();
@@ -1328,67 +1323,13 @@ fn TimerEditForm(
                             }
 
                             if draft().audio.enabled {
-                                div { class: "form-row-hz mt-sm",
-                                    label { "Sound" }
-                                    div { class: "flex items-center gap-xs", style: "flex: 1; min-width: 0;",
-                                        select {
-                                            class: "select-inline",
-                                            style: "flex: 1; min-width: 0;",
-                                            value: "{draft().audio.file.clone().unwrap_or_default()}",
-                                            onchange: move |e| {
-                                                let mut d = draft();
-                                                d.audio.file = if e.value().is_empty() { None } else { Some(e.value()) };
-                                                draft.set(d);
-                                            },
-                                            option { value: "", selected: draft().audio.file.is_none(), "(none)" }
-                                            for name in sound_files().iter() {
-                                                {
-                                                    let is_selected = draft().audio.file.as_deref() == Some(name.as_str());
-                                                    rsx! {
-                                                        option { key: "{name}", value: "{name}", selected: is_selected, "{name}" }
-                                                    }
-                                                }
-                                            }
-                                            if let Some(ref path) = draft().audio.file {
-                                                if !path.is_empty() && !sound_files().contains(path) {
-                                                    option { value: "{path}", selected: true, "{path} (custom)" }
-                                                }
-                                            }
-                                        }
-                                        button {
-                                            class: "btn btn-sm",
-                                            r#type: "button",
-                                            onclick: move |_| {
-                                                spawn(async move {
-                                                    if let Some(path) = api::pick_audio_file().await {
-                                                        let lower = path.to_lowercase();
-                                                        if lower.ends_with(".mp3") || lower.ends_with(".wav") {
-                                                            let mut d = draft();
-                                                            d.audio.file = Some(path);
-                                                            draft.set(d);
-                                                        }
-                                                    }
-                                                });
-                                            },
-                                            "Browse"
-                                        }
-                                        if draft().audio.file.is_some() {
-                                            button {
-                                                class: "btn btn-sm",
-                                                r#type: "button",
-                                                title: "Preview sound",
-                                                onclick: move |_| {
-                                                    if let Some(ref file) = draft().audio.file {
-                                                        let file = file.clone();
-                                                        spawn(async move {
-                                                            api::preview_sound(&file).await;
-                                                        });
-                                                    }
-                                                },
-                                                "Play"
-                                            }
-                                        }
-                                    }
+                                SoundPicker {
+                                    value: draft().audio.file.clone(),
+                                    on_change: move |v| {
+                                        let mut d = draft();
+                                        d.audio.file = v;
+                                        draft.set(d);
+                                    },
                                 }
 
                                 // Audio timing options (only for countdown timers)
@@ -1739,69 +1680,16 @@ fn TimerEditForm(
                                             "Enable"
                                         }
                                         if draft().queue_next_audio.as_ref().is_some_and(|a| a.enabled) {
-                                            div { class: "flex items-center gap-xs", style: "flex: 1; min-width: 0;",
-                                                select {
-                                                    class: "select-inline",
-                                                    style: "flex: 1; min-width: 0;",
-                                                    value: "{draft().queue_next_audio.as_ref().and_then(|a| a.file.clone()).unwrap_or_default()}",
-                                                    onchange: move |e| {
-                                                        let mut d = draft();
-                                                        let mut a = d.queue_next_audio.clone().unwrap_or_default();
-                                                        a.enabled = true;
-                                                        a.file = if e.value().is_empty() { None } else { Some(e.value()) };
-                                                        d.queue_next_audio = Some(a);
-                                                        draft.set(d);
-                                                    },
-                                                    option { value: "", "(none)" }
-                                                    for name in sound_files().iter() {
-                                                        {
-                                                            let cur = draft().queue_next_audio.as_ref().and_then(|a| a.file.clone()).unwrap_or_default();
-                                                            let is_selected = cur == *name;
-                                                            rsx! {
-                                                                option { key: "{name}", value: "{name}", selected: is_selected, "{name}" }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                button {
-                                                    class: "btn btn-sm",
-                                                    r#type: "button",
-                                                    onclick: move |_| {
-                                                        spawn(async move {
-                                                            if let Some(path) = api::pick_audio_file().await {
-                                                                let lower = path.to_lowercase();
-                                                                if lower.ends_with(".mp3") || lower.ends_with(".wav") {
-                                                                    let mut d = draft();
-                                                                    let mut a = d.queue_next_audio.clone().unwrap_or_default();
-                                                                    a.enabled = true;
-                                                                    a.file = Some(path);
-                                                                    d.queue_next_audio = Some(a);
-                                                                    draft.set(d);
-                                                                }
-                                                            }
-                                                        });
-                                                    },
-                                                    "Browse"
-                                                }
-                                                {
-                                                    let has_file = draft().queue_next_audio.as_ref().and_then(|a| a.file.as_ref()).is_some();
-                                                    rsx! {
-                                                        button {
-                                                            class: "btn btn-sm",
-                                                            r#type: "button",
-                                                            disabled: !has_file,
-                                                            title: if has_file { "Preview sound" } else { "Select a sound first" },
-                                                            onclick: move |_| {
-                                                                if let Some(file) = draft().queue_next_audio.as_ref().and_then(|a| a.file.clone()) {
-                                                                    spawn(async move {
-                                                                        api::preview_sound(&file).await;
-                                                                    });
-                                                                }
-                                                            },
-                                                            "Play"
-                                                        }
-                                                    }
-                                                }
+                                            SoundPicker {
+                                                value: draft().queue_next_audio.as_ref().and_then(|a| a.file.clone()),
+                                                on_change: move |v| {
+                                                    let mut d = draft();
+                                                    let mut a = d.queue_next_audio.clone().unwrap_or_default();
+                                                    a.enabled = true;
+                                                    a.file = v;
+                                                    d.queue_next_audio = Some(a);
+                                                    draft.set(d);
+                                                },
                                             }
                                             div { class: "flex items-center gap-xs text-sm",
                                                 label {
