@@ -54,6 +54,10 @@ pub struct BossHealthData {
     /// Keyed by id rather than name so two NPCs that share a display name show
     /// only the effects actually applied to each one.
     pub boss_icons: HashMap<i64, Vec<BossEffectIcon>>,
+    /// Force the bar to clear even when `clear_after_combat` is disabled. Sent at
+    /// the start of a new encounter so a stale boss HP bar doesn't linger into the
+    /// next fight (e.g. pulling trash after a boss).
+    pub force_clear: bool,
 }
 
 /// Base dimensions for scaling calculations
@@ -841,9 +845,13 @@ impl BossHealthOverlay {
 impl Overlay for BossHealthOverlay {
     fn update_data(&mut self, data: OverlayData) -> bool {
         if let OverlayData::BossHealth(boss_data) = data {
-            // When clear_after_combat is disabled, ignore empty clears
-            // so the last boss health remains visible
-            if boss_data.entries.is_empty() && !self.config.clear_after_combat {
+            // When clear_after_combat is disabled, ignore empty clears so the last
+            // boss health remains visible — unless force_clear is set, which marks
+            // the start of a new encounter and must always wipe the stale bar.
+            if boss_data.entries.is_empty()
+                && !self.config.clear_after_combat
+                && !boss_data.force_clear
+            {
                 return false;
             }
 

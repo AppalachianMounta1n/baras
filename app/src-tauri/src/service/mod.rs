@@ -427,6 +427,15 @@ impl SignalHandler for CombatSignalHandler {
                 self.shared.in_combat.store(true, Ordering::SeqCst);
                 let _ = self.trigger_tx.try_send(MetricsTrigger::CombatStarted);
                 let _ = self.session_event_tx.send(SessionEvent::CombatStarted);
+                // Always wipe a stale boss HP bar at the start of a new encounter.
+                // With `clear_after_combat` disabled the bar persists post-combat, but
+                // it must not linger into the next fight (e.g. trash after a boss).
+                let _ = self
+                    .overlay_tx
+                    .try_send(OverlayUpdate::BossHealthUpdated(BossHealthData {
+                        force_clear: true,
+                        ..Default::default()
+                    }));
                 // If overlays were auto-hidden for not-live, restore them — combat means live
                 if self.shared.auto_hide.is_not_live_active() {
                     let _ = self
@@ -3200,7 +3209,11 @@ async fn build_boss_health_data(
             HashMap::new()
         };
 
-    Some(BossHealthData { entries, boss_icons })
+    Some(BossHealthData {
+        entries,
+        boss_icons,
+        force_clear: false,
+    })
 }
 
 /// Named bundle returned by `build_timer_data_with_audio`.
