@@ -52,6 +52,7 @@ pub fn SoundPicker(props: SoundPickerProps) -> Element {
     let active_cat_for_options = active_cat.clone();
 
     rsx! {
+        div { class: "flex-col",
         div { class: "form-row-hz mt-sm",
             label { "Category" }
             select {
@@ -165,6 +166,7 @@ pub fn SoundPicker(props: SoundPickerProps) -> Element {
                     }
                 }
             }
+        }
         }
     }
 }
