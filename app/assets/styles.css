@@ -2282,6 +2282,98 @@ details[open] .collapsible-summary::before {
   flex-shrink: 0;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Shared Slider component: editable value box + custom steppers + unit
+   Native number spinners are hidden and replaced with themed buttons so the
+   control looks identical across WebKitGTK / WebView2 / WKWebView.
+   ───────────────────────────────────────────────────────────────────────── */
+.slider-number {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.setting-row input.slider-value-input {
+  width: 42px;
+  text-align: center;
+  padding: 0.3em 0.3em;
+  border: 1px solid var(--border-medium);
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  background-color: var(--bg-input);
+  box-shadow: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.setting-row input.slider-value-input:focus {
+  border-color: #6a8aba;
+}
+
+/* Hide native spinners (WebKit/Chromium); Firefox handled via appearance above */
+.slider-value-input::-webkit-inner-spin-button,
+.slider-value-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.slider-steppers {
+  display: flex;
+  flex-direction: column;
+  width: 16px;
+}
+
+.slider-step {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--border-medium);
+  border-radius: 0;
+  background-color: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  line-height: 1;
+  box-shadow: none;
+  transition: color var(--transition-normal), background-color var(--transition-normal);
+}
+
+.slider-step:first-child {
+  border-top-right-radius: var(--radius-md);
+  border-bottom-width: 0;
+}
+
+.slider-step:last-child {
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.slider-step:hover {
+  color: var(--swtor-blue);
+  background-color: var(--bg-light);
+  border-color: var(--border-medium);
+}
+
+.slider-step:active {
+  background-color: var(--blue-alpha-15);
+  border-color: var(--border-medium);
+}
+
+.slider-step:disabled {
+  color: var(--text-disabled);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.slider-unit {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  min-width: 1.4em;
+  flex-shrink: 0;
+}
+
 .setting-row input[type="color"] {
   flex-shrink: 0;
 }

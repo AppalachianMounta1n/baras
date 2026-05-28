@@ -8,7 +8,7 @@ use wasm_bindgen_futures::spawn_local;
 use crate::api::{self, BossNotesInfo};
 use crate::components::{
     DataExplorerPanel, EffectEditorPanel, EncounterEditorPanel,
-    HotkeyInput, ParselyUploadModal, SettingsPanel, ToastFrame, ToastSeverity, use_parsely_upload,
+    HotkeyInput, ParselyUploadModal, SettingsPanel, Slider, ToastFrame, ToastSeverity, use_parsely_upload,
     use_parsely_upload_provider, use_toast, use_toast_provider,
 };
 use crate::components::class_icons::{get_class_icon, get_role_icon};
@@ -2037,30 +2037,26 @@ pub fn App() -> Element {
                                     }
                                 }
 
-                                div { class: "setting-row",
-                                    label { "Volume" }
-                                    input {
-                                        r#type: "range",
-                                        min: "0",
-                                        max: "100",
-                                        value: "{audio_volume()}",
-                                        disabled: !audio_enabled(),
-                                        oninput: move |e| {
-                                            if let Ok(val) = e.value().parse::<u8>() {
-                                                audio_volume.set(val);
-                                                let mut toast = use_toast();
-                                                spawn(async move {
-                                                    if let Some(mut cfg) = api::get_config().await {
-                                                        cfg.audio.volume = val;
-                                                        if let Err(err) = api::update_config(&cfg).await {
-                                                            toast.show(format!("Failed to save settings: {}", err), ToastSeverity::Normal);
-                                                        }
-                                                    }
-                                                });
+                                Slider {
+                                    label: "Volume",
+                                    value: audio_volume() as f64,
+                                    min: 0.0,
+                                    max: 100.0,
+                                    suffix: "%",
+                                    disabled: !audio_enabled(),
+                                    on_change: move |v: f64| {
+                                        let val = v.round() as u8;
+                                        audio_volume.set(val);
+                                        let mut toast = use_toast();
+                                        spawn(async move {
+                                            if let Some(mut cfg) = api::get_config().await {
+                                                cfg.audio.volume = val;
+                                                if let Err(err) = api::update_config(&cfg).await {
+                                                    toast.show(format!("Failed to save settings: {}", err), ToastSeverity::Normal);
+                                                }
                                             }
-                                        }
-                                    }
-                                    span { class: "value", "{audio_volume()}%" }
+                                        });
+                                    },
                                 }
 
                                 div { class: "setting-row",

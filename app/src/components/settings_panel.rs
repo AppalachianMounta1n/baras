@@ -8,7 +8,7 @@ use gloo_timers::future::TimeoutFuture;
 use std::collections::HashMap;
 
 use crate::api;
-use crate::components::{ToastSeverity, use_toast};
+use crate::components::{Slider, ToastSeverity, use_toast};
 use crate::types::{
     AlertsOverlayConfig, BossHealthConfig, ChallengeLayout, ClassIconMode, CooldownTrackerConfig,
     DotTrackerConfig, EffectsAConfig, EffectsBConfig,
@@ -547,41 +547,28 @@ pub fn SettingsPanel(
                         }
                         if metrics_global_open() {
                             div { class: "collapsible-content",
-                            div { class: "setting-row",
-                                label { "Background Opacity" }
-                                input {
-                                    r#type: "range",
-                                    min: "0",
-                                    max: "255",
-                                    value: "{current_settings.metric_opacity}",
-                                    oninput: move |e| {
-                                        if let Ok(val) = e.value().parse::<u8>() {
-                                            let mut new_settings = draft_settings();
-                                            new_settings.metric_opacity = val;
-                                            update_draft(new_settings);
-                                        }
-                                    }
-                                }
-                                span { class: "value", "{current_settings.metric_opacity}" }
+                            OpacitySlider {
+                                label: "Background Opacity",
+                                value: current_settings.metric_opacity,
+                                on_change: move |val| {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.metric_opacity = val;
+                                    update_draft(new_settings);
+                                },
                             }
 
-                            div { class: "setting-row",
-                                label { "Bar Thickness" }
-                                input {
-                                    r#type: "range",
-                                    min: "30",
-                                    max: "200",
-                                    step: "5",
-                                    value: "{(current_settings.metric_scaling_factor * 100.0) as i32}",
-                                    oninput: move |e| {
-                                        if let Ok(val) = e.value().parse::<i32>() {
-                                            let mut new_settings = draft_settings();
-                                            new_settings.metric_scaling_factor = (val as f32 / 100.0).clamp(0.3, 2.0);
-                                            update_draft(new_settings);
-                                        }
-                                    }
-                                }
-                                span { class: "value", "{(current_settings.metric_scaling_factor * 100.0) as i32}%" }
+                            Slider {
+                                label: "Bar Thickness",
+                                value: (current_settings.metric_scaling_factor * 100.0) as i32 as f64,
+                                min: 30.0,
+                                max: 200.0,
+                                step: 5.0,
+                                suffix: "%",
+                                on_change: move |v: f64| {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.metric_scaling_factor = (v as f32 / 100.0).clamp(0.3, 2.0);
+                                    update_draft(new_settings);
+                                },
                             }
 
                             div { class: "setting-row",
@@ -734,23 +721,18 @@ pub fn SettingsPanel(
                                 }
                             }
 
-                            div { class: "setting-row",
-                                label { "Font Scale" }
-                                input {
-                                    r#type: "range",
-                                    min: "30",
-                                    max: "200",
-                                    step: "5",
-                                    value: "{(current_settings.metric_font_scale * 100.0) as i32}",
-                                    oninput: move |e| {
-                                        if let Ok(val) = e.value().parse::<i32>() {
-                                            let mut new_settings = draft_settings();
-                                            new_settings.metric_font_scale = (val as f32 / 100.0).clamp(0.3, 2.0);
-                                            update_draft(new_settings);
-                                        }
-                                    }
-                                }
-                                span { class: "value", "{(current_settings.metric_font_scale * 100.0) as i32}%" }
+                            Slider {
+                                label: "Font Scale",
+                                value: (current_settings.metric_font_scale * 100.0) as i32 as f64,
+                                min: 30.0,
+                                max: 200.0,
+                                step: 5.0,
+                                suffix: "%",
+                                on_change: move |v: f64| {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.metric_font_scale = (v as f32 / 100.0).clamp(0.3, 2.0);
+                                    update_draft(new_settings);
+                                },
                             }
 
                             div { class: "setting-row",
@@ -844,23 +826,18 @@ pub fn SettingsPanel(
                                 }
                             }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "30",
-                            max: "200",
-                            step: "10",
-                            value: "{(current_settings.boss_health.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.boss_health.font_scale = (val as f32 / 100.0).clamp(0.3, 2.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.boss_health.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.boss_health.font_scale * 100.0) as i32 as f64,
+                        min: 30.0,
+                        max: 200.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.boss_health.font_scale = (v as f32 / 100.0).clamp(0.3, 2.0);
+                            update_draft(new_settings);
+                        },
                     }
                     div { class: "setting-row",
                         label { "Dynamic Background" }
@@ -960,23 +937,18 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "100",
-                            max: "200",
-                            step: "10",
-                            value: "{(current_settings.timers_a_overlay.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.timers_a_overlay.font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.timers_a_overlay.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.timers_a_overlay.font_scale * 100.0) as i32 as f64,
+                        min: 100.0,
+                        max: 200.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.timers_a_overlay.font_scale = (v as f32 / 100.0).clamp(1.0, 2.0);
+                            update_draft(new_settings);
+                        },
                     }
                     div { class: "setting-row",
                         label { "Dynamic Background" }
@@ -1076,23 +1048,18 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "100",
-                            max: "200",
-                            step: "10",
-                            value: "{(current_settings.timers_b_overlay.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.timers_b_overlay.font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.timers_b_overlay.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.timers_b_overlay.font_scale * 100.0) as i32 as f64,
+                        min: 100.0,
+                        max: 200.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.timers_b_overlay.font_scale = (v as f32 / 100.0).clamp(1.0, 2.0);
+                            update_draft(new_settings);
+                        },
                     }
                     div { class: "setting-row",
                         label { "Dynamic Background" }
@@ -1176,22 +1143,17 @@ pub fn SettingsPanel(
                         },
                     }
 
-                    div { class: "setting-row",
-                        label { "Icon Size" }
-                        input {
-                            r#type: "range",
-                            min: "16",
-                            max: "64",
-                            value: "{current_settings.effects_a.icon_size}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<u8>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.effects_a.icon_size = val.clamp(16, 64);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{current_settings.effects_a.icon_size}px" }
+                    Slider {
+                        label: "Icon Size",
+                        value: current_settings.effects_a.icon_size as f64,
+                        min: 16.0,
+                        max: 64.0,
+                        suffix: "px",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.effects_a.icon_size = (v as u8).clamp(16, 64);
+                            update_draft(new_settings);
+                        },
                     }
 
                     div { class: "setting-row",
@@ -1294,23 +1256,18 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "100",
-                            max: "200",
-                            step: "10",
-                            value: "{(current_settings.effects_a.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.effects_a.font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.effects_a.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.effects_a.font_scale * 100.0) as i32 as f64,
+                        min: 100.0,
+                        max: 200.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.effects_a.font_scale = (v as f32 / 100.0).clamp(1.0, 2.0);
+                            update_draft(new_settings);
+                        },
                     }
                     div { class: "setting-row",
                         label { "Dynamic Background" }
@@ -1395,22 +1352,17 @@ pub fn SettingsPanel(
                         },
                     }
 
-                    div { class: "setting-row",
-                        label { "Icon Size" }
-                        input {
-                            r#type: "range",
-                            min: "16",
-                            max: "64",
-                            value: "{current_settings.effects_b.icon_size}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<u8>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.effects_b.icon_size = val.clamp(16, 64);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{current_settings.effects_b.icon_size}px" }
+                    Slider {
+                        label: "Icon Size",
+                        value: current_settings.effects_b.icon_size as f64,
+                        min: 16.0,
+                        max: 64.0,
+                        suffix: "px",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.effects_b.icon_size = (v as u8).clamp(16, 64);
+                            update_draft(new_settings);
+                        },
                     }
 
                     div { class: "setting-row",
@@ -1513,23 +1465,18 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "100",
-                            max: "200",
-                            step: "10",
-                            value: "{(current_settings.effects_b.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.effects_b.font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.effects_b.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.effects_b.font_scale * 100.0) as i32 as f64,
+                        min: 100.0,
+                        max: 200.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.effects_b.font_scale = (v as f32 / 100.0).clamp(1.0, 2.0);
+                            update_draft(new_settings);
+                        },
                     }
                     div { class: "setting-row",
                         label { "Dynamic Background" }
@@ -1614,22 +1561,17 @@ pub fn SettingsPanel(
                         },
                     }
 
-                    div { class: "setting-row",
-                        label { "Icon Size" }
-                        input {
-                            r#type: "range",
-                            min: "16",
-                            max: "64",
-                            value: "{current_settings.cooldown_tracker.icon_size}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<u8>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.cooldown_tracker.icon_size = val.clamp(16, 64);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{current_settings.cooldown_tracker.icon_size}px" }
+                    Slider {
+                        label: "Icon Size",
+                        value: current_settings.cooldown_tracker.icon_size as f64,
+                        min: 16.0,
+                        max: 64.0,
+                        suffix: "px",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.cooldown_tracker.icon_size = (v as u8).clamp(16, 64);
+                            update_draft(new_settings);
+                        },
                     }
 
                     div { class: "setting-row",
@@ -1704,23 +1646,18 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "100",
-                            max: "200",
-                            step: "10",
-                            value: "{(current_settings.cooldown_tracker.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.cooldown_tracker.font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.cooldown_tracker.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.cooldown_tracker.font_scale * 100.0) as i32 as f64,
+                        min: 100.0,
+                        max: 200.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.cooldown_tracker.font_scale = (v as f32 / 100.0).clamp(1.0, 2.0);
+                            update_draft(new_settings);
+                        },
                     }
                     div { class: "setting-row",
                         label { "Dynamic Background" }
@@ -1805,22 +1742,17 @@ pub fn SettingsPanel(
                         },
                     }
 
-                    div { class: "setting-row",
-                        label { "Icon Size" }
-                        input {
-                            r#type: "range",
-                            min: "12",
-                            max: "48",
-                            value: "{current_settings.dot_tracker.icon_size}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<u8>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.dot_tracker.icon_size = val.clamp(12, 48);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{current_settings.dot_tracker.icon_size}px" }
+                    Slider {
+                        label: "Icon Size",
+                        value: current_settings.dot_tracker.icon_size as f64,
+                        min: 12.0,
+                        max: 48.0,
+                        suffix: "px",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.dot_tracker.icon_size = (v as u8).clamp(12, 48);
+                            update_draft(new_settings);
+                        },
                     }
 
                     div { class: "setting-row",
@@ -1841,23 +1773,18 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Prune Delay" }
-                        input {
-                            r#type: "range",
-                            min: "0",
-                            max: "10",
-                            step: "0.5",
-                            value: "{current_settings.dot_tracker.prune_delay_secs}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<f32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.dot_tracker.prune_delay_secs = val.clamp(0.0, 10.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{current_settings.dot_tracker.prune_delay_secs:.1}s" }
+                    Slider {
+                        label: "Prune Delay",
+                        value: current_settings.dot_tracker.prune_delay_secs as f64,
+                        min: 0.0,
+                        max: 10.0,
+                        step: 0.5,
+                        suffix: "s",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.dot_tracker.prune_delay_secs = (v as f32).clamp(0.0, 10.0);
+                            update_draft(new_settings);
+                        },
                     }
 
                     h4 { style: "margin-top: 16px;", "Display Options" }
@@ -1917,23 +1844,18 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "100",
-                            max: "200",
-                            step: "10",
-                            value: "{(current_settings.dot_tracker.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.dot_tracker.font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.dot_tracker.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.dot_tracker.font_scale * 100.0) as i32 as f64,
+                        min: 100.0,
+                        max: 200.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.dot_tracker.font_scale = (v as f32 / 100.0).clamp(1.0, 2.0);
+                            update_draft(new_settings);
+                        },
                     }
                     div { class: "setting-row",
                         label { "Dynamic Background" }
@@ -2002,22 +1924,17 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Size" }
-                        input {
-                            r#type: "range",
-                            min: "10",
-                            max: "24",
-                            value: "{current_settings.notes_overlay.font_size}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<u8>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.notes_overlay.font_size = val.clamp(10, 24);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{current_settings.notes_overlay.font_size}px" }
+                    Slider {
+                        label: "Font Size",
+                        value: current_settings.notes_overlay.font_size as f64,
+                        min: 10.0,
+                        max: 24.0,
+                        suffix: "px",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.notes_overlay.font_size = (v as u8).clamp(10, 24);
+                            update_draft(new_settings);
+                        },
                     }
 
                     div { class: "setting-row",
@@ -2104,22 +2021,17 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "50",
-                            max: "300",
-                            value: "{(current_settings.combat_time.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<f32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.combat_time.font_scale = (val / 100.0).clamp(0.5, 3.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.combat_time.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.combat_time.font_scale * 100.0) as i32 as f64,
+                        min: 50.0,
+                        max: 300.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.combat_time.font_scale = (v as f32 / 100.0).clamp(0.5, 3.0);
+                            update_draft(new_settings);
+                        },
                     }
 
                     div { class: "setting-row",
@@ -2193,22 +2105,17 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "50",
-                            max: "300",
-                            value: "{(current_settings.operation_timer.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<f32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.operation_timer.font_scale = (val / 100.0).clamp(0.5, 3.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.operation_timer.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.operation_timer.font_scale * 100.0) as i32 as f64,
+                        min: 50.0,
+                        max: 300.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.operation_timer.font_scale = (v as f32 / 100.0).clamp(0.5, 3.0);
+                            update_draft(new_settings);
+                        },
                     }
 
                     div { class: "setting-row",
@@ -2384,23 +2291,18 @@ pub fn SettingsPanel(
                                 }
                             }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "100",
-                            max: "200",
-                            step: "10",
-                            value: "{(current_settings.challenge_overlay.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.challenge_overlay.font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.challenge_overlay.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.challenge_overlay.font_scale * 100.0) as i32 as f64,
+                        min: 100.0,
+                        max: 200.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.challenge_overlay.font_scale = (v as f32 / 100.0).clamp(1.0, 2.0);
+                            update_draft(new_settings);
+                        },
                     }
                     div { class: "setting-row",
                         label { "Dynamic Background" }
@@ -2453,22 +2355,17 @@ pub fn SettingsPanel(
                         },
                     }
 
-                    div { class: "setting-row",
-                        label { "Font Size" }
-                        input {
-                            r#type: "range",
-                            min: "8",
-                            max: "24",
-                            value: "{current_settings.alerts_overlay.font_size}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<u8>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.alerts_overlay.font_size = val.clamp(8, 24);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{current_settings.alerts_overlay.font_size}px" }
+                    Slider {
+                        label: "Font Size",
+                        value: current_settings.alerts_overlay.font_size as f64,
+                        min: 8.0,
+                        max: 24.0,
+                        suffix: "px",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.alerts_overlay.font_size = (v as u8).clamp(8, 24);
+                            update_draft(new_settings);
+                        },
                     }
 
                     h4 { style: "margin-top: 16px;", "Display" }
@@ -2506,42 +2403,32 @@ pub fn SettingsPanel(
 
                     h4 { style: "margin-top: 16px;", "Timing" }
 
-                    div { class: "setting-row",
-                        label { "Display Duration" }
-                        input {
-                            r#type: "range",
-                            min: "1",
-                            max: "15",
-                            step: "0.5",
-                            value: "{current_settings.alerts_overlay.default_duration}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<f32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.alerts_overlay.default_duration = val.clamp(1.0, 15.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{current_settings.alerts_overlay.default_duration:.1}s" }
+                    Slider {
+                        label: "Display Duration",
+                        value: current_settings.alerts_overlay.default_duration as f64,
+                        min: 1.0,
+                        max: 15.0,
+                        step: 0.5,
+                        suffix: "s",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.alerts_overlay.default_duration = (v as f32).clamp(1.0, 15.0);
+                            update_draft(new_settings);
+                        },
                     }
 
-                    div { class: "setting-row",
-                        label { "Fade Duration" }
-                        input {
-                            r#type: "range",
-                            min: "0",
-                            max: "3",
-                            step: "0.5",
-                            value: "{current_settings.alerts_overlay.fade_duration}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<f32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.alerts_overlay.fade_duration = val.clamp(0.0, 3.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{current_settings.alerts_overlay.fade_duration:.1}s" }
+                    Slider {
+                        label: "Fade Duration",
+                        value: current_settings.alerts_overlay.fade_duration as f64,
+                        min: 0.0,
+                        max: 3.0,
+                        step: 0.5,
+                        suffix: "s",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.alerts_overlay.fade_duration = (v as f32).clamp(0.0, 3.0);
+                            update_draft(new_settings);
+                        },
                     }
 
                     div { class: "setting-row reset-row",
@@ -2617,22 +2504,17 @@ pub fn SettingsPanel(
                                 }
                             }
 
-                            div { class: "setting-row",
-                                label { "Frame Spacing" }
-                                input {
-                                    r#type: "range",
-                                    min: "0",
-                                    max: "75",
-                                    value: "{current_settings.raid_overlay.frame_spacing as i32}",
-                                    oninput: move |e| {
-                                        if let Ok(val) = e.value().parse::<f32>() {
-                                            let mut new_settings = draft_settings();
-                                            new_settings.raid_overlay.frame_spacing = val.clamp(0.0, 75.0);
-                                            update_draft(new_settings);
-                                        }
-                                    }
-                                }
-                                span { class: "value", "{current_settings.raid_overlay.frame_spacing:.0}px" }
+                            Slider {
+                                label: "Frame Spacing",
+                                value: current_settings.raid_overlay.frame_spacing as i32 as f64,
+                                min: 0.0,
+                                max: 75.0,
+                                suffix: "px",
+                                on_change: move |v: f64| {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.raid_overlay.frame_spacing = (v as f32).clamp(0.0, 75.0);
+                                    update_draft(new_settings);
+                                },
                             }
 
                             div { class: "setting-row",
@@ -2671,40 +2553,30 @@ pub fn SettingsPanel(
                                 }
                             }
 
-                            div { class: "setting-row",
-                                label { "Effect Size" }
-                                input {
-                                    r#type: "range",
-                                    min: "8",
-                                    max: "36",
-                                    value: "{current_settings.raid_overlay.effect_size as i32}",
-                                    oninput: move |e| {
-                                        if let Ok(val) = e.value().parse::<f32>() {
-                                            let mut new_settings = draft_settings();
-                                            new_settings.raid_overlay.effect_size = val.clamp(8.0, 36.0);
-                                            update_draft(new_settings);
-                                        }
-                                    }
-                                }
-                                span { class: "value", "{current_settings.raid_overlay.effect_size:.0}px" }
+                            Slider {
+                                label: "Effect Size",
+                                value: current_settings.raid_overlay.effect_size as i32 as f64,
+                                min: 8.0,
+                                max: 36.0,
+                                suffix: "px",
+                                on_change: move |v: f64| {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.raid_overlay.effect_size = (v as f32).clamp(8.0, 36.0);
+                                    update_draft(new_settings);
+                                },
                             }
 
-                            div { class: "setting-row",
-                                label { "Effect Vertical Offset" }
-                                input {
-                                    r#type: "range",
-                                    min: "-10",
-                                    max: "30",
-                                    value: "{current_settings.raid_overlay.effect_vertical_offset as i32}",
-                                    oninput: move |e| {
-                                        if let Ok(val) = e.value().parse::<f32>() {
-                                            let mut new_settings = draft_settings();
-                                            new_settings.raid_overlay.effect_vertical_offset = val.clamp(-10.0, 30.0);
-                                            update_draft(new_settings);
-                                        }
-                                    }
-                                }
-                                span { class: "value", "{current_settings.raid_overlay.effect_vertical_offset:.0}px" }
+                            Slider {
+                                label: "Effect Vertical Offset",
+                                value: current_settings.raid_overlay.effect_vertical_offset as i32 as f64,
+                                min: -10.0,
+                                max: 30.0,
+                                suffix: "px",
+                                on_change: move |v: f64| {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.raid_overlay.effect_vertical_offset = (v as f32).clamp(-10.0, 30.0);
+                                    update_draft(new_settings);
+                                },
                             }
 
                             div { class: "setting-row",
@@ -2894,23 +2766,18 @@ pub fn SettingsPanel(
                                 }
                             }
 
-                    div { class: "setting-row",
-                        label { "Font Scale" }
-                        input {
-                            r#type: "range",
-                            min: "100",
-                            max: "200",
-                            step: "10",
-                            value: "{(current_settings.personal_overlay.font_scale * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.personal_overlay.font_scale = (val as f32 / 100.0).clamp(1.0, 2.0);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.personal_overlay.font_scale * 100.0) as i32}%" }
+                    Slider {
+                        label: "Font Scale",
+                        value: (current_settings.personal_overlay.font_scale * 100.0) as i32 as f64,
+                        min: 100.0,
+                        max: 200.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.personal_overlay.font_scale = (v as f32 / 100.0).clamp(1.0, 2.0);
+                            update_draft(new_settings);
+                        },
                     }
                     div { class: "setting-row",
                         label { "Dynamic Background" }
@@ -2951,23 +2818,18 @@ pub fn SettingsPanel(
                         }
                     }
 
-                    div { class: "setting-row",
-                        label { "Line Spacing" }
-                        input {
-                            r#type: "range",
-                            min: "70",
-                            max: "150",
-                            step: "10",
-                            value: "{(current_settings.personal_overlay.line_spacing * 100.0) as i32}",
-                            oninput: move |e| {
-                                if let Ok(val) = e.value().parse::<i32>() {
-                                    let mut new_settings = draft_settings();
-                                    new_settings.personal_overlay.line_spacing = (val as f32 / 100.0).clamp(0.7, 1.5);
-                                    update_draft(new_settings);
-                                }
-                            }
-                        }
-                        span { class: "value", "{(current_settings.personal_overlay.line_spacing * 100.0) as i32}%" }
+                    Slider {
+                        label: "Line Spacing",
+                        value: (current_settings.personal_overlay.line_spacing * 100.0) as i32 as f64,
+                        min: 70.0,
+                        max: 150.0,
+                        step: 10.0,
+                        suffix: "%",
+                        on_change: move |v: f64| {
+                            let mut new_settings = draft_settings();
+                            new_settings.personal_overlay.line_spacing = (v as f32 / 100.0).clamp(0.7, 1.5);
+                            update_draft(new_settings);
+                        },
                     }
 
                             div { class: "setting-row reset-row",
@@ -3237,20 +3099,12 @@ fn TabButton(label: &'static str, tab_key: &'static str, selected_tab: Signal<St
 #[component]
 fn OpacitySlider(label: &'static str, value: u8, on_change: EventHandler<u8>) -> Element {
     rsx! {
-        div { class: "setting-row",
-            label { "{label}" }
-            input {
-                r#type: "range",
-                min: "0",
-                max: "255",
-                value: "{value}",
-                oninput: move |e| {
-                    if let Ok(val) = e.value().parse::<u8>() {
-                        on_change.call(val);
-                    }
-                }
-            }
-            span { class: "value", "{value}" }
+        Slider {
+            label,
+            value: value as f64,
+            min: 0.0,
+            max: 255.0,
+            on_change: move |v: f64| on_change.call(v.round() as u8),
         }
     }
 }
