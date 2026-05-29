@@ -67,13 +67,9 @@ const BASE_HEIGHT: f32 = 100.0;
 /// Base layout values (at BASE_WIDTH x BASE_HEIGHT)
 const BASE_BAR_HEIGHT: f32 = 20.0;
 const BASE_ENTRY_SPACING: f32 = 8.0;
-const BASE_LABEL_BAR_GAP: f32 = 1.0;
 const BASE_PADDING: f32 = 8.0;
 const BASE_FONT_SIZE: f32 = 13.0;
 const BASE_LABEL_FONT_SIZE: f32 = 8.5;
-
-/// Shield bar height (thinner than HP bar)
-const BASE_SHIELD_BAR_HEIGHT: f32 = 12.0;
 
 fn shield_bar_color() -> Color {
     Color::from_rgba8(100, 180, 255, 200)
@@ -226,6 +222,54 @@ impl BossHealthOverlay {
             .draw_text_glowed(text, bx + pad_x, text_y, badge_font, font_color);
     }
 
+    /// Draw a folder-tab label attached to the bar's top-left edge: rounded top
+    /// corners, flat bottom resting on the bar's top edge. Sits fully above the
+    /// bar (unlike the straddling [`draw_floating_badge`]). Returns the tab
+    /// height so callers can keep layout reservations in sync.
+    fn draw_folder_tab(
+        &mut self,
+        text: &str,
+        bar_x: f32,
+        bar_y: f32,
+        bar_w: f32,
+        font_size: f32,
+        compression: f32,
+        bg_color: Color,
+        font_color: Color,
+    ) -> f32 {
+        let pad_x = 5.0 * self.frame.scale_factor() * compression;
+        let pad_y = 1.5 * self.frame.scale_factor() * compression;
+        let max_text_w = (bar_w * 0.7).max(40.0);
+        let tab_font = self.scaled_font_for_text(text, max_text_w, font_size);
+        let (text_w, _) = self.frame.measure_text(text, tab_font);
+        let tab_w = text_w + pad_x * 2.0;
+        let tab_h = tab_font + pad_y * 2.0;
+        let radius = tab_h * 0.35;
+        let tab_top = bar_y - tab_h;
+
+        // Rounded-top, square-bottom: a fully-rounded rect for the top corners,
+        // then a square body fill that overdraws the rounded bottom corners.
+        self.frame
+            .fill_rounded_rect(bar_x, tab_top, tab_w, tab_h, radius, bg_color);
+        self.frame
+            .fill_rect(bar_x, tab_top + radius, tab_w, tab_h - radius, bg_color);
+        if self.config.show_border {
+            self.frame.stroke_rounded_rect(
+                bar_x,
+                tab_top,
+                tab_w,
+                tab_h,
+                radius,
+                0.4 * self.frame.scale_factor(),
+                color_from_rgba(self.config.border_color),
+            );
+        }
+        let text_y = tab_top + tab_h / 2.0 + tab_font / 3.0;
+        self.frame
+            .draw_text_glowed(text, bar_x + pad_x, text_y, tab_font, font_color);
+        tab_h
+    }
+
     /// Calculate scaled font size so text fits within max_width
     fn scaled_font_for_text(&mut self, text: &str, max_width: f32, base_font_size: f32) -> f32 {
         let (text_width, _) = self.frame.measure_text(text, base_font_size);
@@ -248,13 +292,16 @@ impl BossHealthOverlay {
         let gap = bar_font_size * 0.2;
         let name_bh = bar_font_size * 0.69 + pad_y * 2.0;
         let target_bh = bar_font_size * 0.50 + pad_y * 2.0;
-        let name = name_bh / 2.0 + badge_clearance(name_bh, bar_font_size, bar_height, gap);
+        // Name is a folder tab resting fully above the bar (full height reserved);
+        // target still straddles the bottom edge, so it needs the clearance push.
+        let name = name_bh;
         let target = target_bh / 2.0 + badge_clearance(target_bh, bar_font_size, bar_height, gap);
         (name, target)
     }
 
-    /// Calculate per-entry height (shields, icon/marker row, and the floating
-    /// name/target badges that straddle the bar's top and bottom edges).
+    /// Calculate per-entry height (HP bar, icon/marker row, and the floating
+    /// name/target badges that straddle the bar's top and bottom edges). The
+    /// shield is drawn inside the HP bar's bottom half, so it adds no height.
     ///
     /// `icon_row_height`: `Some(h)` when an icon strip is rendered below the bar
     /// (overrides the plain marker-text row). `None` falls back to marker-text-only.
@@ -262,20 +309,13 @@ impl BossHealthOverlay {
         &self,
         entry: &OverlayHealthEntry,
         bar_height: f32,
-        label_bar_gap: f32,
         label_font_size: f32,
-        shield_bar_height: f32,
         icon_row_height: Option<f32>,
         name_overhang: f32,
         target_overhang: f32,
     ) -> f32 {
         // Name badge reserves room above the (HP) bar.
         let mut h = name_overhang;
-
-        // Shield bar (above the HP bar, when present)
-        if !entry.active_shields.is_empty() {
-            h += shield_bar_height + label_bar_gap;
-        }
 
         h += bar_height;
 
@@ -307,9 +347,7 @@ impl BossHealthOverlay {
         let padding = self.frame.scaled(BASE_PADDING);
         let bar_height = self.frame.scaled(BASE_BAR_HEIGHT);
         let entry_spacing = self.frame.scaled(BASE_ENTRY_SPACING);
-        let label_bar_gap = self.frame.scaled(BASE_LABEL_BAR_GAP);
         let label_font_size = self.frame.scaled(BASE_LABEL_FONT_SIZE) * font_scale;
-        let shield_bar_height = self.frame.scaled(BASE_SHIELD_BAR_HEIGHT);
         let bar_font_size = self.frame.scaled(BASE_FONT_SIZE) * font_scale * 0.70;
         let (name_overhang, target_overhang) = self.badge_overhangs(bar_height, bar_font_size, 1.0);
 
@@ -324,9 +362,7 @@ impl BossHealthOverlay {
                     self.entry_height(
                         e,
                         bar_height,
-                        label_bar_gap,
                         label_font_size,
-                        shield_bar_height,
                         icon_row,
                         name_overhang,
                         target_overhang,
@@ -348,9 +384,7 @@ impl BossHealthOverlay {
         let padding = self.frame.scaled(BASE_PADDING);
         let bar_height = self.frame.scaled(BASE_BAR_HEIGHT) * compression;
         let entry_spacing = self.frame.scaled(BASE_ENTRY_SPACING) * compression;
-        let label_bar_gap = self.frame.scaled(BASE_LABEL_BAR_GAP) * compression;
         let label_font_size = self.frame.scaled(BASE_LABEL_FONT_SIZE) * compression * font_scale;
-        let shield_bar_height = self.frame.scaled(BASE_SHIELD_BAR_HEIGHT) * compression;
         let bar_font_size = self.frame.scaled(BASE_FONT_SIZE) * compression * font_scale * 0.70;
         let (name_overhang, target_overhang) =
             self.badge_overhangs(bar_height, bar_font_size, compression);
@@ -364,9 +398,7 @@ impl BossHealthOverlay {
             y += self.entry_height(
                 entry,
                 bar_height,
-                label_bar_gap,
                 label_font_size,
-                shield_bar_height,
                 icon_row,
                 name_overhang,
                 target_overhang,
@@ -415,8 +447,6 @@ impl BossHealthOverlay {
 
         self.frame.begin_frame();
 
-        let y = padding;
-
         let name = "Boss";
         let health_text = if self.config.show_hp_value {
             "1.2M".to_string()
@@ -429,6 +459,9 @@ impl BossHealthOverlay {
             String::new()
         };
         let bar_font_size = font_size * 0.70;
+        // Headroom above the bar for the folder tab.
+        let (name_overhang, _) = self.badge_overhangs(bar_height, bar_font_size, 1.0);
+        let y = padding + name_overhang;
 
         // HP bar: total left, percent right.
         let mut bar = ProgressBar::new(&health_text, 0.72)
@@ -461,18 +494,14 @@ impl BossHealthOverlay {
             );
         }
 
-        // Boss name badge (top-left) and sample target badge (bottom-right).
-        self.draw_floating_badge(
+        // Boss name folder-tab (top-left) and sample target badge (bottom-right).
+        self.draw_folder_tab(
             name,
             padding,
             y,
             content_width,
-            bar_height,
             bar_font_size * 0.69,
-            bar_font_size,
             1.0,
-            false,
-            false,
             name_badge_bg(bar_color),
             font_color,
         );
@@ -536,10 +565,8 @@ impl BossHealthOverlay {
         let padding = self.frame.scaled(BASE_PADDING);
         let bar_height = self.frame.scaled(BASE_BAR_HEIGHT) * compression;
         let entry_spacing = self.frame.scaled(BASE_ENTRY_SPACING) * compression;
-        let label_bar_gap = self.frame.scaled(BASE_LABEL_BAR_GAP) * compression;
         let font_size = self.frame.scaled(BASE_FONT_SIZE) * compression * font_scale;
         let bar_font_size = font_size * 0.70;
-        let shield_bar_height = self.frame.scaled(BASE_SHIELD_BAR_HEIGHT) * compression;
 
         let bar_color = color_from_rgba(self.config.bar_color);
         let font_color = color_from_rgba(self.config.font_color);
@@ -582,41 +609,6 @@ impl BossHealthOverlay {
 
             // Reserve room above the bar for the floating name badge.
             y += name_overhang;
-
-            // ── Shield Bar (above HP bar, only when shields active) ─────
-            if !entry.active_shields.is_empty() {
-                // Use the first active shield for display (most common: single shield)
-                let shield = &entry.active_shields[0];
-                let shield_progress = if shield.total > 0 {
-                    (shield.remaining as f32 / shield.total as f32).clamp(0.0, 1.0)
-                } else {
-                    0.0
-                };
-                let shield_label = format!(
-                    "{}: {}",
-                    shield.label,
-                    formatting::format_compact(shield.remaining, self.european_number_format)
-                );
-                let shield_font_size = font_size * 0.55;
-                let shield_radius = bar_radius * 0.6;
-
-                ProgressBar::new(&shield_label, shield_progress)
-                    .with_fill_color(shield_bar_color())
-                    .with_bg_color(colors::dps_bar_bg())
-                    .with_text_color(font_color)
-                    .with_text_glow()
-                    .render(
-                        &mut self.frame,
-                        padding,
-                        y,
-                        content_width,
-                        shield_bar_height,
-                        shield_font_size,
-                        shield_radius,
-                    );
-
-                y += shield_bar_height + label_bar_gap;
-            }
 
             // ── HP Bar (total left, percent right) ──────────────────────
             let health_text = if self.config.show_hp_value {
@@ -676,18 +668,49 @@ impl BossHealthOverlay {
                 );
             }
 
-            // ── Boss name badge (straddles bar's top-left edge) ─────────
-            self.draw_floating_badge(
+            // ── Shield overlay (bottom half of the HP bar, no track) ────
+            if let Some(shield) = entry.active_shields.first() {
+                let shield_progress = if shield.total > 0 {
+                    (shield.remaining as f32 / shield.total as f32).clamp(0.0, 1.0)
+                } else {
+                    0.0
+                };
+                let sh_h = bar_height / 2.0;
+                let sh_y = bar_y + bar_height - sh_h;
+                let sh_w = content_width * shield_progress;
+                if sh_w > 0.0 {
+                    self.frame.fill_rounded_rect(
+                        padding,
+                        sh_y,
+                        sh_w,
+                        sh_h,
+                        bar_radius,
+                        shield_bar_color(),
+                    );
+                }
+                let sh_text = format!(
+                    "{}: {}",
+                    shield.label,
+                    formatting::format_compact(shield.remaining, self.european_number_format)
+                );
+                let sh_font = bar_font_size * 0.55;
+                self.frame.draw_text_glowed(
+                    &sh_text,
+                    padding + 4.0 * self.frame.scale_factor(),
+                    sh_y + sh_h / 2.0 + sh_font / 3.0,
+                    sh_font,
+                    font_color,
+                );
+            }
+
+            // ── Boss name folder-tab (rests on bar's top-left edge) ─────
+            self.draw_folder_tab(
                 &entry.name,
                 padding,
                 bar_y,
                 content_width,
-                bar_height,
                 bar_font_size * 0.69,
-                bar_font_size,
                 compression,
-                false,
-                false,
                 name_badge_bg(bar_color),
                 font_color,
             );
