@@ -128,6 +128,7 @@ duration_secs = 30.0
 color = [224, 25, 24, 255]
 icon_ability_id = 4250089182724096
 difficulties = ["veteran", "master"]
+can_be_refreshed = true
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
