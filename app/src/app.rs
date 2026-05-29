@@ -2014,7 +2014,6 @@ pub fn App() -> Element {
 
                             div { class: "settings-section",
                                 h4 { "Audio" }
-                                p { class: "hint", "TTS audio for timer countdowns and alerts." }
 
                                 div { class: "setting-row",
                                     label { "Enable Audio" }
@@ -2103,7 +2102,6 @@ pub fn App() -> Element {
                                     }
                                 }
 
-                                p { class: "hint hint-subtle", "Countdowns speak timer name + seconds (e.g., \"Shield 3... 2... 1...\")" }
                             }
 
                             div { class: "settings-section",
