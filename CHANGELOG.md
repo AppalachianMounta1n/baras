@@ -1,29 +1,31 @@
-# v2026.5.13
+# v2026.5.29
 
-## Bug Fixes
+## Alert Countdowns
 
-- Parsely guilds will save properly when added
-- Fixed issue with boss shields not properly updating with damage
-- Improved detection of effects applied in previous encounters in data explorer
-- Removed invalid delete button from built in challenges
-- Fixed issue where rotation analyzer icons did not update correctly with time range selection change
-- Timer preferences now function correctly; toggling audio on/off and changing timer visibility does not mark timers as modified
+- Both encounter timers and effects can now render countdown alerts. These can be configured in the alerts section of the
+  editor card. They show a ticking countdown in the format of: **Alert Text (2.1)**
 
 ## Overlays
 
-- Font size and metrics bars can now be scaled by values less than 1
-- Timers and effects overlays now have the ability to stack from the bottom
-- Ability Queue now supports conditions and audio
+- Timers, Boss HP, and bar-mode effects/cooldown overlays now have customizable borders around their outlines. Border
+  color can be set in the customization menu.
+- Boss HP overlay format has been updated to be more compact and readable.
+- Overlays can now be scaled to larger sizes
+- The maximum value of the raid frame spacing has been increased to 75px
 
-## Effects Tracking
+## Audio
 
-- Added `Ignore Refreshes` option to ignore repeated triggers
-- Added `Refresh Scope` option for tracking local player procs and global debuffs
+- Over 300 audio files containing mechanic names generated via TTS by Keetsune have been added
+- A filter option has been added to the UI
 
-## Encounter Definitions
+## Other
 
-- Overhauled ToS Revan timers and encounter definitions
-- Revan timers/stats should no longer break after a battle rez
-- Added Lord Renning MM Id
-- Added Xenoanlyst 8m SM Id
-- Icons added to many timers as well as tweaks
+- Max Hit and average per-activation columns have been added to the data explorer
+- Updated slider widgets in customization menu to support typing in values
+
+## Bugfixes
+
+- Shielding is now properly attributed to it's source in the HTPS data explorer view
+- Effective damage overlay now records damage done to shields
+- Metrics overlay footer totals now scale properly with the entry text
+- Red Acid Jet timer should now refresh if ability is cast slightly before timer expires
