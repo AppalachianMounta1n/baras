@@ -259,9 +259,9 @@ impl MetricOverlay {
 
         // Get scaled layout values
         let padding = self.frame.scaled(BASE_PADDING);
-        // Base font size for header/footer (NOT affected by font_scale or scaling_factor)
+        // Base font size for the header (NOT affected by font_scale or scaling_factor)
         let base_font_size = self.frame.scaled(BASE_FONT_SIZE);
-        // Font scale from global metric settings — only affects bar text, not header/footer
+        // Font scale from global metric settings — affects bar text and footer, not header
         let font_scale = self.font_scale.clamp(0.3, 2.0);
         let bar_font_size = self.frame.scaled(BASE_FONT_SIZE * font_scale);
         let scaled_bar_height = BASE_BAR_HEIGHT * self.scaling_factor;
@@ -298,7 +298,7 @@ impl MetricOverlay {
             0.0
         };
         let footer_space = if self.appearance.show_footer {
-            2.0 + bar_spacing + base_font_size + 6.0 * scale // separator + spacing + text + buffer
+            2.0 + bar_spacing + bar_font_size + 6.0 * scale // separator + spacing + text + buffer
         } else {
             0.0
         };
@@ -577,7 +577,7 @@ impl MetricOverlay {
                 padding,
                 y,
                 content_width,
-                base_font_size - 2.0,
+                text_font_size,
             );
         }
 
