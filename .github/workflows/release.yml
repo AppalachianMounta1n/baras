@@ -182,11 +182,14 @@ jobs:
       - name: Add wasm target
         run: rustup target add wasm32-unknown-unknown
 
+      - name: Add aarch64 target
+        run: rustup target add aarch64-apple-darwin
+
       - name: Build parse-worker sidecar
         run: |
-          cargo build --release --package baras-parse-worker
+          cargo build --release --target aarch64-apple-darwin --package baras-parse-worker
           mkdir -p app/src-tauri/binaries
-          cp target/release/baras-parse-worker app/src-tauri/binaries/baras-parse-worker-aarch64-apple-darwin
+          cp target/aarch64-apple-darwin/release/baras-parse-worker app/src-tauri/binaries/baras-parse-worker-aarch64-apple-darwin
 
       - name: Read changelog
         id: changelog
@@ -212,6 +215,7 @@ jobs:
           releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: false
           prerelease: false
+          args: --target aarch64-apple-darwin
 
   update-manifest:
     needs: [build-linux, build-windows, build-macos]
