@@ -166,7 +166,7 @@ impl Renderer {
         if italic {
             attrs = attrs.style(Style::Italic);
         }
-        text_buffer.set_text(&mut self.font_system, text, &attrs, Shaping::Advanced, None);
+        text_buffer.set_text(text, &attrs, Shaping::Advanced, None);
         text_buffer.shape_until_scroll(&mut self.font_system, false);
 
         // Extract glyph data for caching

@@ -104,6 +104,21 @@ pub fn run() {
     // Initialize logging FIRST - guard must outlive app for buffered log flushing
     let _logging_guard = logging::init();
 
+    // DataFusion's query planner/optimizer recurses over the logical plan, and the
+    // deep multi-CTE queries behind the Data Explorer "Charts" tab overflow the
+    // default 2 MB tokio worker-thread stack on DataFusion 54. Register a runtime
+    // with larger worker stacks BEFORE any async_runtime usage so all Tauri command
+    // handlers (where queries run) get the headroom.
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(16 * 1024 * 1024) // 16 MB
+        .build()
+        .expect("failed to build tokio runtime");
+    tauri::async_runtime::set(runtime.handle().clone());
+    // Leak the runtime so it lives for the whole app lifetime (matches Tauri's own
+    // default-runtime ownership; avoids dropping it while tasks are still in flight).
+    std::mem::forget(runtime);
+
     // Create shared overlay state
     let overlay_state = Arc::new(Mutex::new(OverlayState::default()));
 

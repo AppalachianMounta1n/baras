@@ -8,7 +8,8 @@ name = "baras-parse-worker"
 path = "src/main.rs"
 
 [dependencies]
-baras-core = { path = "../core" }
+# default-features = false drops the `query` feature → no DataFusion in the sidecar
+baras-core = { path = "../core", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = "0.4"
@@ -17,7 +18,7 @@ dirs = "6.0"
 encoding_rs = "0.8"
 memchr = "2.7"
 memmap2 = "0.9"
-arrow = "57"
-parquet = "57"
+arrow = { version = "58", default-features = false }
+parquet = { version = "58", default-features = false, features = ["arrow", "lz4"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

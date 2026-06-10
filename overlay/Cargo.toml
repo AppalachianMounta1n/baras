@@ -15,7 +15,7 @@ baras-types = { path = "../types" }
 
 # Rendering (cross-platform)
 tiny-skia = "0.12"
-cosmic-text = "0.16"
+cosmic-text = "0.19"
 fontdb = "0.23"      # Shared font database (re-export from cosmic-text)
 sys-locale = "0.3"   # System locale detection
 
@@ -28,7 +28,7 @@ tracing-subscriber = { workspace = true }
 
 # Icon loading
 png = "0.17"
-zip = { version = "2.2", default-features = false, features = ["deflate"] }
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
 
 # Platform: Wayland (Linux)
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
@@ -43,7 +43,7 @@ x11rb = { version = "0.13", features = ["randr", "shape", "shm"] }
 
 # Platform: Windows
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.58", features = [
+windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
   "Win32_UI_WindowsAndMessaging",
@@ -55,7 +55,7 @@ windows = { version = "0.58", features = [
 # Platform: macOS
 [target.'cfg(target_os = "macos")'.dependencies]
 # Keep core-graphics for CGContext operations
-core-graphics = "0.24"
+core-graphics = "0.25"
 # GCD for main thread dispatch
 dispatch = "0.2"
 
