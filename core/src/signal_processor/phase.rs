@@ -144,6 +144,9 @@ pub fn check_ability_phase_transitions(
         };
 
         let def = &enc.boss_definitions()[def_idx];
+        if def.phases.is_empty() {
+            return Vec::new();
+        }
 
         // Build filter context for source/target checking
         let boss_ids = enc.boss_entity_ids();
@@ -153,25 +156,15 @@ pub fn check_ability_phase_transitions(
             entities: &def.entities,
             local_player_id,
             current_target_id,
-            boss_entity_ids: &boss_ids,
+            boss_entity_ids: boss_ids.as_ref(),
         };
 
         let mut found = None;
-        for phase in &def.phases {
-            if !phase.enabled {
+        for (idx, phase) in def.phases.iter().enumerate() {
+            // `enabled` flag + difficulty gate are precomputed per boss/difficulty
+            // in refresh_eval_caches.
+            if !enc.phase_eval_active(idx) {
                 continue;
-            }
-            // Difficulty gate: skip phases whose difficulties list doesn't match
-            if !phase.difficulties.is_empty() {
-                let matches_diff = enc.difficulty.as_ref().map_or(false, |d| {
-                    phase
-                        .difficulties
-                        .iter()
-                        .any(|key| d.matches_config_key(key))
-                });
-                if !matches_diff {
-                    continue;
-                }
             }
             if enc.current_phase.as_ref() == Some(&phase.id) {
                 continue;
@@ -269,6 +262,9 @@ pub fn check_entity_phase_transitions(
         };
 
         let def = &enc.boss_definitions()[def_idx];
+        if def.phases.is_empty() {
+            return Vec::new();
+        }
 
         // Build filter context for signal-based trigger evaluation
         let boss_ids = enc.boss_entity_ids();
@@ -278,25 +274,15 @@ pub fn check_entity_phase_transitions(
             entities: &def.entities,
             local_player_id,
             current_target_id,
-            boss_entity_ids: &boss_ids,
+            boss_entity_ids: boss_ids.as_ref(),
         };
 
         let mut found = None;
-        for phase in &def.phases {
-            if !phase.enabled {
+        for (idx, phase) in def.phases.iter().enumerate() {
+            // `enabled` flag + difficulty gate are precomputed per boss/difficulty
+            // in refresh_eval_caches.
+            if !enc.phase_eval_active(idx) {
                 continue;
-            }
-            // Difficulty gate: skip phases whose difficulties list doesn't match
-            if !phase.difficulties.is_empty() {
-                let matches_diff = enc.difficulty.as_ref().map_or(false, |d| {
-                    phase
-                        .difficulties
-                        .iter()
-                        .any(|key| d.matches_config_key(key))
-                });
-                if !matches_diff {
-                    continue;
-                }
             }
             if enc.current_phase.as_ref() == Some(&phase.id) {
                 continue;
@@ -410,23 +396,16 @@ pub fn check_time_phase_transitions(
         };
 
         let def = &enc.boss_definitions()[def_idx];
+        if def.phases.is_empty() {
+            return Vec::new();
+        }
 
         let mut found = None;
-        for phase in &def.phases {
-            if !phase.enabled {
+        for (idx, phase) in def.phases.iter().enumerate() {
+            // `enabled` flag + difficulty gate are precomputed per boss/difficulty
+            // in refresh_eval_caches.
+            if !enc.phase_eval_active(idx) {
                 continue;
-            }
-            // Difficulty gate: skip phases whose difficulties list doesn't match
-            if !phase.difficulties.is_empty() {
-                let matches_diff = enc.difficulty.as_ref().map_or(false, |d| {
-                    phase
-                        .difficulties
-                        .iter()
-                        .any(|key| d.matches_config_key(key))
-                });
-                if !matches_diff {
-                    continue;
-                }
             }
             if enc.current_phase.as_ref() == Some(&phase.id) {
                 continue;
@@ -693,7 +672,7 @@ pub fn check_phase_end_triggers(
         entities: &def.entities,
         local_player_id,
         current_target_id,
-        boss_entity_ids: &boss_ids,
+        boss_entity_ids: boss_ids.as_ref(),
     };
 
     // Check ability/effect-based triggers (from CombatEvent)

@@ -51,7 +51,7 @@ pub fn check_counter_increments(
         entities: &def.entities,
         local_player_id,
         current_target_id,
-        boss_entity_ids: &boss_ids,
+        boss_entity_ids: boss_ids.as_ref(),
     };
 
     let mut signals = Vec::new();
@@ -167,7 +167,7 @@ pub fn check_counter_signal_triggers(
         entities: &def.entities,
         local_player_id,
         current_target_id,
-        boss_entity_ids: &boss_ids,
+        boss_entity_ids: boss_ids.as_ref(),
     };
 
     let mut signals = Vec::new();
@@ -516,7 +516,7 @@ pub fn check_effect_stack_counters(
             &def.entities,
             local_player_id,
             current_target_id,
-            &boss_ids,
+            boss_ids.as_ref(),
         );
 
         let old_value = enc.get_counter(&counter.id);

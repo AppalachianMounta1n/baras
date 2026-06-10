@@ -171,6 +171,20 @@ pub struct CombatEncounter {
     pub first_event_line: Option<u64>,
     /// Line number of the last event accumulated (includes grace period events)
     pub last_event_line: Option<u64>,
+
+    // ─── Per-event Evaluation Caches (phase/counter hot path) ────────────────
+    /// Cached boss entity IDs. `npcs` is append-only within an encounter and
+    /// `is_boss` is fixed per entry, so `npcs.len()` is an exact staleness key.
+    /// Stored behind an `Arc` so hot-path trigger evaluation grabs a cheap
+    /// refcount clone instead of rebuilding a `HashSet` on every event.
+    boss_ids_cache: Arc<std::collections::HashSet<i64>>,
+    boss_ids_cache_len: usize,
+    /// Cached per-phase "evaluate this phase?" mask for the active boss, folding
+    /// the static `enabled` flag and the difficulty gate. Recomputed only when
+    /// the active boss or difficulty changes, avoiding a per-event
+    /// `to_ascii_lowercase` allocation per difficulty-gated phase.
+    phase_eval_mask: Vec<bool>,
+    phase_eval_mask_sig: (Option<usize>, Option<Difficulty>),
 }
 
 impl CombatEncounter {
@@ -190,6 +204,12 @@ impl CombatEncounter {
             boss_definitions: Arc::new(Vec::new()),
             active_boss_idx: None,
             boss_encounter_triggers_pending: HashSet::new(),
+
+            // Per-event evaluation caches (rebuilt lazily in refresh_eval_caches)
+            boss_ids_cache: Arc::new(std::collections::HashSet::new()),
+            boss_ids_cache_len: usize::MAX,
+            phase_eval_mask: Vec::new(),
+            phase_eval_mask_sig: (None, None),
 
             // Boss state
             active_boss: None,
@@ -954,14 +974,65 @@ impl CombatEncounter {
     // Entity Filter Context Helpers
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// Build the set of runtime entity IDs for boss NPCs.
-    /// Used for `EntityFilter::Boss` / `NpcExceptBoss` matching in source/target filters.
-    pub fn boss_entity_ids(&self) -> std::collections::HashSet<i64> {
-        self.npcs
-            .values()
-            .filter(|n| n.is_boss)
-            .map(|n| n.log_id)
-            .collect()
+    /// Cheap refcount clone of the cached boss entity IDs.
+    /// Used for `EntityFilter::Boss` / `NpcExceptBoss` matching in source/target
+    /// filters. The cache is refreshed once per event via [`Self::refresh_eval_caches`].
+    pub fn boss_entity_ids(&self) -> Arc<std::collections::HashSet<i64>> {
+        Arc::clone(&self.boss_ids_cache)
+    }
+
+    /// Whether phase `idx` of the active boss should be evaluated this encounter
+    /// (folds the static `enabled` flag and the difficulty gate, precomputed in
+    /// [`Self::refresh_eval_caches`]). Falls back to `true` if the mask hasn't
+    /// been built for this index yet.
+    pub fn phase_eval_active(&self, idx: usize) -> bool {
+        self.phase_eval_mask.get(idx).copied().unwrap_or(true)
+    }
+
+    /// Refresh per-event evaluation caches (boss IDs + phase difficulty mask).
+    /// Called once per event after Phase 1 handlers (which may add NPCs or set
+    /// the active boss), before any phase/counter trigger evaluation. Both caches
+    /// rebuild only when their inputs actually change.
+    pub fn refresh_eval_caches(&mut self) {
+        // Boss IDs: `npcs` is append-only and `is_boss` is fixed per entry, so a
+        // length change is the only way the boss set can change.
+        if self.boss_ids_cache_len != self.npcs.len() {
+            self.boss_ids_cache = Arc::new(
+                self.npcs
+                    .values()
+                    .filter(|n| n.is_boss)
+                    .map(|n| n.log_id)
+                    .collect(),
+            );
+            self.boss_ids_cache_len = self.npcs.len();
+        }
+
+        // Phase eval mask: depends only on the active boss + difficulty.
+        let sig = (self.active_boss_idx, self.difficulty);
+        if sig != self.phase_eval_mask_sig {
+            let mask: Vec<bool> = match self.active_boss_idx {
+                Some(idx) => {
+                    let difficulty = self.difficulty;
+                    self.boss_definitions[idx]
+                        .phases
+                        .iter()
+                        .map(|phase| {
+                            phase.enabled
+                                && (phase.difficulties.is_empty()
+                                    || difficulty.as_ref().map_or(false, |d| {
+                                        phase
+                                            .difficulties
+                                            .iter()
+                                            .any(|key| d.matches_config_key(key))
+                                    }))
+                        })
+                        .collect()
+                }
+                None => Vec::new(),
+            };
+            self.phase_eval_mask = mask;
+            self.phase_eval_mask_sig = sig;
+        }
     }
 
     /// Get the local player's current target entity ID.
