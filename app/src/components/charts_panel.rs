@@ -299,6 +299,34 @@ fn build_time_series_option(
     // Tooltip
     let tooltip = js_sys::Object::new();
     js_set(&tooltip, "trigger", &JsValue::from_str("axis"));
+    let tip_formatter = js_sys::Function::new_with_args(
+        "params",
+        concat!(
+            "if (!params || !params.length) return '';",
+            "var t = params[0].value[0];",
+            "var m = Math.floor(t / 60);",
+            "var s = Math.floor(t % 60);",
+            "var time = m + ':' + (s < 10 ? '0' : '') + s;",
+            "var r = '<div style=\"margin-bottom:4px\">' + time + '</div>';",
+            "for (var i = 0; i < params.length; i++) {",
+            "  var p = params[i];",
+            "  var val = Math.round(p.value[1]).toLocaleString();",
+            "  if (p.seriesName === 'Burst') {",
+            "    r += '<div>' + p.seriesName",
+            "      + '<span style=\"float:right;margin-left:20px;font-weight:bold\">'",
+            "      + val + '</span></div>';",
+            "  } else {",
+            "    r += '<div><span style=\"display:inline-block;width:10px;height:10px;",
+            "border-radius:50%;background:' + p.color + ';margin-right:5px\"></span>'",
+            "      + p.seriesName",
+            "      + '<span style=\"float:right;margin-left:20px;font-weight:bold\">'",
+            "      + val + '</span></div>';",
+            "  }",
+            "}",
+            "return r;",
+        ),
+    );
+    js_set(&tooltip, "formatter", &tip_formatter);
     js_set(&obj, "tooltip", &tooltip);
 
     // Build time spine: fill ALL seconds within the data range with values (0 if no data)
@@ -350,6 +378,9 @@ fn build_time_series_option(
     js_set(&line_style, "color", &JsValue::from_str(color));
     js_set(&line_style, "width", &JsValue::from_f64(1.0));
     js_set(&series, "lineStyle", &line_style);
+    let item_style = js_sys::Object::new();
+    js_set(&item_style, "color", &JsValue::from_str(color));
+    js_set(&series, "itemStyle", &item_style);
 
     // Area style with matching fill color (higher opacity)
     let area_style = js_sys::Object::new();
@@ -390,6 +421,9 @@ fn build_time_series_option(
     js_set(&avg_line_style, "color", &JsValue::from_str(color));
     js_set(&avg_line_style, "width", &JsValue::from_f64(2.5));
     js_set(&avg_series, "lineStyle", &avg_line_style);
+    let avg_item_style = js_sys::Object::new();
+    js_set(&avg_item_style, "color", &JsValue::from_str(color));
+    js_set(&avg_series, "itemStyle", &avg_item_style);
 
     // Average data points
     let avg_arr = js_sys::Array::new();
@@ -436,6 +470,9 @@ fn build_time_series_option(
         js_set(&sec_line_style, "color", &JsValue::from_str(sec_color));
         js_set(&sec_line_style, "width", &JsValue::from_f64(2.5));
         js_set(&sec_series, "lineStyle", &sec_line_style);
+        let sec_item_style = js_sys::Object::new();
+        js_set(&sec_item_style, "color", &JsValue::from_str(sec_color));
+        js_set(&sec_series, "itemStyle", &sec_item_style);
 
         let sec_arr = js_sys::Array::new();
         for (x, y) in sec_avg_data {
