@@ -21,7 +21,7 @@ use super::matching::{
     is_definition_active, is_definition_active_with_snapshot, matches_source_target_filters,
 };
 use super::signal_handlers;
-use super::{ActiveTimer, TimerDefinition, TimerKey, TimerPreferences, TimerTrigger};
+use super::{ActiveTimer, TimerDefinition, TimerKey, TimerPreferences, TimerTrigger, TriggerContext};
 
 use crate::dsl::TriggerKind;
 
@@ -346,9 +346,11 @@ impl TimerManager {
         hasher.finish()
     }
 
-    /// Format alert text for display
-    fn format_alert_text(&self, text: &str, _timestamp: NaiveDateTime) -> String {
-        text.to_string()
+    fn format_alert_text(&self, text: &str, ctx: Option<&TriggerContext>) -> String {
+        match ctx {
+            Some(ctx) => ctx.format(text),
+            None => text.to_string(),
+        }
     }
 
     /// Load timer definitions
@@ -763,7 +765,7 @@ impl TimerManager {
         triggered
             .into_iter()
             .map(|(id, name, color, audio_file, icon_ability_id)| {
-                let text = self.format_alert_text(&name, interp_time);
+                let text = self.format_alert_text(&name, None);
                 FiredAlert {
                     id,
                     name,
@@ -869,6 +871,7 @@ impl TimerManager {
         def: &TimerDefinition,
         timestamp: NaiveDateTime,
         target_id: Option<i64>,
+        trigger_context: Option<TriggerContext>,
     ) {
         // Material fields (color, audio file) come from the definition.
         // Preferences only override visibility and audio on/off.
@@ -883,8 +886,8 @@ impl TimerManager {
 
         // Fire start alert if needed (instant alerts always fire, or alert_on == OnApply)
         if should_alert_on_start {
-            let raw_text = def.alert_text.clone().unwrap_or_else(|| def.name.clone());
-            let text = self.format_alert_text(&raw_text, timestamp);
+            let raw_text = def.alert_text.as_deref().unwrap_or(&def.name);
+            let text = self.format_alert_text(raw_text, trigger_context.as_ref());
             // For instant alerts, audio fires with the alert since there's no timer lifecycle.
             // For regular timers, audio fires independently via offset/countdown/expiration,
             // so we don't attach it here — AlertOn only controls the text alert overlay.
@@ -977,6 +980,7 @@ impl TimerManager {
             def.queue_next_audio.clone(),
             def.queue_countdown_bar,
             def.queue_hide_from_next,
+            trigger_context,
         );
         self.active_timers.insert(key, timer);
 
@@ -1273,8 +1277,9 @@ impl TimerManager {
                 continue;
             }
 
-            let name = timer.alert_text.as_deref().unwrap_or(&timer.name);
-            let text = format!("{} ({:.1})", name, remaining);
+            let raw_name = timer.alert_text.as_deref().unwrap_or(&timer.name);
+            let formatted = self.format_alert_text(raw_name, timer.trigger_context.as_ref());
+            let text = format!("{} ({:.1})", formatted, remaining);
             self.fired_alerts.push(FiredAlert {
                 id: timer.definition_id.clone(),
                 name: timer.name.clone(),
@@ -1332,7 +1337,11 @@ impl TimerManager {
                     let should_fire_audio = !timer.role_hidden && timer.audio_enabled && timer.audio_file.is_some() && timer.audio_offset == 0;
                     let should_fire_expire_alert = !timer.role_hidden && timer.alert_on_expire;
                     if should_fire_audio || should_fire_expire_alert {
-                        let text = timer.alert_text.clone().unwrap_or_else(|| timer.name.clone());
+                        let raw_text = timer.alert_text.as_deref().unwrap_or(&timer.name);
+                        let text = match &timer.trigger_context {
+                            Some(ctx) => ctx.format(raw_text),
+                            None => raw_text.to_string(),
+                        };
                         self.fired_alerts.push(FiredAlert {
                             id: timer.definition_id.clone(),
                             name: timer.name.clone(),
@@ -1371,7 +1380,7 @@ impl TimerManager {
 
                 if should_fire_audio || should_fire_expire_alert {
                     let raw_text = timer.alert_text.as_deref().unwrap_or(&timer.name);
-                    let text = self.format_alert_text(raw_text, current_time);
+                    let text = self.format_alert_text(raw_text, timer.trigger_context.as_ref());
                     // Move fields from timer since we own it and are done with it (unless chaining)
                     let (id, name, audio_file) = if has_chain {
                         // Need to clone since timer is still used for chain
@@ -1413,7 +1422,7 @@ impl TimerManager {
             if let Some(next_def) = self.definitions.get(&next_timer_id).cloned()
                 && self.is_definition_active(&next_def, encounter)
             {
-                self.start_timer(&next_def, current_time, target_id);
+                self.start_timer(&next_def, current_time, target_id, None);
             }
         }
 
@@ -1431,7 +1440,7 @@ impl TimerManager {
                 .collect();
 
             for def in matching {
-                self.start_timer(&def, current_time, None);
+                self.start_timer(&def, current_time, None, None);
             }
         }
 
@@ -1505,7 +1514,7 @@ impl TimerManager {
             .collect();
 
         for key in keys_to_start {
-            self.start_timer(&key, current_time, None);
+            self.start_timer(&key, current_time, None, None);
         }
     }
 

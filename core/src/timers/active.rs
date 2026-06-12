@@ -16,6 +16,30 @@ use chrono::NaiveDateTime;
 
 use crate::dsl::AudioConfig;
 
+/// Context from the triggering event, used for `{source}` / `{target}` template substitution.
+#[derive(Debug, Clone, Default)]
+pub struct TriggerContext {
+    pub source_name: Option<String>,
+    pub target_name: Option<String>,
+}
+
+impl TriggerContext {
+    pub fn new(source_name: Option<String>, target_name: Option<String>) -> Self {
+        Self {
+            source_name,
+            target_name,
+        }
+    }
+
+    pub fn format(&self, text: &str) -> String {
+        if !text.contains('{') {
+            return text.to_string();
+        }
+        text.replace("{source}", self.source_name.as_deref().unwrap_or(""))
+            .replace("{target}", self.target_name.as_deref().unwrap_or(""))
+    }
+}
+
 /// An active timer instance
 ///
 /// Created when a `TimerDefinition`'s trigger condition is met.
@@ -137,6 +161,9 @@ pub struct ActiveTimer {
     /// Cached from definition: never mark this timer as a "next cast"
     /// candidate. Used for display-only rows that aren't castable abilities.
     pub queue_hide_from_next: bool,
+
+    /// Context from the triggering event for `{source}`/`{target}` template substitution.
+    pub trigger_context: Option<TriggerContext>,
 }
 
 impl ActiveTimer {
@@ -166,6 +193,7 @@ impl ActiveTimer {
         queue_next_audio: Option<crate::dsl::AudioConfig>,
         queue_countdown_bar: bool,
         queue_hide_from_next: bool,
+        trigger_context: Option<TriggerContext>,
     ) -> Self {
         let expires_at =
             event_timestamp + chrono::Duration::milliseconds(duration.as_millis() as i64);
@@ -208,6 +236,7 @@ impl ActiveTimer {
             queue_next_audio,
             queue_countdown_bar,
             queue_hide_from_next,
+            trigger_context,
         }
     }
 

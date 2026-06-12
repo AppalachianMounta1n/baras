@@ -21,6 +21,16 @@ use crate::timers::FiredAlert;
 
 use super::{ActiveEffect, AlertTrigger, DisplayTarget, EffectDefinition, EffectKey, RefreshScope, RefreshTrigger};
 
+fn format_effect_alert(text: &str, source_name: IStr, target_name: IStr) -> String {
+    if !text.contains('{') {
+        return text.to_string();
+    }
+    let src = crate::context::resolve(source_name);
+    let tgt = crate::context::resolve(target_name);
+    text.replace("{source}", if src.is_empty() { "" } else { src })
+        .replace("{target}", if tgt.is_empty() { "" } else { tgt })
+}
+
 /// Grace period (ms) after the app's duration timer expires before hard-removing
 /// an effect from the tracker. During this window, `refresh_abilities` can still
 /// revive the effect — the timer is a heuristic and the in-game buff may outlast it.
@@ -495,12 +505,15 @@ impl EffectTracker {
     /// If `alert_text` is `None`, only audio fires (no text on screen) — the
     /// `text` field is still populated (with the definition name) for the audio
     /// TTS fallback, but `alert_text_enabled` is `false` so nothing is shown.
-    fn build_instant_alert(def: &EffectDefinition, timestamp: NaiveDateTime) -> FiredAlert {
+    fn build_instant_alert(
+        def: &EffectDefinition,
+        timestamp: NaiveDateTime,
+        source_name: IStr,
+        target_name: IStr,
+    ) -> FiredAlert {
         let has_text = def.alert_text.is_some();
-        let text = def
-            .alert_text
-            .clone()
-            .unwrap_or_else(|| def.name.clone());
+        let raw_text = def.alert_text.as_deref().unwrap_or(&def.name);
+        let text = format_effect_alert(raw_text, source_name, target_name);
         FiredAlert {
             id: def.id.clone(),
             name: def.name.clone(),
@@ -790,7 +803,7 @@ impl EffectTracker {
 
         // Collect effects that just ended (duration expired or removed by signal).
         // Include audio info so alerts fire reliably before GC.
-        let mut ended_effects: Vec<(String, Option<String>, bool)> = Vec::new();
+        let mut ended_effects: Vec<(String, Option<String>, bool, IStr, IStr)> = Vec::new();
 
         for effect in self.active_effects.values_mut() {
             // Handle duration-expired effects.
@@ -833,20 +846,23 @@ impl EffectTracker {
                     effect.definition_id.clone(),
                     effect.audio_file.clone(),
                     should_play_audio,
+                    effect.source_name,
+                    effect.target_name,
                 ));
             }
         }
 
         // Fire OnExpire alerts (with audio for early removals)
-        for (def_id, audio_file, audio_enabled) in ended_effects {
+        for (def_id, audio_file, audio_enabled, src_name, tgt_name) in ended_effects {
             if let Some(def) = self.definitions.effects.get(&def_id)
                 && def.alert_on == AlertTrigger::OnExpire
-                && let Some(text) = &def.alert_text
+                && let Some(alert_text) = &def.alert_text
             {
+                let text = format_effect_alert(alert_text, src_name, tgt_name);
                 self.fired_alerts.push(FiredAlert {
                     id: def_id,
                     name: def.name.clone(),
-                    text: text.clone(),
+                    text,
                     color: def.color,
                     timestamp: current_time,
                     alert_text_enabled: true,
@@ -897,7 +913,8 @@ impl EffectTracker {
                 .alert_text
                 .as_deref()
                 .unwrap_or(&def.name);
-            let text = format!("{} ({:.1})", raw_name, remaining_base);
+            let formatted = format_effect_alert(raw_name, effect.source_name, effect.target_name);
+            let text = format!("{} ({:.1})", formatted, remaining_base);
             self.fired_alerts.push(FiredAlert {
                 id: def.id.clone(),
                 name: def.name.clone(),
@@ -977,7 +994,7 @@ impl EffectTracker {
         for def in matching_defs {
             // Instant alerts: fire and skip — no ActiveEffect created
             if def.is_alert {
-                pending_alerts.push(Self::build_instant_alert(def, timestamp));
+                pending_alerts.push(Self::build_instant_alert(def, timestamp, source_name, target_name));
                 continue;
             }
 
@@ -1634,7 +1651,7 @@ impl EffectTracker {
 
             // Instant alerts: fire and skip — no ActiveEffect created
             if def.is_alert {
-                self.fired_alerts.push(Self::build_instant_alert(def, timestamp));
+                self.fired_alerts.push(Self::build_instant_alert(def, timestamp, source_name, target_name));
                 continue;
             }
 
@@ -1790,7 +1807,7 @@ impl EffectTracker {
 
             // Instant alerts: fire and skip — no ActiveEffect created
             if def.is_alert {
-                self.fired_alerts.push(Self::build_instant_alert(def, timestamp));
+                self.fired_alerts.push(Self::build_instant_alert(def, timestamp, source_name, target_name));
                 continue;
             }
 
@@ -1950,7 +1967,7 @@ impl EffectTracker {
             {
                 // Instant alerts: fire and skip — no ActiveEffect created
                 if def.is_alert {
-                    self.fired_alerts.push(Self::build_instant_alert(def, timestamp));
+                    self.fired_alerts.push(Self::build_instant_alert(def, timestamp, source_name, target_name));
                     continue;
                 }
 

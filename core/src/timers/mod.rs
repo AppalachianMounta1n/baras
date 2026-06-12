@@ -27,7 +27,7 @@ mod signal_handlers;
 #[cfg(test)]
 mod manager_tests;
 
-pub use active::{ActiveGcd, ActiveTimer, TimerKey};
+pub use active::{ActiveGcd, ActiveTimer, TimerKey, TriggerContext};
 pub use definition::{
     TimerConfig, TimerDefinition, TimerDisplayTarget, TimerTrigger, default_display_targets,
     deserialize_display_targets,
