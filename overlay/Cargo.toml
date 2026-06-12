@@ -17,6 +17,7 @@ baras-types = { path = "../types" }
 tiny-skia = "0.12"
 cosmic-text = "0.19"
 fontdb = "0.23"      # Shared font database (re-export from cosmic-text)
+swash = { workspace = true }  # Pinned to avoid 0.2.8 hinting cache bug
 sys-locale = "0.3"   # System locale detection
 
 # Async runtime

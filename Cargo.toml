@@ -12,6 +12,10 @@ panic = "abort"        # No unwinding overhead
 strip = "symbols"      # Strip symbols from release binaries (smaller, no runtime cost)
 
 [workspace.dependencies]
+# Pin swash to 0.2.6: version 0.2.8 has a hinting cache bug where LRU-evicted
+# entries keep stale size/coords fields, causing glyphs to be hinted at the
+# wrong font size and rendering at visually inconsistent sizes mid-fight.
+swash = "=0.2.6"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
