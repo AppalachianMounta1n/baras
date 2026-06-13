@@ -194,60 +194,58 @@ impl EncounterQuery<'_> {
                     AND (w.effect_id = aa.ability_id OR w.ability_name = aa.act_name)
             ),
             deduped AS (
-                SELECT effect_name,
-                       MIN(effect_id) as effect_id,
+                SELECT effect_id, effect_name,
                        BOOL_OR(is_active) as is_active,
                        MIN(ability_id) as ability_id,
                        apply_time as start_t,
                        end_time as end_t
                 FROM classified
-                GROUP BY effect_name, apply_time, end_time
+                GROUP BY effect_id, effect_name, apply_time, end_time
             ),
             ordered AS (
-                SELECT effect_name, effect_id, is_active, ability_id,
+                SELECT effect_id, effect_name, is_active, ability_id,
                        start_t, end_t,
-                       ROW_NUMBER() OVER (PARTITION BY effect_name ORDER BY start_t, end_t) as rn
+                       ROW_NUMBER() OVER (PARTITION BY effect_id ORDER BY start_t, end_t) as rn
                 FROM deduped
             ),
             merge_pass AS (
-                SELECT effect_name, effect_id, is_active, ability_id,
+                SELECT effect_id, effect_name, is_active, ability_id,
                        start_t, end_t, rn,
                        SUM(CASE WHEN start_t > prev_end THEN 1 ELSE 0 END) OVER (
-                           PARTITION BY effect_name ORDER BY rn
+                           PARTITION BY effect_id ORDER BY rn
                        ) as grp
                 FROM (
                     SELECT *,
                            MAX(end_t) OVER (
-                               PARTITION BY effect_name ORDER BY rn
+                               PARTITION BY effect_id ORDER BY rn
                                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
                            ) as prev_end
                     FROM ordered
                 ) sub
             ),
             merged AS (
-                SELECT effect_name,
-                       MIN(effect_id) as effect_id,
+                SELECT effect_id, effect_name,
                        BOOL_OR(is_active) as is_active,
                        MIN(ability_id) as ability_id,
                        MIN(start_t) as merged_start,
                        MAX(end_t) as merged_end
                 FROM merge_pass
-                GROUP BY effect_name, grp
+                GROUP BY effect_id, effect_name, grp
             ),
             counts AS (
-                SELECT effect_name, COUNT(*) as count
+                SELECT effect_id, COUNT(*) as count
                 FROM deduped
-                GROUP BY effect_name
+                GROUP BY effect_id
             ),
             aggregated AS (
-                SELECT m.effect_name, MIN(m.effect_id) as effect_id,
+                SELECT m.effect_id, m.effect_name,
                        BOOL_OR(m.is_active) as is_active,
                        MIN(m.ability_id) as ability_id,
                        MIN(c.count) as count,
                        SUM(m.merged_end - m.merged_start) as total_duration
                 FROM merged m
-                JOIN counts c ON m.effect_name = c.effect_name
-                GROUP BY m.effect_name
+                JOIN counts c ON m.effect_id = c.effect_id
+                GROUP BY m.effect_id, m.effect_name
             )
             SELECT effect_id, effect_name, ability_id, is_active, count, total_duration,
                    LEAST(total_duration * 100.0 / {range_duration}, 100.0) as uptime_pct
