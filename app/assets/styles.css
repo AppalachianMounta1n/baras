@@ -2019,19 +2019,26 @@ button:active {
   z-index: 1000;
 }
 
-/* Non-blocking floating panel container */
-.floating-panel-container {
+/* Floating settings panel wrapper — no backdrop, clicks pass through */
+.settings-floating-wrap {
   position: fixed;
+  inset: 0;
   z-index: 1000;
   pointer-events: none;
-  /* Allow clicks to pass through to elements below */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Settings panel (modal dialog) */
+.settings-floating-wrap.positioned {
+  display: block;
+}
+
+
+/* Settings panel */
 .settings-panel {
   position: relative;
-  width: 90%;
-  max-width: 900px;
+  width: min(900px, 90vw);
   max-height: 85vh;
   background: var(--gradient-panel);
   border-radius: var(--radius-xl);
@@ -2043,6 +2050,7 @@ button:active {
   border: 1px solid var(--blue-alpha-20);
   display: flex;
   flex-direction: column;
+  pointer-events: auto;
 }
 
 /* Scrollable content area within settings panel */
@@ -2050,15 +2058,6 @@ button:active {
   flex: 1;
   overflow-y: auto;
   min-height: 0; /* Required for flex overflow */
-}
-
-/* Floating version of settings panel */
-.settings-panel.floating {
-  position: fixed;
-  width: 800px;
-  pointer-events: auto;
-  /* Re-enable clicks on the panel itself */
-  border: 1px solid var(--blue-alpha-25);
 }
 
 /* Draggable header */

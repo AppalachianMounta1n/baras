@@ -92,6 +92,8 @@ pub fn App() -> Element {
 
     // Other UI state (not part of session persistence)
     let mut settings_open = use_signal(|| false);
+    let mut settings_pos = use_signal(|| None::<(f64, f64)>);
+    let mut settings_drag = use_signal(|| None::<(f64, f64)>);
     let mut general_settings_open = use_signal(|| false);
     let mut overlay_settings = use_signal(OverlaySettings::default);
     let selected_overlay_tab = use_signal(|| "dps".to_string());
@@ -521,6 +523,27 @@ pub fn App() -> Element {
         }
     });
 
+    // Document-level mousemove/mouseup for settings panel drag (registered once)
+    {
+        let mut pos = settings_pos;
+        let mut drag = settings_drag;
+        use_future(move || async move {
+            let doc = web_sys::window().unwrap().document().unwrap();
+            let move_cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+                if let Some((ox, oy)) = drag() {
+                    pos.set(Some((e.client_x() as f64 - ox, e.client_y() as f64 - oy)));
+                }
+            });
+            let up_cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |_: web_sys::MouseEvent| {
+                drag.set(None);
+            });
+            let _ = doc.add_event_listener_with_callback("mousemove", move_cb.as_ref().unchecked_ref());
+            let _ = doc.add_event_listener_with_callback("mouseup", up_cb.as_ref().unchecked_ref());
+            move_cb.forget();
+            up_cb.forget();
+        });
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Computed Values
     // ─────────────────────────────────────────────────────────────────────────
@@ -844,7 +867,14 @@ pub fn App() -> Element {
                         button {
                             class: "btn btn-header-overlay btn-header-customize",
                             title: "Customize overlay appearance",
-                            onclick: move |_| settings_open.set(!settings_open()),
+                            onclick: move |_| {
+                                let opening = !settings_open();
+                                settings_open.set(opening);
+                                if !opening {
+                                    settings_pos.set(None);
+                                    settings_drag.set(None);
+                                }
+                            },
                             i { class: "fa-solid fa-screwdriver-wrench" }
                         }
                     }
@@ -1675,26 +1705,49 @@ pub fn App() -> Element {
                 }
             }
 
-            // Overlay settings modal (accessible from any tab via header customize button)
+            // Overlay settings floating panel (accessible from any tab via header customize button)
             if settings_open() {
-                div {
-                    class: "modal-backdrop",
-                    onclick: move |_| settings_open.set(false),
-                    div {
-                        onclick: move |e| e.stop_propagation(),
-                        SettingsPanel {
-                            settings: overlay_settings,
-                            selected_tab: selected_overlay_tab,
-                            profile_names: profile_names,
-                            active_profile: active_profile,
-                            metric_overlays_enabled: metric_overlays_enabled,
-                            personal_enabled: personal_enabled,
-                            raid_enabled: raid_enabled,
-                            overlays_visible: overlays_visible,
-                            profile_dirty: profile_dirty,
-                            on_close: move |_| settings_open.set(false),
-                            on_header_mousedown: move |_| {},
-                            on_settings_saved: move |_| {},
+                {
+                    let has_pos = settings_pos().is_some();
+                    let style = if let Some((sx, sy)) = settings_pos() {
+                        format!("left: {sx}px; top: {sy}px;")
+                    } else {
+                        String::new()
+                    };
+                    rsx! {
+                        div {
+                            class: if has_pos { "settings-floating-wrap positioned" } else { "settings-floating-wrap" },
+                            style: "{style}",
+                            SettingsPanel {
+                                settings: overlay_settings,
+                                selected_tab: selected_overlay_tab,
+                                profile_names: profile_names,
+                                active_profile: active_profile,
+                                metric_overlays_enabled: metric_overlays_enabled,
+                                personal_enabled: personal_enabled,
+                                raid_enabled: raid_enabled,
+                                overlays_visible: overlays_visible,
+                                profile_dirty: profile_dirty,
+                                on_close: move |_| {
+                                    settings_open.set(false);
+                                    settings_pos.set(None);
+                                    settings_drag.set(None);
+                                },
+                                on_header_mousedown: move |e: MouseEvent| {
+                                    let coords = e.client_coordinates();
+                                    let (px, py) = settings_pos().unwrap_or_else(|| {
+                                        let doc = web_sys::window().unwrap().document().unwrap();
+                                        let vw = doc.document_element().unwrap().client_width() as f64;
+                                        let vh = doc.document_element().unwrap().client_height() as f64;
+                                        ((vw - 900.0_f64.min(vw * 0.9)) / 2.0, (vh * 0.075))
+                                    });
+                                    settings_drag.set(Some((coords.x - px, coords.y - py)));
+                                    if !has_pos {
+                                        settings_pos.set(Some((px, py)));
+                                    }
+                                },
+                                on_settings_saved: move |_| {},
+                            }
                         }
                     }
                 }
