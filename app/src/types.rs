@@ -208,6 +208,7 @@ pub enum MetricType {
     Htps,
     Dtps,
     Tps,
+    Apm,
 }
 
 impl MetricType {
@@ -222,6 +223,7 @@ impl MetricType {
             MetricType::Tps => "Threat",
             MetricType::Dtps => "Damage Taken",
             MetricType::Htps => "Healing Taken",
+            MetricType::Apm => "APM",
         }
     }
 
@@ -236,6 +238,7 @@ impl MetricType {
             MetricType::Htps => "fa-solid fa-kit-medical",
             MetricType::Dtps => "fa-solid fa-shield",
             MetricType::Tps => "fa-solid fa-triangle-exclamation",
+            MetricType::Apm => "fa-solid fa-gauge-high",
         }
     }
 
@@ -250,6 +253,7 @@ impl MetricType {
             MetricType::Tps => "tps",
             MetricType::Dtps => "dtps",
             MetricType::Htps => "abs",
+            MetricType::Apm => "apm",
         }
     }
 
@@ -264,6 +268,7 @@ impl MetricType {
             MetricType::Htps,
             MetricType::Dtps,
             MetricType::Tps,
+            MetricType::Apm,
         ]
     }
 }

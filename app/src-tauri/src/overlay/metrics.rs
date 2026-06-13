@@ -22,6 +22,8 @@ struct MetricValues {
     split_rate: Option<i64>,
     split_total: Option<i64>,
     split_color: Option<Color>,
+    display_value: Option<String>,
+    display_total: Option<String>,
 }
 
 /// Extracts metric values from PlayerMetrics based on overlay type
@@ -33,13 +35,17 @@ fn extract_values(m: &PlayerMetrics, overlay_type: MetricType) -> MetricValues {
             split_rate: None,
             split_total: None,
             split_color: None,
+            display_value: None,
+            display_total: None,
         },
         MetricType::EDps => MetricValues {
             rate: m.dps,
             total: m.total_damage,
             split_rate: Some(m.bossdps),
             split_total: Some(m.total_damage_boss),
-            split_color: None, // Uses default lighter color for adds
+            split_color: None,
+            display_value: None,
+            display_total: None,
         },
         MetricType::BossDps => MetricValues {
             rate: m.bossdps,
@@ -47,21 +53,26 @@ fn extract_values(m: &PlayerMetrics, overlay_type: MetricType) -> MetricValues {
             split_rate: None,
             split_total: None,
             split_color: None,
+            display_value: None,
+            display_total: None,
         },
         MetricType::Hps => MetricValues {
             rate: m.hps,
             total: m.total_healing,
             split_rate: Some(m.ehps),
             split_total: Some(m.total_healing_effective),
-            split_color: None, // Uses default lighter color for overheal
+            split_color: None,
+            display_value: None,
+            display_total: None,
         },
         MetricType::EHps => MetricValues {
-            // ehps/total now include shielding, split shows healing vs shields
             rate: m.ehps,
             total: m.total_healing_effective,
-            split_rate: Some(m.ehps - m.abs), // Healing only (exclude shields)
+            split_rate: Some(m.ehps - m.abs),
             split_total: Some(m.total_healing_effective - m.total_shielding),
-            split_color: Some(shield_blue()), // Blue for shield portion
+            split_color: Some(shield_blue()),
+            display_value: None,
+            display_total: None,
         },
         MetricType::Tps => MetricValues {
             rate: m.tps,
@@ -69,6 +80,8 @@ fn extract_values(m: &PlayerMetrics, overlay_type: MetricType) -> MetricValues {
             split_rate: None,
             split_total: None,
             split_color: None,
+            display_value: None,
+            display_total: None,
         },
         MetricType::Dtps => MetricValues {
             rate: m.edtps,
@@ -76,13 +89,26 @@ fn extract_values(m: &PlayerMetrics, overlay_type: MetricType) -> MetricValues {
             split_rate: None,
             split_total: None,
             split_color: None,
+            display_value: None,
+            display_total: None,
         },
         MetricType::Htps => MetricValues {
             rate: m.htps,
             total: m.total_healing_received,
             split_rate: Some(m.ehtps),
             split_total: Some(m.total_healing_received_effective),
-            split_color: None, // Uses default lighter color for overheal received
+            split_color: None,
+            display_value: None,
+            display_total: None,
+        },
+        MetricType::Apm => MetricValues {
+            rate: m.apm as i64,
+            total: 0,
+            split_rate: None,
+            split_total: None,
+            split_color: None,
+            display_value: Some(format!("{:.1}", m.apm)),
+            display_total: Some("-".to_string()),
         },
     }
 }
@@ -123,6 +149,9 @@ pub fn create_entries_for_type(
         .into_iter()
         .map(|(name, v, class_icon, discipline_icon, class_name, role, is_local)| {
             let mut entry = MetricEntry::new(&name, v.rate, max_value).with_total(v.total);
+            if let (Some(dv), Some(dt)) = (v.display_value, v.display_total) {
+                entry = entry.with_display(dv, dt);
+            }
             entry.is_local = is_local;
             if let (Some(sr), Some(st)) = (v.split_rate, v.split_total) {
                 entry = entry.with_split(sr, st);

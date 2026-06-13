@@ -1091,6 +1091,7 @@ pub mod overlay_colors {
     pub const TPS: Color = [50, 100, 180, 255]; // Blue
     pub const DTPS: Color = [180, 80, 80, 255]; // Dark red
     pub const ABS: Color = [100, 150, 200, 255]; // Light blue
+    pub const APM: Color = [140, 140, 140, 255]; // Grey
     pub const BOSS_BAR: Color = [200, 50, 50, 255]; // Boss health red
     pub const FRAME_BG: Color = [40, 40, 40, 200]; // Raid frame background
 
@@ -1102,6 +1103,7 @@ pub mod overlay_colors {
             "tps" => TPS,
             "dtps" | "edtps" => DTPS,
             "abs" => HPS,
+            "apm" => APM,
             _ => DPS,
         }
     }

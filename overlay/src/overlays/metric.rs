@@ -40,6 +40,10 @@ pub struct MetricEntry {
     pub class_name: Option<String>,
     /// Whether this entry belongs to the local player
     pub is_local: bool,
+    /// Pre-formatted rate string (overrides format_compact when set)
+    pub display_value: Option<String>,
+    /// Pre-formatted total string (overrides format_compact when set)
+    pub display_total: Option<String>,
 }
 
 impl MetricEntry {
@@ -58,12 +62,20 @@ impl MetricEntry {
             discipline_icon: None,
             class_name: None,
             is_local: false,
+            display_value: None,
+            display_total: None,
         }
     }
 
     /// Set the cumulative total value
     pub fn with_total(mut self, total: i64) -> Self {
         self.total_value = total;
+        self
+    }
+
+    pub fn with_display(mut self, value: String, total: String) -> Self {
+        self.display_value = Some(value);
+        self.display_total = Some(total);
         self
     }
 
@@ -487,29 +499,20 @@ impl MetricOverlay {
 
             // Add text based on show_total and show_per_second settings
             // Per-second is always rightmost when enabled, total goes center or right
+            let eu = self.european_number_format;
+            let rate_text = entry.display_value.clone().unwrap_or_else(|| {
+                formatting::format_compact(entry.value, eu)
+            });
+            let total_text = entry.display_total.clone().unwrap_or_else(|| {
+                formatting::format_compact(entry.total_value, eu)
+            });
+
             if show_per_second && show_total {
-                // Both: total in center, rate on right
-                bar = bar
-                    .with_center_text(formatting::format_compact(
-                        entry.total_value,
-                        self.european_number_format,
-                    ))
-                    .with_right_text(formatting::format_compact(
-                        entry.value,
-                        self.european_number_format,
-                    ));
+                bar = bar.with_center_text(total_text).with_right_text(rate_text);
             } else if show_per_second {
-                // Rate only (default): rate on right
-                bar = bar.with_right_text(formatting::format_compact(
-                    entry.value,
-                    self.european_number_format,
-                ));
+                bar = bar.with_right_text(rate_text);
             } else if show_total {
-                // Total only: total on right
-                bar = bar.with_right_text(formatting::format_compact(
-                    entry.total_value,
-                    self.european_number_format,
-                ));
+                bar = bar.with_right_text(total_text);
             }
             // If neither, just show name (no values)
 
