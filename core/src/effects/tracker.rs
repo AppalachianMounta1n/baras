@@ -2308,6 +2308,21 @@ impl EffectTracker {
                             }
                         }).count()
                     }
+                    Trigger::DamageDealt { abilities, mitigation, .. } => {
+                        let eid = effect.target_entity_id;
+                        signals.iter().filter(|s| {
+                            if let GameSignal::DamageTaken { ability_id, ability_name, defense_type_id, is_crit, source_id, .. } = s {
+                                if *source_id != eid { return false; }
+                                let name = crate::context::resolve(*ability_name);
+                                let ability_ok = abilities.is_empty() || abilities.iter().any(|a| a.matches(*ability_id as u64, Some(name)));
+                                let mitigation_ok = mitigation.is_empty() || mitigation.iter().any(|m| m.defense_type_id() == *defense_type_id);
+                                let crit_ok = !modifier.requires_crit || *is_crit;
+                                ability_ok && mitigation_ok && crit_ok
+                            } else {
+                                false
+                            }
+                        }).count()
+                    }
                     Trigger::HealingTaken { abilities, .. } => {
                         let eid = effect.target_entity_id;
                         signals.iter().filter(|s| {

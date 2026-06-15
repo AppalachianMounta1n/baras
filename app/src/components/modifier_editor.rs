@@ -21,6 +21,7 @@ enum ModifierTriggerType {
     #[default]
     AbilityCast,
     DamageTaken,
+    DamageDealt,
     HealingTaken,
     EffectApplied,
     EffectRemoved,
@@ -33,6 +34,7 @@ impl ModifierTriggerType {
         match self {
             Self::AbilityCast => "Ability Cast",
             Self::DamageTaken => "Damage Taken",
+            Self::DamageDealt => "Damage Dealt",
             Self::HealingTaken => "Healing Taken",
             Self::EffectApplied => "Effect Applied",
             Self::EffectRemoved => "Effect Removed",
@@ -45,6 +47,7 @@ impl ModifierTriggerType {
         &[
             Self::AbilityCast,
             Self::DamageTaken,
+            Self::DamageDealt,
             Self::HealingTaken,
             Self::EffectApplied,
             Self::EffectRemoved,
@@ -57,6 +60,7 @@ impl ModifierTriggerType {
         match trigger {
             Trigger::AbilityCast { .. } => Self::AbilityCast,
             Trigger::DamageTaken { .. } => Self::DamageTaken,
+            Trigger::DamageDealt { .. } => Self::DamageDealt,
             Trigger::HealingTaken { .. } => Self::HealingTaken,
             Trigger::EffectApplied { .. } => Self::EffectApplied,
             Trigger::EffectRemoved { .. } => Self::EffectRemoved,
@@ -74,6 +78,12 @@ impl ModifierTriggerType {
                 target: Default::default(),
             },
             Self::DamageTaken => Trigger::DamageTaken {
+                abilities: vec![],
+                source: Default::default(),
+                target: Default::default(),
+                mitigation: vec![],
+            },
+            Self::DamageDealt => Trigger::DamageDealt {
                 abilities: vec![],
                 source: Default::default(),
                 target: Default::default(),
@@ -228,6 +238,7 @@ fn SingleModifierEditor(props: SingleModifierEditorProps) -> Element {
                             let new_type = match e.value().as_str() {
                                 "Ability Cast" => ModifierTriggerType::AbilityCast,
                                 "Damage Taken" => ModifierTriggerType::DamageTaken,
+                                "Damage Dealt" => ModifierTriggerType::DamageDealt,
                                 "Healing Taken" => ModifierTriggerType::HealingTaken,
                                 "Effect Applied" => ModifierTriggerType::EffectApplied,
                                 "Effect Removed" => ModifierTriggerType::EffectRemoved,
@@ -279,7 +290,7 @@ fn SingleModifierEditor(props: SingleModifierEditorProps) -> Element {
             }
 
             // Requires Crit (only for DamageTaken/HealingTaken)
-            if matches!(trigger_type, ModifierTriggerType::DamageTaken | ModifierTriggerType::HealingTaken) {
+            if matches!(trigger_type, ModifierTriggerType::DamageTaken | ModifierTriggerType::DamageDealt | ModifierTriggerType::HealingTaken) {
                 div { class: "form-row-hz",
                     label { "Requires Critical Hit" }
                     input {
@@ -464,6 +475,70 @@ fn render_trigger_fields(modifier: &EffectModifier, on_update: &EventHandler<Eff
                                             }
                                             let mut m = modifier.clone();
                                             m.trigger = Trigger::DamageTaken {
+                                                abilities: abilities.clone(),
+                                                source: Default::default(),
+                                                target: Default::default(),
+                                                mitigation: mits,
+                                            };
+                                            on_update.call(m);
+                                        }
+                                    }
+                                }
+                                span { "{mit_type.display_name()}" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Trigger::DamageDealt { abilities, mitigation, .. } => {
+            let abilities = abilities.clone();
+            let mitigation = mitigation.clone();
+            let modifier = modifier.clone();
+            let on_update = on_update.clone();
+            rsx! {
+                AbilitySelectorEditor {
+                    label: "Abilities",
+                    selectors: abilities.clone(),
+                    on_change: {
+                        let modifier = modifier.clone();
+                        let on_update = on_update.clone();
+                        let mitigation = mitigation.clone();
+                        move |new_abs: Vec<AbilitySelector>| {
+                            let mut m = modifier.clone();
+                            m.trigger = Trigger::DamageDealt {
+                                abilities: new_abs,
+                                source: Default::default(),
+                                target: Default::default(),
+                                mitigation: mitigation.clone(),
+                            };
+                            on_update.call(m);
+                        }
+                    }
+                }
+                div { class: "form-row-hz",
+                    label { "Mitigation Filter" }
+                    div { class: "flex flex-wrap gap-xs",
+                        for mit_type in MitigationType::ALL {
+                            label { class: "flex items-center gap-xs text-sm",
+                                input {
+                                    r#type: "checkbox",
+                                    checked: mitigation.contains(mit_type),
+                                    onchange: {
+                                        let modifier = modifier.clone();
+                                        let on_update = on_update.clone();
+                                        let mit = *mit_type;
+                                        let abilities = abilities.clone();
+                                        let mitigation = mitigation.clone();
+                                        move |e: Event<FormData>| {
+                                            let mut mits = mitigation.clone();
+                                            if e.checked() {
+                                                if !mits.contains(&mit) { mits.push(mit); }
+                                            } else {
+                                                mits.retain(|m| *m != mit);
+                                            }
+                                            let mut m = modifier.clone();
+                                            m.trigger = Trigger::DamageDealt {
                                                 abilities: abilities.clone(),
                                                 source: Default::default(),
                                                 target: Default::default(),

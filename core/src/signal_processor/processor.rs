@@ -1608,7 +1608,7 @@ fn shield_signal_matches(
             }
         }
 
-        Trigger::DamageTaken { .. } => {
+        Trigger::DamageTaken { .. } | Trigger::DamageDealt { .. } => {
             if let GameSignal::DamageTaken {
                 ability_id,
                 ability_name,

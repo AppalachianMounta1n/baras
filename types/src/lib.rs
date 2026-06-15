@@ -971,6 +971,18 @@ pub enum Trigger {
         mitigation: Vec<MitigationType>,
     },
 
+    /// Damage is dealt to a target. [TPC]
+    DamageDealt {
+        #[serde(default)]
+        abilities: Vec<AbilitySelector>,
+        #[serde(default)]
+        source: EntityFilter,
+        #[serde(default)]
+        target: EntityFilter,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        mitigation: Vec<MitigationType>,
+    },
+
     /// Healing is received from an ability. [TPC]
     HealingTaken {
         #[serde(default)]
@@ -1097,6 +1109,7 @@ impl Trigger {
             Self::EffectApplied { .. } => "Effect Applied",
             Self::EffectRemoved { .. } => "Effect Removed",
             Self::DamageTaken { .. } => "Damage Taken",
+            Self::DamageDealt { .. } => "Damage Dealt",
             Self::HealingTaken { .. } => "Healing Taken",
             Self::ChargesChanged { .. } => "Charges Changed",
             Self::SelfChargesChanged { .. } => "Self Charges Changed",
@@ -1130,6 +1143,7 @@ impl Trigger {
             Self::EffectApplied { .. } => "effect_applied",
             Self::EffectRemoved { .. } => "effect_removed",
             Self::DamageTaken { .. } => "damage_taken",
+            Self::DamageDealt { .. } => "damage_dealt",
             Self::HealingTaken { .. } => "healing_taken",
             Self::ChargesChanged { .. } => "charges_changed",
             Self::SelfChargesChanged { .. } => "self_charges_changed",

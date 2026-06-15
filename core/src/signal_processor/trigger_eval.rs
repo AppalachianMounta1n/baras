@@ -172,7 +172,7 @@ pub fn check_signal_trigger(
         }),
 
         // ─── Damage/Healing (signal-based with source/target filters) ──────
-        Trigger::DamageTaken { .. } => signals.iter().any(|s| {
+        Trigger::DamageTaken { .. } | Trigger::DamageDealt { .. } => signals.iter().any(|s| {
             if let GameSignal::DamageTaken {
                 ability_id,
                 ability_name,

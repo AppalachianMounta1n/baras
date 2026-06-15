@@ -32,6 +32,7 @@ pub enum TriggerKind {
     EffectApplied,
     EffectRemoved,
     DamageTaken,
+    DamageDealt,
     HealingTaken,
     ThreatModified,
     BossHpBelow,
@@ -124,6 +125,18 @@ pub enum Trigger {
         /// Optional mitigation filter — if non-empty, only fires when the hit
         /// result matches one of the listed types (e.g. IMMUNE, RESIST).
         /// Empty (default) matches any hit result.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        mitigation: Vec<MitigationType>,
+    },
+
+    /// Damage is dealt to a target.
+    DamageDealt {
+        #[serde(default)]
+        abilities: Vec<AbilitySelector>,
+        #[serde(default = "EntityFilter::default_any")]
+        source: EntityFilter,
+        #[serde(default = "EntityFilter::default_any")]
+        target: EntityFilter,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         mitigation: Vec<MitigationType>,
     },
@@ -269,6 +282,7 @@ impl Trigger {
             Self::EffectApplied { .. } => out.push(TriggerKind::EffectApplied),
             Self::EffectRemoved { .. } => out.push(TriggerKind::EffectRemoved),
             Self::DamageTaken { .. } => out.push(TriggerKind::DamageTaken),
+            Self::DamageDealt { .. } => out.push(TriggerKind::DamageDealt),
             Self::HealingTaken { .. } => out.push(TriggerKind::HealingTaken),
             Self::ThreatModified { .. } => out.push(TriggerKind::ThreatModified),
             Self::BossHpBelow { .. } => out.push(TriggerKind::BossHpBelow),
@@ -311,6 +325,7 @@ impl Trigger {
             | Self::EffectApplied { source, .. }
             | Self::EffectRemoved { source, .. }
             | Self::DamageTaken { source, .. }
+            | Self::DamageDealt { source, .. }
             | Self::HealingTaken { source, .. }
             | Self::ThreatModified { source, .. } => Some(source),
             _ => None,
@@ -325,6 +340,7 @@ impl Trigger {
             | Self::EffectApplied { target, .. }
             | Self::EffectRemoved { target, .. }
             | Self::DamageTaken { target, .. }
+            | Self::DamageDealt { target, .. }
             | Self::HealingTaken { target, .. }
             | Self::ThreatModified { target, .. }
             | Self::TargetSet { target, .. } => Some(target),
@@ -360,6 +376,12 @@ impl Trigger {
                 target,
             },
             Self::DamageTaken { abilities, mitigation, .. } => Self::DamageTaken {
+                abilities,
+                source,
+                target,
+                mitigation,
+            },
+            Self::DamageDealt { abilities, mitigation, .. } => Self::DamageDealt {
                 abilities,
                 source,
                 target,
@@ -441,7 +463,8 @@ impl Trigger {
         defense_type_id: i64,
     ) -> bool {
         match self {
-            Self::DamageTaken { abilities, mitigation, .. } => {
+            Self::DamageTaken { abilities, mitigation, .. }
+            | Self::DamageDealt { abilities, mitigation, .. } => {
                 // Empty abilities = any ability; otherwise must match one selector
                 if !abilities.is_empty()
                     && !abilities.iter().any(|s| s.matches(ability_id, ability_name))

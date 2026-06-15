@@ -2692,7 +2692,7 @@ fn PlayerStatsBar() -> Element {
                 input {
                     r#type: "text",
                     title: "Your alacrity percentage for GCD calculations",
-                    value: "{alacrity():.1}",
+                    value: "{alacrity():.2}",
                     onchange: move |e| {
                         if let Ok(val) = e.value().parse::<f32>() {
                             alacrity.set(val.clamp(0.0, 30.0));
