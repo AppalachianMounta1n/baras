@@ -141,6 +141,11 @@ pub struct ActiveEffect {
     /// hidden from display and alerts fire normally on timer expiry.
     /// After a grace period, the effect is hard-removed for GC.
     pub timer_expired: bool,
+
+    // ─── Modifier ICD State ──────────────────────────────────────────────────
+    /// Last activation time for each modifier (parallel to definition's `modifiers` vec).
+    /// Used to enforce internal cooldown (`icd_secs`). Initialized lazily on first use.
+    pub modifier_last_proc: Vec<Option<NaiveDateTime>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -209,6 +214,16 @@ impl ActiveEffect {
             alert_text,
             alert_on_expire,
             timer_expired: false,
+            modifier_last_proc: Vec::new(),
+        }
+    }
+
+    /// Ensure modifier ICD vec is sized to match definition's modifier count.
+    /// Called lazily on first modifier evaluation to avoid allocation for effects
+    /// that have no modifiers.
+    pub fn ensure_modifier_icd(&mut self, modifier_count: usize) {
+        if self.modifier_last_proc.len() != modifier_count {
+            self.modifier_last_proc.resize(modifier_count, None);
         }
     }
 

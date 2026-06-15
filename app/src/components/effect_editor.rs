@@ -230,6 +230,7 @@ fn default_effect(name: String) -> EffectListItem {
         alert_on: AlertTrigger::None,
         alert_countdown_secs: None,
         audio: AudioConfig::default(),
+        modifiers: vec![],
     }
 }
 use crate::utils::parse_hex_color;
@@ -2012,6 +2013,15 @@ fn EffectEditForm(
                                         }
                                     }
                                 }
+                            }
+                        }
+                        // ─── Modifiers Card ──────────────────────────────────────
+                        super::modifier_editor::ModifierListEditor {
+                            modifiers: draft().modifiers.clone(),
+                            on_change: move |new_mods: Vec<baras_types::EffectModifier>| {
+                                let mut d = draft();
+                                d.modifiers = new_mods;
+                                draft.set(d);
                             }
                         }
                     }

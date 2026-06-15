@@ -658,6 +658,66 @@ impl RefreshAbility {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Charge Direction (for modifier triggers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Direction filter for charge/stack change triggers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargeDirection {
+    Increased,
+    Decreased,
+    Refreshed,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Effect Modifiers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A reactive modifier that adjusts an active effect when a trigger fires.
+///
+/// Modifiers live on an `EffectDefinition` and are evaluated against incoming
+/// signals while the effect is active. They can adjust duration, sync charges,
+/// and are rate-limited by an optional internal cooldown.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EffectModifier {
+    /// What event triggers this modifier
+    pub trigger: Trigger,
+
+    /// Duration adjustment in seconds (positive = extend, negative = reduce)
+    #[serde(default, skip_serializing_if = "is_zero_f32_ref")]
+    pub adjust_duration_secs: f32,
+
+    /// Sync this effect's charges to match the triggering event's charge count
+    #[serde(default, skip_serializing_if = "is_false_ref")]
+    pub sync_charges: bool,
+
+    /// Only activate on critical hits (applies to DamageTaken/HealingTaken triggers)
+    #[serde(default, skip_serializing_if = "is_false_ref")]
+    pub requires_crit: bool,
+
+    /// Internal cooldown — minimum seconds between activations
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icd_secs: Option<f32>,
+
+    /// Maximum duration this effect can reach (ceiling)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_duration_secs: Option<f32>,
+
+    /// Minimum duration this effect can reach (floor)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_duration_secs: Option<f32>,
+}
+
+fn is_zero_f32_ref(v: &f32) -> bool {
+    *v == 0.0
+}
+
+fn is_false_ref(v: &bool) -> bool {
+    !v
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Alert Types (shared across effects and timers)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -921,6 +981,20 @@ pub enum Trigger {
         target: EntityFilter,
     },
 
+    /// Another effect's charges/stacks change. [M only]
+    ChargesChanged {
+        #[serde(default)]
+        effects: Vec<EffectSelector>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<ChargeDirection>,
+    },
+
+    /// This effect's own charges/stacks change. [M only]
+    SelfChargesChanged {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<ChargeDirection>,
+    },
+
     /// Threat is modified by an ability (MODIFYTHREAT or TAUNT). [TPC]
     ThreatModified {
         /// Ability selectors. Empty matches any ability.
@@ -1024,6 +1098,8 @@ impl Trigger {
             Self::EffectRemoved { .. } => "Effect Removed",
             Self::DamageTaken { .. } => "Damage Taken",
             Self::HealingTaken { .. } => "Healing Taken",
+            Self::ChargesChanged { .. } => "Charges Changed",
+            Self::SelfChargesChanged { .. } => "Self Charges Changed",
             Self::ThreatModified { .. } => "Threat Modified",
             Self::BossHpBelow { .. } => "Boss HP Below",
             Self::BossHpAbove { .. } => "Boss HP Above",
@@ -1055,6 +1131,8 @@ impl Trigger {
             Self::EffectRemoved { .. } => "effect_removed",
             Self::DamageTaken { .. } => "damage_taken",
             Self::HealingTaken { .. } => "healing_taken",
+            Self::ChargesChanged { .. } => "charges_changed",
+            Self::SelfChargesChanged { .. } => "self_charges_changed",
             Self::ThreatModified { .. } => "threat_modified",
             Self::BossHpBelow { .. } => "boss_hp_below",
             Self::BossHpAbove { .. } => "boss_hp_above",

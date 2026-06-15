@@ -350,6 +350,9 @@ pub fn check_signal_trigger(
         // ─── Event-based triggers (handled by check_event_trigger, not signals)
         Trigger::EffectApplied { .. } | Trigger::EffectRemoved { .. } => false,
 
+        // ─── Modifier-only triggers (handled by EffectTracker) ────────────
+        Trigger::ChargesChanged { .. } | Trigger::SelfChargesChanged { .. } => false,
+
         // ─── Not signal-based ──────────────────────────────────────────────
         Trigger::TimeElapsed { .. }
         | Trigger::TargetSet { .. }

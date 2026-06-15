@@ -464,6 +464,10 @@ pub struct EffectTracker {
     /// Current target for each entity (source_id -> (target_id, target_name, entity_type))
     /// Used as fallback when encounter doesn't have target info (e.g., outside combat)
     current_targets: HashMap<i64, (i64, IStr, EntityType)>,
+
+    /// Last-seen charge counts for external effects: (effect_id, target_entity_id) -> charges.
+    /// Used by ChargesChanged modifiers to determine direction (increased/decreased/refreshed).
+    last_seen_charges: HashMap<(i64, i64), u8>,
 }
 
 impl Default for EffectTracker {
@@ -491,6 +495,7 @@ impl EffectTracker {
             fired_alerts: Vec::new(),
             ticking_count: 0,
             current_targets: HashMap::new(),
+            last_seen_charges: HashMap::new(),
         }
     }
 
@@ -2055,14 +2060,73 @@ impl EffectTracker {
             };
 
             if let Some(effect) = self.active_effects.get_mut(&key) {
+                let old_stacks = effect.stacks;
                 effect.set_stacks(charges);
 
                 // Refresh duration on ModifyCharges if is_refreshed_on_modify is set.
-                // Uses refresh_duration() (not refresh()) to avoid updating last_refreshed_at,
-                // which would cause the stale-removal window to swallow a legitimate
-                // RemoveEffect that follows shortly after a charge change.
                 if let Some(dur) = duration {
                     effect.refresh_duration(timestamp, dur);
+                }
+
+                // Evaluate SelfChargesChanged modifiers
+                if !def.modifiers.is_empty() {
+                    let modifier_count = def.modifiers.len();
+                    effect.ensure_modifier_icd(modifier_count);
+
+                    for (mod_idx, modifier) in def.modifiers.iter().enumerate() {
+                        let is_self_match = match &modifier.trigger {
+                            baras_types::Trigger::SelfChargesChanged { direction } => match direction {
+                                Some(baras_types::ChargeDirection::Increased) => charges > old_stacks,
+                                Some(baras_types::ChargeDirection::Decreased) => charges < old_stacks,
+                                Some(baras_types::ChargeDirection::Refreshed) => charges == old_stacks,
+                                None => true,
+                            },
+                            _ => false,
+                        };
+                        if !is_self_match {
+                            continue;
+                        }
+                        // Check ICD
+                        if let Some(icd) = modifier.icd_secs {
+                            if let Some(last_proc) = effect.modifier_last_proc[mod_idx] {
+                                let elapsed = (timestamp - last_proc).num_milliseconds() as f32 / 1000.0;
+                                if elapsed < icd {
+                                    continue;
+                                }
+                            }
+                        }
+                        effect.modifier_last_proc[mod_idx] = Some(timestamp);
+
+                        // Sync charges from event
+                        if modifier.sync_charges {
+                            effect.set_stacks(charges);
+                        }
+
+                        // Apply duration adjustment
+                        if modifier.adjust_duration_secs != 0.0 {
+                            if let Some(expires) = effect.expires_at {
+                                let delta = chrono::Duration::milliseconds(
+                                    (modifier.adjust_duration_secs * 1000.0) as i64,
+                                );
+                                let mut new_expires = expires + delta;
+                                if let Some(max) = modifier.max_duration_secs {
+                                    let cap = effect.applied_at + chrono::Duration::milliseconds((max * 1000.0) as i64);
+                                    new_expires = new_expires.min(cap);
+                                }
+                                if let Some(min) = modifier.min_duration_secs {
+                                    let floor = effect.applied_at + chrono::Duration::milliseconds((min * 1000.0) as i64);
+                                    new_expires = new_expires.max(floor);
+                                }
+                                new_expires = new_expires.max(timestamp);
+                                effect.expires_at = Some(new_expires);
+                                if modifier.adjust_duration_secs > 0.0 {
+                                    effect.audio_played = false;
+                                    effect.countdown_announced = [false; 10];
+                                    effect.on_end_alert_fired = false;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2165,6 +2229,232 @@ impl EffectTracker {
             &boss_ids,
         )
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Modifier Evaluation
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    fn evaluate_modifiers(&mut self, signals: &[GameSignal]) {
+        use baras_types::Trigger;
+
+        let Some(game_time) = self.current_game_time else {
+            return;
+        };
+
+        // Seed last_seen_charges from EffectApplied so first ChargesChanged has a baseline
+        for s in signals {
+            if let GameSignal::EffectApplied { effect_id, target_id, charges, .. } = s {
+                if let Some(c) = charges {
+                    if *c > 0 {
+                        self.last_seen_charges.entry((*effect_id, *target_id)).or_insert(*c);
+                    }
+                }
+            }
+        }
+
+        // Snapshot old charges for direction comparison, then update to new values
+        let mut charge_snapshots: Vec<((i64, i64), u8, u8)> = Vec::new();
+        for s in signals {
+            if let GameSignal::EffectChargesChanged { effect_id, target_id, charges, .. } = s {
+                let key = (*effect_id, *target_id);
+                let old = self.last_seen_charges.get(&key).copied().unwrap_or(*charges);
+                charge_snapshots.push((key, old, *charges));
+                self.last_seen_charges.insert(key, *charges);
+            }
+        }
+
+        // Collect modifications to apply (avoids borrow conflict on self)
+        let mut adjustments: Vec<(EffectKey, ModifierAdjustment)> = Vec::new();
+
+        for (key, effect) in &self.active_effects {
+            if effect.removed_at.is_some() || effect.timer_expired {
+                continue;
+            }
+            let Some(def) = self.definitions.effects.get(&key.definition_id) else {
+                continue;
+            };
+            if def.modifiers.is_empty() {
+                continue;
+            }
+
+            for (mod_idx, modifier) in def.modifiers.iter().enumerate() {
+                let hit_count: usize = match &modifier.trigger {
+                    Trigger::SelfChargesChanged { .. } => continue,
+                    Trigger::AbilityCast { abilities, .. } => {
+                        let eid = effect.target_entity_id;
+                        signals.iter().filter(|s| {
+                            if let GameSignal::AbilityActivated { ability_id, ability_name, source_id, .. } = s {
+                                if *source_id != eid { return false; }
+                                let name = crate::context::resolve(*ability_name);
+                                (abilities.is_empty() || abilities.iter().any(|a| a.matches(*ability_id as u64, Some(name))))
+                                    && !modifier.requires_crit
+                            } else {
+                                false
+                            }
+                        }).count()
+                    }
+                    Trigger::DamageTaken { abilities, mitigation, .. } => {
+                        let eid = effect.target_entity_id;
+                        signals.iter().filter(|s| {
+                            if let GameSignal::DamageTaken { ability_id, ability_name, defense_type_id, is_crit, target_id, .. } = s {
+                                if *target_id != eid { return false; }
+                                let name = crate::context::resolve(*ability_name);
+                                let ability_ok = abilities.is_empty() || abilities.iter().any(|a| a.matches(*ability_id as u64, Some(name)));
+                                let mitigation_ok = mitigation.is_empty() || mitigation.iter().any(|m| m.defense_type_id() == *defense_type_id);
+                                let crit_ok = !modifier.requires_crit || *is_crit;
+                                ability_ok && mitigation_ok && crit_ok
+                            } else {
+                                false
+                            }
+                        }).count()
+                    }
+                    Trigger::HealingTaken { abilities, .. } => {
+                        let eid = effect.target_entity_id;
+                        signals.iter().filter(|s| {
+                            if let GameSignal::HealingDone { ability_id, ability_name, target_id, .. } = s {
+                                if *target_id != eid { return false; }
+                                let name = crate::context::resolve(*ability_name);
+                                abilities.is_empty() || abilities.iter().any(|a| a.matches(*ability_id as u64, Some(name)))
+                            } else {
+                                false
+                            }
+                        }).count()
+                    }
+                    Trigger::EffectApplied { effects, .. } => {
+                        let eid = effect.target_entity_id;
+                        signals.iter().filter(|s| {
+                            if let GameSignal::EffectApplied { effect_id, effect_name, target_id, .. } = s {
+                                if *target_id != eid { return false; }
+                                let name = crate::context::resolve(*effect_name);
+                                !effects.is_empty() && effects.iter().any(|e| e.matches(*effect_id as u64, Some(name)))
+                            } else {
+                                false
+                            }
+                        }).count()
+                    }
+                    Trigger::EffectRemoved { effects, .. } => {
+                        let eid = effect.target_entity_id;
+                        signals.iter().filter(|s| {
+                            if let GameSignal::EffectRemoved { effect_id, effect_name, target_id, .. } = s {
+                                if *target_id != eid { return false; }
+                                let name = crate::context::resolve(*effect_name);
+                                !effects.is_empty() && effects.iter().any(|e| e.matches(*effect_id as u64, Some(name)))
+                            } else {
+                                false
+                            }
+                        }).count()
+                    }
+                    Trigger::ChargesChanged { effects, direction } => {
+                        let eid = effect.target_entity_id;
+                        signals.iter().filter(|s| {
+                            if let GameSignal::EffectChargesChanged { effect_id, effect_name, target_id, .. } = s {
+                                if *target_id != eid { return false; }
+                                let name = crate::context::resolve(*effect_name);
+                                let effect_ok = effects.is_empty() || effects.iter().any(|e| e.matches(*effect_id as u64, Some(name)));
+                                let dir_ok = match direction {
+                                    Some(dir) => {
+                                        let snap_key = (*effect_id, *target_id);
+                                        charge_snapshots.iter().any(|(k, old, new)| {
+                                            *k == snap_key && match dir {
+                                                baras_types::ChargeDirection::Increased => new > old,
+                                                baras_types::ChargeDirection::Decreased => new < old,
+                                                baras_types::ChargeDirection::Refreshed => new == old,
+                                            }
+                                        })
+                                    }
+                                    None => true,
+                                };
+                                effect_ok && dir_ok
+                            } else {
+                                false
+                            }
+                        }).count()
+                    }
+                    _ => continue,
+                };
+
+                for _ in 0..hit_count {
+                    adjustments.push((key.clone(), ModifierAdjustment {
+                        mod_idx,
+                        adjust_duration_secs: modifier.adjust_duration_secs,
+                        sync_charges: modifier.sync_charges,
+                        icd_secs: modifier.icd_secs,
+                        max_duration_secs: modifier.max_duration_secs,
+                        min_duration_secs: modifier.min_duration_secs,
+                    }));
+                }
+            }
+        }
+
+        // Apply collected adjustments
+        for (key, adj) in adjustments {
+            let Some(effect) = self.active_effects.get_mut(&key) else { continue };
+            let modifier_count = self.definitions.effects.get(&key.definition_id)
+                .map(|d| d.modifiers.len())
+                .unwrap_or(0);
+            effect.ensure_modifier_icd(modifier_count);
+
+            // Check ICD
+            if let Some(icd) = adj.icd_secs {
+                if let Some(last_proc) = effect.modifier_last_proc[adj.mod_idx] {
+                    let elapsed = (game_time - last_proc).num_milliseconds() as f32 / 1000.0;
+                    if elapsed < icd {
+                        continue;
+                    }
+                }
+            }
+
+            // Record proc time
+            effect.modifier_last_proc[adj.mod_idx] = Some(game_time);
+
+            // Apply duration adjustment
+            if adj.adjust_duration_secs != 0.0 && effect.expires_at.is_some() {
+                let delta = chrono::Duration::milliseconds((adj.adjust_duration_secs * 1000.0) as i64);
+                let new_expires = effect.expires_at.unwrap() + delta;
+
+                // Clamp to max/min relative to applied_at
+                let clamped = if let Some(max) = adj.max_duration_secs {
+                    let max_expires = effect.applied_at + chrono::Duration::milliseconds((max * 1000.0) as i64);
+                    new_expires.min(max_expires)
+                } else {
+                    new_expires
+                };
+                let clamped = if let Some(min) = adj.min_duration_secs {
+                    let min_expires = effect.applied_at + chrono::Duration::milliseconds((min * 1000.0) as i64);
+                    clamped.max(min_expires)
+                } else {
+                    clamped
+                };
+
+                // Don't let expires_at go into the past
+                let final_expires = clamped.max(game_time);
+                effect.expires_at = Some(final_expires);
+
+                // Reset audio/alert state if duration was extended
+                if adj.adjust_duration_secs > 0.0 {
+                    effect.audio_played = false;
+                    effect.countdown_announced = [false; 10];
+                    effect.on_end_alert_fired = false;
+                }
+
+                // Clear timer_expired if we extended past current time
+                if effect.timer_expired && final_expires > game_time {
+                    effect.timer_expired = false;
+                    effect.removed_at = None;
+                }
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+struct ModifierAdjustment {
+    mod_idx: usize,
+    adjust_duration_secs: f32,
+    sync_charges: bool,
+    icd_secs: Option<f32>,
+    max_duration_secs: Option<f32>,
+    min_duration_secs: Option<f32>,
 }
 
 impl SignalHandler for EffectTracker {
@@ -2176,6 +2466,8 @@ impl SignalHandler for EffectTracker {
         for signal in signals {
             self.handle_signal(signal, encounter);
         }
+        // Evaluate modifiers on active effects against this batch of signals
+        self.evaluate_modifiers(signals);
         // Only finalize AoE collection if we're past the collection window (10ms).
         // This ensures secondary targets have time to arrive across multiple batches,
         // while still finalizing promptly once the window has elapsed.

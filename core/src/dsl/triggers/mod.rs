@@ -9,7 +9,7 @@ mod matchers;
 pub use matchers::{AbilitySelector, EffectSelector, EntitySelector, EntitySelectorExt};
 
 // Re-export EntityFilter for use in triggers
-pub use baras_types::{EntityFilter, MitigationType};
+pub use baras_types::{ChargeDirection, EntityFilter, MitigationType};
 
 use std::collections::HashSet;
 
@@ -44,6 +44,8 @@ pub enum TriggerKind {
     AnyPhaseChange,
     CounterReaches,
     CounterChanges,
+    ChargesChanged,
+    SelfChargesChanged,
     TimerExpires,
     TimerStarted,
     TimerCanceled,
@@ -137,6 +139,20 @@ pub enum Trigger {
         /// Who received the healing (default: any)
         #[serde(default = "EntityFilter::default_any")]
         target: EntityFilter,
+    },
+
+    /// Another effect's charges/stacks change. [M only]
+    ChargesChanged {
+        #[serde(default)]
+        effects: Vec<EffectSelector>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<ChargeDirection>,
+    },
+
+    /// This effect's own charges/stacks change. [M only]
+    SelfChargesChanged {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<ChargeDirection>,
     },
 
     /// Threat is modified by an ability (MODIFYTHREAT or TAUNT effects).
@@ -265,6 +281,8 @@ impl Trigger {
             Self::AnyPhaseChange => out.push(TriggerKind::AnyPhaseChange),
             Self::CounterReaches { .. } => out.push(TriggerKind::CounterReaches),
             Self::CounterChanges { .. } => out.push(TriggerKind::CounterChanges),
+            Self::ChargesChanged { .. } => out.push(TriggerKind::ChargesChanged),
+            Self::SelfChargesChanged { .. } => out.push(TriggerKind::SelfChargesChanged),
             Self::TimerExpires { .. } => out.push(TriggerKind::TimerExpires),
             Self::TimerStarted { .. } => out.push(TriggerKind::TimerStarted),
             Self::TimerCanceled { .. } => out.push(TriggerKind::TimerCanceled),
@@ -669,6 +687,51 @@ impl Trigger {
         }
     }
 
+    /// Check if trigger matches another effect's charges changing.
+    pub fn matches_charges_changed(
+        &self,
+        effect_id: u64,
+        effect_name: Option<&str>,
+        old_charges: u8,
+        new_charges: u8,
+    ) -> bool {
+        match self {
+            Self::ChargesChanged { effects, direction } => {
+                if !effects.is_empty()
+                    && !effects.iter().any(|s| s.matches(effect_id, effect_name))
+                {
+                    return false;
+                }
+                match direction {
+                    Some(ChargeDirection::Increased) => new_charges > old_charges,
+                    Some(ChargeDirection::Decreased) => new_charges < old_charges,
+                    Some(ChargeDirection::Refreshed) => new_charges == old_charges,
+                    None => true,
+                }
+            }
+            Self::AnyOf { conditions } => conditions.iter().any(|c| {
+                c.matches_charges_changed(effect_id, effect_name, old_charges, new_charges)
+            }),
+            _ => false,
+        }
+    }
+
+    /// Check if trigger matches this effect's own charges changing.
+    pub fn matches_self_charges_changed(&self, old_charges: u8, new_charges: u8) -> bool {
+        match self {
+            Self::SelfChargesChanged { direction } => match direction {
+                Some(ChargeDirection::Increased) => new_charges > old_charges,
+                Some(ChargeDirection::Decreased) => new_charges < old_charges,
+                Some(ChargeDirection::Refreshed) => new_charges == old_charges,
+                None => true,
+            },
+            Self::AnyOf { conditions } => conditions
+                .iter()
+                .any(|c| c.matches_self_charges_changed(old_charges, new_charges)),
+            _ => false,
+        }
+    }
+
     /// Returns the `secs` threshold if this is a `TimeElapsed` trigger.
     pub fn time_elapsed_secs(&self) -> Option<f32> {
         match self {
@@ -799,6 +862,8 @@ impl Trigger {
         match self {
             Self::CombatStart => Some("combat_start"),
             Self::TimeElapsed { .. } => Some("time_elapsed"),
+            Self::ChargesChanged { .. } => Some("charges_changed"),
+            Self::SelfChargesChanged { .. } => Some("self_charges_changed"),
             Self::AnyOf { conditions } => conditions
                 .iter()
                 .find_map(|c| c.contains_unsupported_for_shields()),
@@ -808,12 +873,14 @@ impl Trigger {
 
     /// Check if this trigger contains variants that are unsupported for counters/phases.
     ///
-    /// `TargetSet` and `TimeElapsed` only work in the timer system. Using them on
-    /// counters or phases will silently never fire.
+    /// `TargetSet`, `TimeElapsed`, and charge triggers only work in the timer/modifier
+    /// systems. Using them on counters or phases will silently never fire.
     pub fn contains_unsupported_for_counters_phases(&self) -> Option<&'static str> {
         match self {
             Self::TargetSet { .. } => Some("target_set"),
             Self::TimeElapsed { .. } => Some("time_elapsed"),
+            Self::ChargesChanged { .. } => Some("charges_changed"),
+            Self::SelfChargesChanged { .. } => Some("self_charges_changed"),
             Self::AnyOf { conditions } => conditions
                 .iter()
                 .find_map(|c| c.contains_unsupported_for_counters_phases()),
@@ -822,9 +889,6 @@ impl Trigger {
     }
 
     /// Check if this trigger contains variants that are unsupported for victory triggers.
-    ///
-    /// `TargetSet`, `TimeElapsed`, `TimerExpires`, `TimerStarted`, and `TimerCanceled`
-    /// are not evaluated for victory triggers.
     pub fn contains_unsupported_for_victory(&self) -> Option<&'static str> {
         match self {
             Self::TargetSet { .. } => Some("target_set"),
@@ -832,6 +896,8 @@ impl Trigger {
             Self::TimerExpires { .. } => Some("timer_expires"),
             Self::TimerStarted { .. } => Some("timer_started"),
             Self::TimerCanceled { .. } => Some("timer_canceled"),
+            Self::ChargesChanged { .. } => Some("charges_changed"),
+            Self::SelfChargesChanged { .. } => Some("self_charges_changed"),
             Self::AnyOf { conditions } => conditions
                 .iter()
                 .find_map(|c| c.contains_unsupported_for_victory()),

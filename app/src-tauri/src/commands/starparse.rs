@@ -416,6 +416,7 @@ fn convert_to_effect(xml: &XmlConfigTimer) -> EffectDefinition {
         alert_on: if is_alert { AlertTrigger::OnApply } else { Default::default() },
         alert_countdown_secs: None,
         audio: convert_audio(xml),
+        modifiers: Vec::new(),
     }
 }
 

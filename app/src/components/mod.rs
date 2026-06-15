@@ -10,6 +10,7 @@ pub mod combat_log;
 pub mod data_explorer;
 pub mod effect_editor;
 pub mod encounter_editor;
+pub mod modifier_editor;
 pub mod encounter_types;
 pub mod hotkey_input;
 pub mod parsely_upload_modal;

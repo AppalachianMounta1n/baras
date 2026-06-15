@@ -28,6 +28,8 @@ pub use baras_types::{
     DataExplorerState,
     DataTab,
     DotTrackerConfig,
+    ChargeDirection,
+    EffectModifier,
     EffectSelector,
     EffectStackConfig,
     EffectsAConfig,
@@ -941,6 +943,10 @@ pub struct EffectListItem {
     // Audio
     #[serde(default)]
     pub audio: AudioConfig,
+
+    // Modifiers
+    #[serde(default)]
+    pub modifiers: Vec<EffectModifier>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

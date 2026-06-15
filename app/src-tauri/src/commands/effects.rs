@@ -89,6 +89,10 @@ pub struct EffectListItem {
 
     // Audio
     pub audio: AudioConfig,
+
+    // Modifiers
+    #[serde(default)]
+    pub modifiers: Vec<baras_types::EffectModifier>,
 }
 
 impl EffectListItem {
@@ -127,6 +131,7 @@ impl EffectListItem {
             alert_on: def.alert_on,
             alert_countdown_secs: def.alert_countdown_secs,
             audio: def.audio.clone(),
+            modifiers: def.modifiers.clone(),
         }
     }
 
@@ -165,6 +170,7 @@ impl EffectListItem {
             cooldown_ready_secs: self.cooldown_ready_secs,
             show_icon: self.show_icon,
             display_source: self.display_source,
+            modifiers: self.modifiers.clone(),
         }
     }
 

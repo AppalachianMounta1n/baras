@@ -232,6 +232,12 @@ pub struct EffectDefinition {
     /// Audio configuration (alerts, custom sounds)
     #[serde(default, skip_serializing_if = "AudioConfig::is_default")]
     pub audio: AudioConfig,
+
+    // ─── Modifiers ────────────────────────────────────────────────────────────
+    /// Reactive modifiers that adjust this effect when triggers fire.
+    /// Evaluated against incoming signals while the effect is active.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modifiers: Vec<baras_types::EffectModifier>,
 }
 
 /// Deserialize `display_targets` accepting either a single bare value

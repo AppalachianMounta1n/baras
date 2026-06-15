@@ -56,6 +56,7 @@ fn make_effect(
         alert_on: AlertTrigger::None,
         alert_countdown_secs: None,
         audio: AudioConfig::default(),
+        modifiers: vec![],
     }
 }
 

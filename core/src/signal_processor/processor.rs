@@ -1399,6 +1399,7 @@ impl EventProcessor {
             timestamp: event.timestamp,
             absorbed: event.details.dmg_absorbed,
             defense_type_id: event.details.defense_type_id,
+            is_crit: event.details.is_crit,
         });
     }
 
@@ -1795,5 +1796,6 @@ fn shield_signal_matches(
         Trigger::CombatStart | Trigger::TimeElapsed { .. } => false,
         Trigger::CombatEnd => matches!(signal, GameSignal::CombatEnded { .. }),
         Trigger::Manual | Trigger::Never => false,
+        Trigger::ChargesChanged { .. } | Trigger::SelfChargesChanged { .. } => false,
     }
 }
