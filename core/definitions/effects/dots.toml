@@ -178,7 +178,7 @@ color = [204, 145, 37, 255]
 
 [[effect]]
 id = "serrated_bolt"
-name = "serrated bolt"
+name = "Serrated bolt"
 display_target = "dot_tracker"
 trigger = { type = "effect_applied", effects = [
   3418278571540736,
