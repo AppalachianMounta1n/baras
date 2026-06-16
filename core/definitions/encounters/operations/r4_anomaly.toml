@@ -394,6 +394,10 @@ ids = [4466177577320448, 4494700455133184]
 is_boss = true
 is_kill_target = true
 
+[[boss.entities.hp_markers]]
+hp_percent = 13.5
+label = "Burn"
+
 [[boss.phases]]
 id = "wd_main"
 name = "Watchdog"
