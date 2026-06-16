@@ -1072,6 +1072,7 @@ ids = [3284949901770752]
 is_boss = true
 triggers_encounter = false
 is_kill_target = false
+pushes_at = 20.0
 
 [[boss.entities]]
 name = "Dread Master Calphayus"
@@ -1100,21 +1101,35 @@ ids = [3284954196738048]
 is_boss = true
 triggers_encounter = false
 is_kill_target = false
+pushes_at = 20.0
 
 [[boss.entities.hp_markers]]
 hp_percent = 80.0
 label = "Crystal Jump"
 difficulties = ["veteran", "master"]
 
+[[boss.entities.hp_markers.conditions]]
+type = "phase_active"
+phase_ids = ["calphayus_p3"]
+
+
 [[boss.entities.hp_markers]]
 hp_percent = 50.0
 label = "Crystal Jump"
 difficulties = ["veteran", "master"]
 
+[[boss.entities.hp_markers.conditions]]
+type = "phase_active"
+phase_ids = ["calphayus_p3"]
+
 [[boss.entities.hp_markers]]
 hp_percent = 30.0
 label = "Crystal Jump"
 difficulties = ["veteran", "master"]
+
+[[boss.entities.hp_markers.conditions]]
+type = "phase_active"
+phase_ids = ["calphayus_p3"]
 
 [[boss.phases]]
 id = "calphayus_present"
