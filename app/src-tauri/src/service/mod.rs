@@ -1164,21 +1164,20 @@ impl CombatService {
         };
 
         let Ok(config) = toml::from_str::<DefinitionConfig>(&contents) else {
-            error!(path = ?path, "Failed to parse user effects file");
-            // Delete invalid file
-            let _ = std::fs::remove_file(path);
+            error!(path = ?path, "Failed to parse user effects file, backing up");
+            let _ = std::fs::rename(path, path.with_extension("toml.bak"));
             return;
         };
 
-        // Version check - delete file if version mismatch
+        // Version check - backup file if version mismatch
         if config.version != EFFECTS_DSL_VERSION {
             warn!(
                 file_version = config.version,
                 expected_version = EFFECTS_DSL_VERSION,
                 path = ?path,
-                "User effects version mismatch, deleting file"
+                "User effects version mismatch, backing up file"
             );
-            let _ = std::fs::remove_file(path);
+            let _ = std::fs::rename(path, path.with_extension("toml.bak"));
             return;
         }
 
