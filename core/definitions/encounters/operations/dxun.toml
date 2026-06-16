@@ -320,13 +320,18 @@ can_be_refreshed = true
 id = "trandos"
 name = "Trandoshans"
 difficulties = ["story", "veteran", "master"]
-# On Master, fight ends when Ultimate Hunter casts Dying Light (effect removed) with players alive
+# NiM: Ultimate Hunter casts Dying Light (effect removed) or player targets loot cache
 has_victory_trigger = true
-victory_trigger = { type = "effect_removed", effects = [
-  4381085685252434,
-], source = { selector = [
-  "Ultimate Hunter",
-] } }
+victory_trigger = { type = "any_of", conditions = [
+  { type = "effect_removed", effects = [
+    4381085685252434,
+  ], source = { selector = [
+    "Ultimate Hunter",
+  ] } },
+  { type = "target_set", target = { selector = [
+    4330074358677504,
+  ] } },
+] }
 victory_trigger_difficulties = ["master"]
 
 [[boss.entities]]
