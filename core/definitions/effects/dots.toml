@@ -8,6 +8,7 @@ version = 1
 id = "affliction"
 name = "Affliction"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   808192586022912,
 ], source = "local_player", target = "any" }
@@ -20,6 +21,7 @@ color = [62, 173, 28, 255]
 id = "weaken_mind"
 name = "Weaken Mind"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   812861215473664,
 ], source = "local_player", target = "any" }
@@ -32,6 +34,7 @@ color = [153, 143, 121, 255]
 id = "creeping_terror"
 name = "Creeping Terror"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   808424514256896,
 ], source = "local_player", target = "any" }
@@ -44,6 +47,7 @@ color = [145, 66, 9, 255]
 id = "sever_force"
 name = "Sever Force"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   813226287693824,
 ], source = "local_player", target = "any" }
@@ -56,6 +60,7 @@ color = [64, 145, 76, 255]
 id = "force_breach"
 name = "Force Breach"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   964675424485376,
 ], source = "local_player", target = "any" }
@@ -68,6 +73,7 @@ color = [184, 79, 15, 255]
 id = "corrosive_dart"
 name = "Corrosive Dart"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3465720780292096,
 ], source = "local_player", target = "any" }
@@ -80,6 +86,7 @@ color = [145, 64, 98, 255]
 id = "vital_shot"
 name = "Vital Shot"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   2115340112756736,
 ], source = "local_player", target = "any" }
@@ -92,6 +99,7 @@ color = [64, 64, 145, 255]
 id = "corrosive_grenade_op"
 name = "Corrosive Grenade (Op)"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   1703989619982930,
 ], source = "local_player", target = "any" }
@@ -105,6 +113,7 @@ color = [32, 173, 7, 255]
 id = "corrosive_grenade_snipe"
 name = "Corrosive Grenade (Sniper)"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   1703989619982932,
 ], source = "local_player", target = "any" }
@@ -118,6 +127,7 @@ color = [32, 173, 7, 255]
 id = "shrap_bomb_gs"
 name = "Shrap Bomb (Gunslinger)"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   807698664783872,
 ], source = "local_player", target = "any" }
@@ -131,6 +141,7 @@ color = [148, 114, 34, 255]
 id = "shrap_bomb_ruffian"
 name = "Shrap Bomb (Ruffian)"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   807698664784339,
 ], source = "local_player", target = "any" }
@@ -144,6 +155,7 @@ color = [148, 114, 34, 255]
 id = "scorch"
 name = "Scorch"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3384812186370048,
 ], source = "local_player", target = "any" }
@@ -156,6 +168,7 @@ color = [173, 46, 3, 255]
 id = "plasmatize"
 name = "Plasmatize"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3391666954174464,
 ], source = "local_player", target = "any" }
@@ -168,6 +181,7 @@ color = [173, 3, 171, 255]
 id = "incendiary_missile"
 name = "Incendiary Missile"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   2027022700249344,
 ], source = "local_player", target = "any" }
@@ -180,6 +194,7 @@ color = [204, 145, 37, 255]
 id = "serrated_bolt"
 name = "Serrated bolt"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3418278571540736,
 ], source = "local_player", target = "any" }
@@ -192,6 +207,7 @@ color = [144, 80, 204, 255]
 id = "marked"
 name = "Marked"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3418278571540762,
 ], source = "local_player", target = "any" }
@@ -204,6 +220,7 @@ color = [144, 80, 204, 255]
 id = "incendiary_round"
 name = "Incendiary Round"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3391477975613734,
 ], source = "local_player", target = "any" }
@@ -216,6 +233,7 @@ color = [173, 72, 14, 255]
 id = "shatter"
 name = "Shatter"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   1169953386397696,
 ], source = "local_player", target = "any" }
@@ -228,6 +246,7 @@ color = [194, 116, 8, 255]
 id = "plasma_brand"
 name = "Plasma Brand"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3429368177099009,
 ], source = "local_player", target = "any" }
@@ -240,6 +259,7 @@ color = [8, 157, 194, 255]
 id = "eviscerate"
 name = "Eviscerate"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3426078232150278,
 ], source = "local_player", target = "any" }
@@ -252,6 +272,7 @@ color = [194, 8, 29, 255]
 id = "burning_purpose"
 name = "Burning Purpose"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3429814853697796,
 ], source = "local_player", target = "any" }
@@ -264,6 +285,7 @@ color = [194, 70, 8, 255]
 id = "draining_scream"
 name = "Draining Scream"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   807857578574081,
 ], source = "local_player", target = "any" }
@@ -276,6 +298,7 @@ color = [153, 27, 2, 255]
 id = "burning_blade"
 name = "Burning Blade"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   1280638988583168,
 ], source = "local_player", target = "any" }
@@ -288,6 +311,7 @@ color = [196, 148, 14, 255]
 id = "discharge"
 name = "Discharge"
 display_target = "dot_tracker"
+track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   808235535695872,
 ], source = "local_player", target = "any" }
