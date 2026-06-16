@@ -139,9 +139,14 @@ can_be_refreshed = true
 id = "holding_pens"
 name = "Lights Out"
 has_victory_trigger = true
-victory_trigger = { type = "damage_taken", abilities = [
-  4258554563264512,
-], source = "any", target = "any" }
+victory_trigger = { type = "any_of", conditions = [
+  { type = "damage_taken", abilities = [
+    4258554563264512,
+  ], source = "any", target = "any" },
+  { type = "target_set", target = { selector = [
+    4340614208421888,
+  ] } },
+] }
 
 [boss.encounter_trigger]
 type = "threat_modified"
@@ -331,6 +336,11 @@ victory_trigger = { type = "any_of", conditions = [
   { type = "target_set", target = { selector = [
     4330074358677504,
   ] } },
+  { type = "npc_appears", selector = [
+    4408929958232064,
+    4333471677808640,
+  ] },
+  { type = "boss_hp_below", hp_percent = 1.0, selector = ["Ultimate Hunter"] },
 ] }
 victory_trigger_difficulties = ["master"]
 
@@ -594,6 +604,7 @@ duration_secs = 24.5
 color = [224, 107, 24, 255]
 icon_ability_id = 4381059915448320
 difficulties = ["master"]
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Boss 3: Huntmaster
