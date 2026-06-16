@@ -142,7 +142,11 @@ pub struct ActiveEffect {
     /// After a grace period, the effect is hard-removed for GC.
     pub timer_expired: bool,
 
-    // ─── Modifier ICD State ──────────────────────────────────────────────────
+    // ─── Modifier state ───────────────────────────────────────────────────────
+    /// Absolute expiry cap set by refill modifiers with max_duration_secs.
+    /// Used by the overlay to show "elapsed / max" budget text.
+    pub max_expires_at: Option<NaiveDateTime>,
+
     /// Last activation time for each modifier (parallel to definition's `modifiers` vec).
     /// Used to enforce internal cooldown (`icd_secs`). Initialized lazily on first use.
     pub modifier_last_proc: Vec<Option<NaiveDateTime>>,
@@ -214,6 +218,7 @@ impl ActiveEffect {
             alert_text,
             alert_on_expire,
             timer_expired: false,
+            max_expires_at: None,
             modifier_last_proc: Vec::new(),
         }
     }

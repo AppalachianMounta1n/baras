@@ -3699,6 +3699,13 @@ async fn build_effects_a_data(
                     .map(|data| StdArc::new((data.width, data.height, data.rgba)))
             });
 
+            let max_total_secs = effect.max_expires_at.map(|max_exp| {
+                (max_exp - effect.applied_at).num_milliseconds() as f32 / 1000.0
+            });
+            let max_remaining_secs = effect.max_expires_at.and_then(|max_exp| {
+                interp_time.map(|t| (max_exp - t).num_milliseconds() as f32 / 1000.0)
+            });
+
             Some(EffectABEntry {
                 effect_id: effect.game_effect_id,
                 icon_ability_id: effect.icon_ability_id,
@@ -3713,6 +3720,8 @@ async fn build_effects_a_data(
                 icon,
                 show_icon: effect.show_icon,
                 display_source: effect.display_source,
+                max_total_secs,
+                max_remaining_secs,
             })
         })
         .collect();
@@ -3763,6 +3772,13 @@ async fn build_effects_b_data(
                     .map(|data| StdArc::new((data.width, data.height, data.rgba)))
             });
 
+            let max_total_secs = effect.max_expires_at.map(|max_exp| {
+                (max_exp - effect.applied_at).num_milliseconds() as f32 / 1000.0
+            });
+            let max_remaining_secs = effect.max_expires_at.and_then(|max_exp| {
+                interp_time.map(|t| (max_exp - t).num_milliseconds() as f32 / 1000.0)
+            });
+
             Some(EffectABEntry {
                 effect_id: effect.game_effect_id,
                 icon_ability_id: effect.icon_ability_id,
@@ -3777,6 +3793,8 @@ async fn build_effects_b_data(
                 icon,
                 show_icon: effect.show_icon,
                 display_source: effect.display_source,
+                max_total_secs,
+                max_remaining_secs,
             })
         })
         .collect();

@@ -688,13 +688,13 @@ pub struct EffectModifier {
     #[serde(default, skip_serializing_if = "is_zero_f32_ref")]
     pub adjust_duration_secs: f32,
 
-    /// Sync this effect's charges to match the triggering event's charge count
-    #[serde(default, skip_serializing_if = "is_false_ref")]
-    pub sync_charges: bool,
-
     /// Only activate on critical hits (applies to DamageTaken/HealingTaken triggers)
     #[serde(default, skip_serializing_if = "is_false_ref")]
     pub requires_crit: bool,
+
+    /// Reset remaining duration to the effect's base duration_secs on each proc
+    #[serde(default, skip_serializing_if = "is_false_ref")]
+    pub refill_duration: bool,
 
     /// Internal cooldown — minimum seconds between activations
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -703,10 +703,6 @@ pub struct EffectModifier {
     /// Maximum duration this effect can reach (ceiling)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_duration_secs: Option<f32>,
-
-    /// Minimum duration this effect can reach (floor)
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub min_duration_secs: Option<f32>,
 }
 
 fn is_zero_f32_ref(v: &f32) -> bool {

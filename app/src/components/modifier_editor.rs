@@ -149,11 +149,10 @@ pub fn ModifierListEditor(props: ModifierListEditorProps) -> Element {
                                     mitigation: vec![],
                                 },
                                 adjust_duration_secs: -1.0,
-                                sync_charges: false,
                                 requires_crit: false,
+                                refill_duration: false,
                                 icd_secs: None,
                                 max_duration_secs: None,
-                                min_duration_secs: None,
                             });
                             on_change.call(mods);
                         }
@@ -309,21 +308,22 @@ fn SingleModifierEditor(props: SingleModifierEditorProps) -> Element {
                 }
             }
 
-            // Sync Charges (only for ChargesChanged/SelfChargesChanged)
-            if matches!(trigger_type, ModifierTriggerType::ChargesChanged | ModifierTriggerType::SelfChargesChanged) {
-                div { class: "form-row-hz",
-                    label { "Sync Charges" }
-                    input {
-                        r#type: "checkbox",
-                        checked: modifier.sync_charges,
-                        onchange: {
-                            let modifier = modifier.clone();
-                            let on_update = props.on_update.clone();
-                            move |e: Event<FormData>| {
-                                let mut m = modifier.clone();
-                                m.sync_charges = e.checked();
-                                on_update.call(m);
-                            }
+            // Refill Duration
+            div { class: "form-row-hz",
+                label {
+                    "Refill Duration"
+                    span { class: "help-icon", title: "Reset remaining time to the effect's base duration on each proc instead of adjusting by a fixed delta", "?" }
+                }
+                input {
+                    r#type: "checkbox",
+                    checked: modifier.refill_duration,
+                    onchange: {
+                        let modifier = modifier.clone();
+                        let on_update = props.on_update.clone();
+                        move |e: Event<FormData>| {
+                            let mut m = modifier.clone();
+                            m.refill_duration = e.checked();
+                            on_update.call(m);
                         }
                     }
                 }
@@ -354,45 +354,23 @@ fn SingleModifierEditor(props: SingleModifierEditorProps) -> Element {
                 }
             }
 
-            // Max/Min Duration
-            div { class: "flex gap-sm",
-                div { class: "form-row-hz", style: "flex: 1;",
-                    label { "Max Duration (s)" }
-                    input {
-                        r#type: "number",
-                        class: "input-number",
-                        step: "0.5",
-                        min: "0",
-                        placeholder: "None",
-                        value: "{modifier.max_duration_secs.map(|v| v.to_string()).unwrap_or_default()}",
-                        onchange: {
-                            let modifier = modifier.clone();
-                            let on_update = props.on_update.clone();
-                            move |e: Event<FormData>| {
-                                let mut m = modifier.clone();
-                                m.max_duration_secs = e.value().parse::<f32>().ok().filter(|v| *v > 0.0);
-                                on_update.call(m);
-                            }
-                        }
-                    }
-                }
-                div { class: "form-row-hz", style: "flex: 1;",
-                    label { "Min Duration (s)" }
-                    input {
-                        r#type: "number",
-                        class: "input-number",
-                        step: "0.5",
-                        min: "0",
-                        placeholder: "None",
-                        value: "{modifier.min_duration_secs.map(|v| v.to_string()).unwrap_or_default()}",
-                        onchange: {
-                            let modifier = modifier.clone();
-                            let on_update = props.on_update.clone();
-                            move |e: Event<FormData>| {
-                                let mut m = modifier.clone();
-                                m.min_duration_secs = e.value().parse::<f32>().ok().filter(|v| *v > 0.0);
-                                on_update.call(m);
-                            }
+            // Max Duration
+            div { class: "form-row-hz",
+                label { "Max Duration (s)" }
+                input {
+                    r#type: "number",
+                    class: "input-number",
+                    step: "0.5",
+                    min: "0",
+                    placeholder: "None",
+                    value: "{modifier.max_duration_secs.map(|v| v.to_string()).unwrap_or_default()}",
+                    onchange: {
+                        let modifier = modifier.clone();
+                        let on_update = props.on_update.clone();
+                        move |e: Event<FormData>| {
+                            let mut m = modifier.clone();
+                            m.max_duration_secs = e.value().parse::<f32>().ok().filter(|v| *v > 0.0);
+                            on_update.call(m);
                         }
                     }
                 }

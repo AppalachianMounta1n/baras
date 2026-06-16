@@ -54,6 +54,10 @@ pub struct EffectABEntry {
     pub show_icon: bool,
     /// Whether to display the source entity name
     pub display_source: bool,
+    /// Max total duration budget in seconds (from modifier max_duration_secs).
+    pub max_total_secs: Option<f32>,
+    /// Remaining seconds until the absolute max cap expires.
+    pub max_remaining_secs: Option<f32>,
 }
 
 impl EffectABEntry {
@@ -68,6 +72,14 @@ impl EffectABEntry {
     /// Format remaining time
     pub fn format_time(&self, european: bool) -> String {
         baras_types::formatting::format_countdown_compact(self.remaining_secs, "0", european)
+    }
+
+    /// Format max budget text like "12/30" (elapsed / max) if max_total_secs is set
+    pub fn format_budget(&self) -> Option<String> {
+        let max = self.max_total_secs?;
+        let max_remaining = self.max_remaining_secs?;
+        let elapsed = (max - max_remaining).max(0.0);
+        Some(format!("{:.0}/{:.0}", elapsed, max))
     }
 }
 
@@ -712,7 +724,11 @@ impl EffectsABOverlay {
                 .with_text_glow();
 
             if self.config.show_countdown {
-                bar = bar.with_right_text(effect.format_time(self.european_number_format));
+                let mut right = effect.format_time(self.european_number_format);
+                if let Some(budget) = effect.format_budget() {
+                    right.push_str(&format!(" ({budget})"));
+                }
+                bar = bar.with_right_text(right);
             }
             if has_icon {
                 bar = bar.with_label_offset(icon_size + icon_padding);
@@ -855,6 +871,14 @@ impl EffectsABOverlay {
                 colors::icon_countdown(),
             );
         }
+
+        // Budget text top-left corner (top-right has timer in stack priority)
+        if let Some(budget) = effect.format_budget() {
+            let budget_size = font_size * 0.7;
+            let bx = x + 2.0;
+            let by = y + budget_size + 2.0;
+            self.frame.draw_text_glowed(&budget, bx, by, budget_size, colors::white());
+        }
     }
 
     /// Draw normal mode (timer centered, stacks in corner)
@@ -881,10 +905,19 @@ impl EffectsABOverlay {
             );
         }
 
+        // Budget text (elapsed/max) top-right corner
+        if let Some(budget) = effect.format_budget() {
+            let budget_size = font_size * 0.7;
+            let bw = self.frame.measure_text(&budget, budget_size).0;
+            let bx = x + icon_size - bw - 2.0;
+            let by = y + budget_size + 2.0;
+            self.frame.draw_text_glowed(&budget, bx, by, budget_size, colors::white());
+        }
+
         // Stack count in bottom-right corner
         if effect.stacks >= 1 {
             let stack_text = format!("{}", effect.stacks);
-            let stack_font_size = font_size * 1.4;
+            let stack_font_size = font_size * 0.9;
             let stack_x =
                 x + icon_size - self.frame.measure_text(&stack_text, stack_font_size).0 - 2.0;
             let stack_y = y + icon_size - 3.0;
@@ -894,7 +927,7 @@ impl EffectsABOverlay {
                 stack_x,
                 stack_y,
                 stack_font_size,
-                colors::icon_countdown(),
+                colors::white(),
             );
         }
     }

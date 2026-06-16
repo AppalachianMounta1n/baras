@@ -2097,33 +2097,35 @@ impl EffectTracker {
                         }
                         effect.modifier_last_proc[mod_idx] = Some(timestamp);
 
-                        // Sync charges from event
-                        if modifier.sync_charges {
-                            effect.set_stacks(charges);
-                        }
-
                         // Apply duration adjustment
-                        if modifier.adjust_duration_secs != 0.0 {
-                            if let Some(expires) = effect.expires_at {
+                        if let Some(expires) = effect.expires_at {
+                            let mut new_expires = if modifier.refill_duration {
+                                if let Some(dur) = duration {
+                                    timestamp + dur
+                                } else {
+                                    continue;
+                                }
+                            } else if modifier.adjust_duration_secs != 0.0 {
                                 let delta = chrono::Duration::milliseconds(
                                     (modifier.adjust_duration_secs * 1000.0) as i64,
                                 );
-                                let mut new_expires = expires + delta;
-                                if let Some(max) = modifier.max_duration_secs {
-                                    let cap = effect.applied_at + chrono::Duration::milliseconds((max * 1000.0) as i64);
-                                    new_expires = new_expires.min(cap);
+                                expires + delta
+                            } else {
+                                continue;
+                            };
+                            if let Some(max) = modifier.max_duration_secs {
+                                let cap = effect.applied_at + chrono::Duration::milliseconds((max * 1000.0) as i64);
+                                new_expires = new_expires.min(cap);
+                                if effect.max_expires_at.is_none() {
+                                    effect.max_expires_at = Some(cap);
                                 }
-                                if let Some(min) = modifier.min_duration_secs {
-                                    let floor = effect.applied_at + chrono::Duration::milliseconds((min * 1000.0) as i64);
-                                    new_expires = new_expires.max(floor);
-                                }
-                                new_expires = new_expires.max(timestamp);
-                                effect.expires_at = Some(new_expires);
-                                if modifier.adjust_duration_secs > 0.0 {
-                                    effect.audio_played = false;
-                                    effect.countdown_announced = [false; 10];
-                                    effect.on_end_alert_fired = false;
-                                }
+                            }
+                            new_expires = new_expires.max(timestamp);
+                            effect.expires_at = Some(new_expires);
+                            if modifier.refill_duration || modifier.adjust_duration_secs > 0.0 {
+                                effect.audio_played = false;
+                                effect.countdown_announced = [false; 10];
+                                effect.on_end_alert_fired = false;
                             }
                         }
                     }
@@ -2392,10 +2394,9 @@ impl EffectTracker {
                     adjustments.push((key.clone(), ModifierAdjustment {
                         mod_idx,
                         adjust_duration_secs: modifier.adjust_duration_secs,
-                        sync_charges: modifier.sync_charges,
+                        refill_duration: modifier.refill_duration,
                         icd_secs: modifier.icd_secs,
                         max_duration_secs: modifier.max_duration_secs,
-                        min_duration_secs: modifier.min_duration_secs,
                     }));
                 }
             }
@@ -2403,6 +2404,14 @@ impl EffectTracker {
 
         // Apply collected adjustments
         for (key, adj) in adjustments {
+            // Pre-compute effective duration for refill before mutable borrow
+            let refill_dur = if adj.refill_duration {
+                self.definitions.effects.get(&key.definition_id)
+                    .and_then(|d| self.effective_duration(d))
+            } else {
+                None
+            };
+
             let Some(effect) = self.active_effects.get_mut(&key) else { continue };
             let modifier_count = self.definitions.effects.get(&key.definition_id)
                 .map(|d| d.modifiers.len())
@@ -2423,30 +2432,36 @@ impl EffectTracker {
             effect.modifier_last_proc[adj.mod_idx] = Some(game_time);
 
             // Apply duration adjustment
-            if adj.adjust_duration_secs != 0.0 && effect.expires_at.is_some() {
-                let delta = chrono::Duration::milliseconds((adj.adjust_duration_secs * 1000.0) as i64);
-                let new_expires = effect.expires_at.unwrap() + delta;
+            if effect.expires_at.is_some() {
+                let new_expires = if adj.refill_duration {
+                    if let Some(dur) = refill_dur {
+                        game_time + dur
+                    } else {
+                        continue;
+                    }
+                } else if adj.adjust_duration_secs != 0.0 {
+                    let delta = chrono::Duration::milliseconds((adj.adjust_duration_secs * 1000.0) as i64);
+                    effect.expires_at.unwrap() + delta
+                } else {
+                    continue;
+                };
 
                 // Clamp to max/min relative to applied_at
                 let clamped = if let Some(max) = adj.max_duration_secs {
                     let max_expires = effect.applied_at + chrono::Duration::milliseconds((max * 1000.0) as i64);
+                    if effect.max_expires_at.is_none() {
+                        effect.max_expires_at = Some(max_expires);
+                    }
                     new_expires.min(max_expires)
                 } else {
                     new_expires
                 };
-                let clamped = if let Some(min) = adj.min_duration_secs {
-                    let min_expires = effect.applied_at + chrono::Duration::milliseconds((min * 1000.0) as i64);
-                    clamped.max(min_expires)
-                } else {
-                    clamped
-                };
-
                 // Don't let expires_at go into the past
                 let final_expires = clamped.max(game_time);
                 effect.expires_at = Some(final_expires);
 
                 // Reset audio/alert state if duration was extended
-                if adj.adjust_duration_secs > 0.0 {
+                if adj.refill_duration || adj.adjust_duration_secs > 0.0 {
                     effect.audio_played = false;
                     effect.countdown_announced = [false; 10];
                     effect.on_end_alert_fired = false;
@@ -2462,14 +2477,12 @@ impl EffectTracker {
     }
 }
 
-#[allow(dead_code)]
 struct ModifierAdjustment {
     mod_idx: usize,
     adjust_duration_secs: f32,
-    sync_charges: bool,
+    refill_duration: bool,
     icd_secs: Option<f32>,
     max_duration_secs: Option<f32>,
-    min_duration_secs: Option<f32>,
 }
 
 impl SignalHandler for EffectTracker {
