@@ -1466,11 +1466,23 @@ victory_trigger = { type = "ability_cast", abilities = [3502391211065344] }
 name = "Coratanni"
 ids = [3619433364848640, 3371437658210304]
 is_boss = true
+pushes_at = 20.0
+
+[[boss.entities.hp_markers]]
+hp_percent = 20.0
+label = "Coratanni Pushes"
+difficulties = ["veteran"]
 
 [[boss.entities]]
 name = "Ruugar"
 ids = [3371441953177600, 3397039958261760]
 is_boss = true
+
+[[boss.entities.hp_markers]]
+hp_percent = 10.0
+label = "Self-destruct"
+difficulties = ["veteran"]
+
 
 [[boss.entities]]
 name = "Pearl"
