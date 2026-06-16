@@ -23,6 +23,10 @@ ids = [3010428477112320, 3010432772079616, 2938874321960960, 3010424182145024]
 is_boss = true
 is_kill_target = true
 
+[[boss.entities.hp_markers]]
+hp_percent = 15.0
+label = "Burn"
+
 # ─── Phases ─────────────────────────────────────────────────────────────────────
 
 [[boss.phases]]
@@ -162,6 +166,19 @@ ids = [
 ]
 is_boss = true
 is_kill_target = true
+
+[[boss.entities.hp_markers]]
+hp_percent = 75.0
+label = "Adds"
+
+[[boss.entities.hp_markers]]
+hp_percent = 50.0
+label = "Adds"
+
+[[boss.entities.hp_markers]]
+hp_percent = 25.0
+label = "Adds"
+
 
 # ─── Phases ─────────────────────────────────────────────────────────────────────
 
@@ -685,6 +702,14 @@ ids = [
 ]
 is_boss = true
 is_kill_target = true
+
+[[boss.entities.hp_markers]]
+hp_percent = 50.0
+label = "Cascade Jump"
+
+[[boss.entities.hp_markers]]
+hp_percent = 10.0
+label = "Burn"
 
 [[boss.entities]]
 name = "Energy Distortion"
