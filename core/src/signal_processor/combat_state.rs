@@ -334,8 +334,58 @@ fn handle_in_combat(
             .current_encounter()
             .map_or(false, |enc| enc.has_active_victory_trigger());
 
-        if has_victory_trigger {
-            // Victory-trigger encounters: always ignore EnterCombat (treated as rejoin).
+        let victory_already_triggered = cache
+            .current_encounter()
+            .map_or(false, |enc| enc.victory_triggered);
+
+        if has_victory_trigger && victory_already_triggered {
+            // Victory trigger already fired — this EnterCombat means the encounter is
+            // truly over and a new pull is starting.
+            let encounter_id = cache.current_encounter().map(|e| e.id).unwrap_or(0);
+
+            tracing::info!(
+                "[ENCOUNTER] EnterCombat after victory trigger at {}, ending encounter {} (victory)",
+                timestamp,
+                encounter_id
+            );
+
+            if let Some(enc) = cache.current_encounter_mut() {
+                enc.exit_combat_time = Some(timestamp);
+                enc.state = EncounterState::PostCombat {
+                    exit_time: timestamp,
+                };
+                let duration = enc.duration_seconds(None).unwrap_or(0) as f32;
+                enc.challenge_tracker.finalize(timestamp, duration);
+            }
+
+            let success = cache
+                .current_encounter()
+                .map(determine_success)
+                .unwrap_or(false);
+            signals.push(GameSignal::CombatEnded {
+                timestamp,
+                encounter_id,
+                success,
+            });
+
+            let new_encounter_id = cache.push_new_encounter();
+            if let Some(enc) = cache.current_encounter_mut() {
+                enc.state = EncounterState::InCombat;
+                enc.enter_combat_time = Some(timestamp);
+                enc.track_event_entities(event);
+                enc.accumulate_data(event);
+                enc.track_event_line(event.line_number);
+                was_accumulated = true;
+            }
+
+            signals.push(GameSignal::CombatStarted {
+                timestamp,
+                encounter_id: new_encounter_id,
+            });
+
+            return (signals, was_accumulated);
+        } else if has_victory_trigger {
+            // Victory-trigger encounters before victory: ignore EnterCombat (treated as rejoin).
             // Wipes on these encounters are split earlier via the revive immunity timeout
             // path, so by the time a new EnterCombat fires the encounter is already split.
             tracing::info!(
@@ -448,7 +498,8 @@ fn handle_in_combat(
         cache.push_new_encounter();
         return (signals, was_accumulated);
     } else if should_ignore_exit_combat {
-        // For victory-trigger encounters, ignore all exit conditions except all_players_dead (wipe)
+        // For victory-trigger encounters that haven't triggered yet,
+        // ignore all exit conditions except all_players_dead (wipe)
         if !all_players_dead {
             // Ignore all other exit conditions (ExitCombat, kill targets, local revive, etc.)
             if let Some(enc) = cache.current_encounter_mut() {
@@ -462,15 +513,22 @@ fn handle_in_combat(
         // If all_players_dead, fall through to normal exit handling (wipe)
     }
 
-    let victory_triggered =
-        cache.current_encounter().map_or(false, |enc| enc.victory_triggered);
+    // Conversation effect on local player after victory trigger = encounter over.
+    // Can't be in a conversation while in combat, so this is a definitive end signal.
+    let conversation_after_victory = cache.current_encounter().map_or(false, |enc| {
+        enc.victory_triggered
+            && effect_type_id == effect_type_id::APPLYEFFECT
+            && effect_id == effect_id::CONVERSATION
+            && cache.player_initialized
+            && event.target_entity.log_id == cache.player.id
+    });
 
     if all_players_dead
         || effect_id == effect_id::EXITCOMBAT
         || all_kill_targets_dead
         || should_end_on_local_revive
         || local_player_ooc_revived
-        || victory_triggered
+        || conversation_after_victory
     {
         if within_grace_window(cache, timestamp) {
             // Within a grace window from a previous exit — this is the "real" exit

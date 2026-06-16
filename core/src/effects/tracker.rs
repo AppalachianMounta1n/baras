@@ -1055,12 +1055,12 @@ impl EffectTracker {
                         existing.refresh(timestamp, duration);
                         self.ticking_count += 1;
                     } else {
-                        // Effect is still active. Touch last_refreshed_at so the 1-second
-                        // stale-removal guard covers the incoming EffectRemoved for the old
-                        // DOT instance. Without this, a RemoveEffect for an 18s DOT would
-                        // have since_refresh_ms ≈ 17000ms and bypass the guard, marking
-                        // the effect removed before the damage-tick refresh can land.
-                        existing.last_refreshed_at = timestamp;
+                        // Refresh duration directly from EffectApplied. This covers
+                        // immune targets where no DamageTaken event arrives to confirm
+                        // the pending_dot_refresh. Also updates last_refreshed_at so
+                        // the stale-removal guard covers the incoming EffectRemoved
+                        // for the old DOT instance.
+                        existing.refresh(timestamp, duration);
                         if let Some(c) = charges {
                             existing.set_stacks(c);
                         }
