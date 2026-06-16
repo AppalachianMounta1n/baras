@@ -728,7 +728,7 @@ impl Trigger {
                 match direction {
                     Some(ChargeDirection::Increased) => new_charges > old_charges,
                     Some(ChargeDirection::Decreased) => new_charges < old_charges,
-                    Some(ChargeDirection::Refreshed) => new_charges == old_charges,
+                    Some(ChargeDirection::Neutral) => new_charges == old_charges,
                     None => true,
                 }
             }
@@ -745,7 +745,7 @@ impl Trigger {
             Self::SelfChargesChanged { direction } => match direction {
                 Some(ChargeDirection::Increased) => new_charges > old_charges,
                 Some(ChargeDirection::Decreased) => new_charges < old_charges,
-                Some(ChargeDirection::Refreshed) => new_charges == old_charges,
+                Some(ChargeDirection::Neutral) => new_charges == old_charges,
                 None => true,
             },
             Self::AnyOf { conditions } => conditions

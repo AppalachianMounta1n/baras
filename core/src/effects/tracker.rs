@@ -2078,7 +2078,7 @@ impl EffectTracker {
                             baras_types::Trigger::SelfChargesChanged { direction } => match direction {
                                 Some(baras_types::ChargeDirection::Increased) => charges > old_stacks,
                                 Some(baras_types::ChargeDirection::Decreased) => charges < old_stacks,
-                                Some(baras_types::ChargeDirection::Refreshed) => charges == old_stacks,
+                                Some(baras_types::ChargeDirection::Neutral) => charges == old_stacks,
                                 None => true,
                             },
                             _ => false,
@@ -2375,7 +2375,7 @@ impl EffectTracker {
                                             *k == snap_key && match dir {
                                                 baras_types::ChargeDirection::Increased => new > old,
                                                 baras_types::ChargeDirection::Decreased => new < old,
-                                                baras_types::ChargeDirection::Refreshed => new == old,
+                                                baras_types::ChargeDirection::Neutral => new == old,
                                             }
                                         })
                                     }

@@ -667,7 +667,8 @@ impl RefreshAbility {
 pub enum ChargeDirection {
     Increased,
     Decreased,
-    Refreshed,
+    #[serde(alias = "refreshed")]
+    Neutral,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

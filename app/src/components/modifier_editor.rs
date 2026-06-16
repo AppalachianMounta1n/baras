@@ -633,7 +633,7 @@ fn render_trigger_fields(modifier: &EffectModifier, on_update: &EventHandler<Eff
                             let dir = match e.value().as_str() {
                                 "Increased" => Some(ChargeDirection::Increased),
                                 "Decreased" => Some(ChargeDirection::Decreased),
-                                "Refreshed" => Some(ChargeDirection::Refreshed),
+                                "Neutral" => Some(ChargeDirection::Neutral),
                                 _ => None,
                             };
                             let mut m = modifier.clone();
@@ -643,7 +643,7 @@ fn render_trigger_fields(modifier: &EffectModifier, on_update: &EventHandler<Eff
                         option { value: "Any", selected: direction.is_none(), "Any" }
                         option { value: "Increased", selected: direction == Some(ChargeDirection::Increased), "Increased" }
                         option { value: "Decreased", selected: direction == Some(ChargeDirection::Decreased), "Decreased" }
-                        option { value: "Refreshed", selected: direction == Some(ChargeDirection::Refreshed), "Refreshed" }
+                        option { value: "Neutral", selected: direction == Some(ChargeDirection::Neutral), "Neutral" }
                     }
                 }
             }
@@ -670,7 +670,7 @@ fn render_direction_select(
                     let dir = match e.value().as_str() {
                         "Increased" => Some(ChargeDirection::Increased),
                         "Decreased" => Some(ChargeDirection::Decreased),
-                        "Refreshed" => Some(ChargeDirection::Refreshed),
+                        "Neutral" => Some(ChargeDirection::Neutral),
                         _ => None,
                     };
                     let mut m = modifier.clone();
@@ -683,7 +683,7 @@ fn render_direction_select(
                 option { value: "Any", selected: direction.is_none(), "Any" }
                 option { value: "Increased", selected: direction == Some(ChargeDirection::Increased), "Increased" }
                 option { value: "Decreased", selected: direction == Some(ChargeDirection::Decreased), "Decreased" }
-                option { value: "Refreshed", selected: direction == Some(ChargeDirection::Refreshed), "Refreshed" }
+                option { value: "Neutral", selected: direction == Some(ChargeDirection::Neutral), "Neutral" }
             }
         }
     }
@@ -693,7 +693,7 @@ fn direction_label(direction: Option<ChargeDirection>) -> &'static str {
     match direction {
         Some(ChargeDirection::Increased) => "Increased",
         Some(ChargeDirection::Decreased) => "Decreased",
-        Some(ChargeDirection::Refreshed) => "Refreshed",
+        Some(ChargeDirection::Neutral) => "Neutral",
         None => "Any",
     }
 }
