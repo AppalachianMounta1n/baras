@@ -340,7 +340,9 @@ victory_trigger = { type = "any_of", conditions = [
     4408929958232064,
     4333471677808640,
   ] },
-  { type = "boss_hp_below", hp_percent = 1.0, selector = ["Ultimate Hunter"] },
+  { type = "boss_hp_below", hp_percent = 1.0, selector = [
+    "Ultimate Hunter",
+  ] },
 ] }
 victory_trigger_difficulties = ["master"]
 
@@ -349,20 +351,36 @@ name = "Titax"
 ids = [4245970309087232]
 is_boss = true
 
+[[boss.entities.hp_markers]]
+hp_percent = 15.0
+label = "Pushes"
+
 [[boss.entities]]
 name = "Greus"
 ids = [4245978899021824]
 is_boss = true
+
+[[boss.entities.hp_markers]]
+hp_percent = 15.0
+label = "Pushes"
 
 [[boss.entities]]
 name = "Kronissus"
 ids = [4245983193989120]
 is_boss = true
 
+[[boss.entities.hp_markers]]
+hp_percent = 15.0
+label = "Pushes"
+
 [[boss.entities]]
 name = "Hissyphus"
 ids = [4245987488956416]
 is_boss = true
+
+[[boss.entities.hp_markers]]
+hp_percent = 15.0
+label = "Pushes"
 
 [[boss.entities]]
 name = "Ultimate Hunter"
@@ -648,6 +666,10 @@ name = "Huntmaster"
 ids = [4265104388390912]
 is_boss = true
 is_kill_target = false
+
+[[boss.entities.hp_markers]]
+hp_percent = 35.0
+label = "Shelleigh appears"
 
 [[boss.entities]]
 name = "Shelleigh"
