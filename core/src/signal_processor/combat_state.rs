@@ -462,15 +462,19 @@ fn handle_in_combat(
         // If all_players_dead, fall through to normal exit handling (wipe)
     }
 
+    let victory_triggered =
+        cache.current_encounter().map_or(false, |enc| enc.victory_triggered);
+
     if all_players_dead
         || effect_id == effect_id::EXITCOMBAT
         || all_kill_targets_dead
         || should_end_on_local_revive
         || local_player_ooc_revived
+        || victory_triggered
     {
-        // Check if we're within a grace window from a previous exit
-        // If so, this is the "real" exit after a fake enter (holocron case)
         if within_grace_window(cache, timestamp) {
+            // Within a grace window from a previous exit — this is the "real" exit
+            // after a fake enter (holocron case)
             let exit_time = cache.last_combat_exit_time.unwrap();
             let encounter_id = cache.current_encounter().map(|e| e.id).unwrap_or(0);
 
