@@ -881,6 +881,8 @@ pub struct EffectListItem {
     // AoE refresh - use damage correlation for multi-target refresh detection
     #[serde(default)]
     pub is_aoe_refresh: bool,
+    #[serde(default)]
+    pub aoe_refresh_immediate: bool,
 
     // Duration
     pub duration_secs: Option<f32>,
