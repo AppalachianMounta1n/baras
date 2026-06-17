@@ -37,7 +37,7 @@ display_target = "dot_tracker"
 track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   808424514256896,
-], source = "local_player", target = "any" }
+], source = "local_player", target = "any_except_local" }
 refresh_abilities = [808424514256896]
 duration_secs = 18.0
 is_affected_by_alacrity = true
@@ -50,7 +50,7 @@ display_target = "dot_tracker"
 track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   813226287693824,
-], source = "local_player", target = "any" }
+], source = "local_player", target = "any_except_local" }
 refresh_abilities = [813226287693824]
 duration_secs = 18.0
 is_affected_by_alacrity = true
