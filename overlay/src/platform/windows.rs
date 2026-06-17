@@ -21,7 +21,7 @@ use windows::Win32::Devices::Display::{
     DISPLAYCONFIG_DEVICE_INFO_HEADER, DISPLAYCONFIG_SOURCE_DEVICE_NAME,
     DISPLAYCONFIG_TARGET_DEVICE_NAME, QDC_ONLY_ACTIVE_PATHS,
 };
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
+use windows::Win32::Foundation::{BOOL, HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     CreateCompatibleDC, CreateDIBSection, DeleteDC, EnumDisplayMonitors, GetCurrentObject, GetDC,
     GetMonitorInfoW, ReleaseDC, SelectObject, SetDIBits, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
@@ -65,7 +65,7 @@ unsafe extern "system" fn enum_monitors_callback(
     _hdc: HDC,
     _rect: *mut RECT,
     lparam: LPARAM,
-) -> windows::Win32::Foundation::BOOL {
+) -> BOOL {
     unsafe {
         let raw_monitors = &mut *(lparam.0 as *mut Vec<RawMonitor>);
 
@@ -93,7 +93,7 @@ unsafe extern "system" fn enum_monitors_callback(
             });
         }
 
-        windows::Win32::Foundation::BOOL::from(true)
+        BOOL::from(true)
     }
 }
 
@@ -380,15 +380,15 @@ impl WindowsOverlay {
 
     fn create_dib_section(&mut self) -> Result<(), PlatformError> {
         unsafe {
-            let hdc_screen = GetDC(HWND::default());
+            let hdc_screen = GetDC(None);
 
             if !self.hdc_mem.is_invalid() {
                 let _ = DeleteDC(self.hdc_mem);
             }
 
-            self.hdc_mem = CreateCompatibleDC(hdc_screen);
+            self.hdc_mem = CreateCompatibleDC(Some(hdc_screen));
             if self.hdc_mem.is_invalid() {
-                ReleaseDC(HWND::default(), hdc_screen);
+                ReleaseDC(None, hdc_screen);
                 return Err(PlatformError::BufferError(
                     "CreateCompatibleDC failed".to_string(),
                 ));
@@ -408,13 +408,13 @@ impl WindowsOverlay {
             };
 
             let mut bits: *mut std::ffi::c_void = ptr::null_mut();
-            let hbitmap = CreateDIBSection(hdc_screen, &bmi, DIB_RGB_COLORS, &mut bits, None, 0)
+            let hbitmap = CreateDIBSection(Some(hdc_screen), &bmi, DIB_RGB_COLORS, &mut bits, None, 0)
                 .map_err(|e| {
                     PlatformError::BufferError(format!("CreateDIBSection failed: {}", e))
                 })?;
 
-            SelectObject(self.hdc_mem, hbitmap);
-            ReleaseDC(HWND::default(), hdc_screen);
+            SelectObject(self.hdc_mem, hbitmap.into());
+            ReleaseDC(None, hdc_screen);
 
             // Resize pixel buffers
             let size = (self.width * self.height * 4) as usize;
@@ -433,7 +433,7 @@ impl WindowsOverlay {
         self.content_dirty = false;
 
         unsafe {
-            let hdc_screen = GetDC(HWND::default());
+            let hdc_screen = GetDC(None);
 
             let bmi = BITMAPINFO {
                 bmiHeader: BITMAPINFOHEADER {
@@ -463,7 +463,7 @@ impl WindowsOverlay {
             let hgdiobj = GetCurrentObject(self.hdc_mem, OBJ_BITMAP);
             let hbitmap = HBITMAP(hgdiobj.0);
             SetDIBits(
-                self.hdc_mem,
+                Some(self.hdc_mem),
                 hbitmap,
                 0,
                 self.height,
@@ -491,17 +491,17 @@ impl WindowsOverlay {
 
             let _ = UpdateLayeredWindow(
                 self.hwnd,
-                hdc_screen,
+                Some(hdc_screen),
                 Some(&pt_dst),
                 Some(&size),
-                self.hdc_mem,
+                Some(self.hdc_mem),
                 Some(&pt_src),
                 windows::Win32::Foundation::COLORREF(0),
                 Some(&blend),
                 ULW_ALPHA,
             );
 
-            ReleaseDC(HWND::default(), hdc_screen);
+            ReleaseDC(None, hdc_screen);
         }
     }
 
@@ -594,7 +594,7 @@ impl OverlayPlatform for WindowsOverlay {
                 config.height as i32,
                 None,
                 None,
-                hinstance,
+                Some(hinstance.into()),
                 None,
             )
             .map_err(|e| {
@@ -690,7 +690,7 @@ impl OverlayPlatform for WindowsOverlay {
         unsafe {
             let _ = SetWindowPos(
                 self.hwnd,
-                HWND_TOPMOST,
+                Some(HWND_TOPMOST),
                 clamped_x,
                 clamped_y,
                 0,
@@ -714,7 +714,7 @@ impl OverlayPlatform for WindowsOverlay {
         unsafe {
             let _ = SetWindowPos(
                 self.hwnd,
-                HWND_TOPMOST,
+                Some(HWND_TOPMOST),
                 0,
                 0,
                 width as i32,
@@ -795,7 +795,7 @@ impl OverlayPlatform for WindowsOverlay {
     fn poll_events(&mut self) -> bool {
         unsafe {
             let mut msg = MSG::default();
-            while PeekMessageW(&mut msg, self.hwnd, 0, 0, PM_REMOVE).as_bool() {
+            while PeekMessageW(&mut msg, Some(self.hwnd), 0, 0, PM_REMOVE).as_bool() {
                 if msg.message == WM_QUIT {
                     overlay_log!("HWND={:?}: Received WM_QUIT - exiting", self.hwnd);
                     self.running = false;
