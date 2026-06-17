@@ -33,6 +33,7 @@ fn make_effect(
         ignore_effect_removed: false,
         refresh_abilities: vec![],
         is_aoe_refresh: false,
+        aoe_refresh_immediate: false,
         is_refreshed_on_modify: false,
         default_charges: None,
         duration_secs,

@@ -209,6 +209,7 @@ fn default_effect(name: String) -> EffectListItem {
         refresh_abilities: vec![],
         duration_secs: Some(15.0),
         is_aoe_refresh: false,
+        aoe_refresh_immediate: false,
         is_refreshed_on_modify: false,
         color: Some([80, 200, 80, 255]),
         show_at_secs: 0.0,
@@ -1515,6 +1516,9 @@ fn EffectEditForm(
                                             onchange: move |e| {
                                                 let mut d = draft();
                                                 d.is_aoe_refresh = e.checked();
+                                                if !e.checked() {
+                                                    d.aoe_refresh_immediate = false;
+                                                }
                                                 draft.set(d);
                                             }
                                         }
@@ -1522,8 +1526,32 @@ fn EffectEditForm(
                                             "AoE Refresh"
                                             span {
                                                 class: "help-icon",
-                                                title: "Use damage correlation to detect multi-target refreshes (for abilities like Corrosive Grenade)",
+                                                title: "Use damage correlation to detect multi-target refreshes instead of requiring individual ApplyEffect signals per target",
                                                 "?"
+                                            }
+                                        }
+                                    }
+
+                                    if draft().is_aoe_refresh {
+                                        label {
+                                            class: "flex items-center gap-xs text-sm",
+                                            style: "padding-left: 20px;",
+                                            input {
+                                                r#type: "checkbox",
+                                                checked: draft().aoe_refresh_immediate,
+                                                onchange: move |e| {
+                                                    let mut d = draft();
+                                                    d.aoe_refresh_immediate = e.checked();
+                                                    draft.set(d);
+                                                }
+                                            }
+                                            span { class: "flex items-center",
+                                                "Immediate"
+                                                span {
+                                                    class: "help-icon",
+                                                    title: "Off: only refreshes targets hit at the same time as the primary target (use for DOTs like Corrosive Grenade where ongoing ticks would cause false refreshes). On: any damage hit from the ability refreshes that target.",
+                                                    "?"
+                                                }
                                             }
                                         }
                                     }

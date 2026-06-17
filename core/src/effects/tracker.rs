@@ -1440,6 +1440,12 @@ impl EffectTracker {
     }
 
     /// Handle damage event for AoE refresh correlation.
+    ///
+    /// Two paths based on `aoe_refresh_immediate`:
+    /// - Strict (default): anchor+window collection to prevent dot ticks from
+    ///   false-refreshing. Only damage within ±10ms of the primary target hit refreshes.
+    /// - Immediate (`aoe_refresh_immediate = true`): any damage from the ability
+    ///   after activation refreshes the target directly.
     fn handle_damage_for_aoe_refresh(
         &mut self,
         ability_id: i64,
@@ -1451,7 +1457,7 @@ impl EffectTracker {
         // Window for collecting additional targets after anchor (±10ms)
         const COLLECT_WINDOW_MS: i64 = 10;
 
-        // Check if we're in collecting state and this damage is within window
+        // Check if we're in collecting state and this damage is within window (DOT path)
         if let Some(ref mut collecting) = self.aoe_collecting
             && collecting.ability_id == ability_id
         {
@@ -1465,7 +1471,7 @@ impl EffectTracker {
                 }
                 return;
             } else {
-                // Outside window - finalize and refresh all collected targets
+                // Outside window - finalize DOT refreshes on all collected targets
                 self.finalize_aoe_refresh();
             }
         }
@@ -1486,12 +1492,17 @@ impl EffectTracker {
             return;
         }
 
-        // Check if this damage is on the primary target (stored at cast time)
-        if target_id == pending.primary_target {
-            // This is our anchor! Start collecting targets
+        let source_id = pending.source_id;
+        let primary_target = pending.primary_target;
+
+        // Immediate path: refresh effects with aoe_refresh_immediate on any damage hit
+        self.refresh_aoe_immediate(ability_id, source_id, target_id, timestamp);
+
+        // DOT path: anchor on primary target then collect within window
+        if target_id == primary_target {
             self.aoe_collecting = Some(AoeRefreshCollecting {
                 ability_id,
-                source_id: pending.source_id,
+                source_id,
                 anchor_timestamp: timestamp,
                 targets: vec![target_id],
             });
@@ -1499,7 +1510,35 @@ impl EffectTracker {
         }
     }
 
-    /// Finalize AoE refresh - refresh effects on all collected targets
+    /// Immediately refresh effects with `aoe_refresh_immediate` on the damaged target.
+    /// These effects have no ongoing ticks that could cause false refreshes,
+    /// so any damage from the ability after activation is a valid refresh trigger.
+    fn refresh_aoe_immediate(
+        &mut self,
+        ability_id: i64,
+        source_id: i64,
+        target_id: i64,
+        timestamp: NaiveDateTime,
+    ) {
+        let refreshable: Vec<_> = self
+            .definitions
+            .find_refreshable_by(ability_id as u64, None)
+            .into_iter()
+            .filter(|def| def.aoe_refresh_immediate)
+            .map(|def| (def.id.clone(), def.refresh_scope, self.effective_duration(def)))
+            .collect();
+
+        for (def_id, scope, duration) in &refreshable {
+            let key = EffectKey::for_scope(def_id, *scope, source_id, target_id);
+            if let Some(effect) = self.active_effects.get_mut(&key) {
+                effect.refresh(timestamp, *duration);
+            }
+        }
+    }
+
+    /// Finalize AoE refresh - refresh strict-mode effects on all collected targets.
+    /// Effects without `aoe_refresh_immediate` use the anchor+window collection
+    /// to prevent ongoing dot ticks from causing false refreshes.
     fn finalize_aoe_refresh(&mut self) {
         let Some(collecting) = self.aoe_collecting.take() else {
             return;
@@ -1509,10 +1548,10 @@ impl EffectTracker {
             .definitions
             .find_refreshable_by(collecting.ability_id as u64, None)
             .into_iter()
+            .filter(|def| !def.aoe_refresh_immediate)
             .map(|def| (def.id.clone(), def.refresh_scope, self.effective_duration(def)))
             .collect();
 
-        // Refresh effects on all collected targets
         for target_id in collecting.targets {
             for (def_id, scope, duration) in &refreshable_def_ids {
                 let key = EffectKey::for_scope(def_id, *scope, collecting.source_id, target_id);
@@ -2122,6 +2161,13 @@ impl EffectTracker {
                             }
                             new_expires = new_expires.max(timestamp);
                             effect.expires_at = Some(new_expires);
+                            // Update duration if modifier extended past initial
+                            let new_total = (new_expires - effect.applied_at).to_std().ok();
+                            if let Some(new_dur) = new_total {
+                                if effect.duration.is_some_and(|d| new_dur > d) {
+                                    effect.duration = Some(new_dur);
+                                }
+                            }
                             if modifier.refill_duration || modifier.adjust_duration_secs > 0.0 {
                                 effect.audio_played = false;
                                 effect.countdown_announced = [false; 10];
@@ -2459,6 +2505,13 @@ impl EffectTracker {
                 // Don't let expires_at go into the past
                 let final_expires = clamped.max(game_time);
                 effect.expires_at = Some(final_expires);
+                // Update duration if modifier extended past initial
+                let new_total = (final_expires - effect.applied_at).to_std().ok();
+                if let Some(new_dur) = new_total {
+                    if effect.duration.is_some_and(|d| new_dur > d) {
+                        effect.duration = Some(new_dur);
+                    }
+                }
 
                 // Reset audio/alert state if duration was extended
                 if adj.refill_duration || adj.adjust_duration_secs > 0.0 {

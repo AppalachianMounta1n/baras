@@ -100,6 +100,13 @@ pub struct EffectDefinition {
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
     pub is_aoe_refresh: bool,
 
+    /// When true, AoE refresh uses immediate mode: any damage from the ability
+    /// after activation refreshes the target without anchor/window scoping.
+    /// When false (default), uses strict DOT mode: anchors on primary target
+    /// then collects hits within ±10ms to prevent dot ticks from false-refreshing.
+    #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
+    pub aoe_refresh_immediate: bool,
+
     /// Whether or not the effect will refresh on ModifyCharges events
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
     pub is_refreshed_on_modify: bool,
