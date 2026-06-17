@@ -21,7 +21,7 @@ use windows::Win32::Devices::Display::{
     DISPLAYCONFIG_DEVICE_INFO_HEADER, DISPLAYCONFIG_SOURCE_DEVICE_NAME,
     DISPLAYCONFIG_TARGET_DEVICE_NAME, QDC_ONLY_ACTIVE_PATHS,
 };
-use windows::Win32::Foundation::{BOOL, HWND, LPARAM, LRESULT, POINT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     CreateCompatibleDC, CreateDIBSection, DeleteDC, EnumDisplayMonitors, GetCurrentObject, GetDC,
     GetMonitorInfoW, ReleaseDC, SelectObject, SetDIBits, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
@@ -65,14 +65,14 @@ unsafe extern "system" fn enum_monitors_callback(
     _hdc: HDC,
     _rect: *mut RECT,
     lparam: LPARAM,
-) -> BOOL {
+) -> windows_core::BOOL {
     unsafe {
         let raw_monitors = &mut *(lparam.0 as *mut Vec<RawMonitor>);
 
         let mut info = MONITORINFOEXW::default();
         info.monitorInfo.cbSize = mem::size_of::<MONITORINFOEXW>() as u32;
 
-        if GetMonitorInfoW(hmonitor, &mut info.monitorInfo).as_bool() {
+        if GetMonitorInfoW(hmonitor, &mut info.monitorInfo) != 0 {
             let rc = info.monitorInfo.rcMonitor;
 
             // Convert device name (wide string) to String
@@ -93,7 +93,7 @@ unsafe extern "system" fn enum_monitors_callback(
             });
         }
 
-        BOOL::from(true)
+        1
     }
 }
 
@@ -795,7 +795,7 @@ impl OverlayPlatform for WindowsOverlay {
     fn poll_events(&mut self) -> bool {
         unsafe {
             let mut msg = MSG::default();
-            while PeekMessageW(&mut msg, Some(self.hwnd), 0, 0, PM_REMOVE).as_bool() {
+            while PeekMessageW(&mut msg, Some(self.hwnd), 0, 0, PM_REMOVE) != 0 {
                 if msg.message == WM_QUIT {
                     overlay_log!("HWND={:?}: Received WM_QUIT - exiting", self.hwnd);
                     self.running = false;
