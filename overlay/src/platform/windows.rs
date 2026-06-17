@@ -65,14 +65,14 @@ unsafe extern "system" fn enum_monitors_callback(
     _hdc: HDC,
     _rect: *mut RECT,
     lparam: LPARAM,
-) -> windows_core::BOOL {
+) -> windows::core::BOOL {
     unsafe {
         let raw_monitors = &mut *(lparam.0 as *mut Vec<RawMonitor>);
 
         let mut info = MONITORINFOEXW::default();
         info.monitorInfo.cbSize = mem::size_of::<MONITORINFOEXW>() as u32;
 
-        if GetMonitorInfoW(hmonitor, &mut info.monitorInfo) != 0 {
+        if GetMonitorInfoW(hmonitor, &mut info.monitorInfo) != false {
             let rc = info.monitorInfo.rcMonitor;
 
             // Convert device name (wide string) to String
@@ -93,7 +93,7 @@ unsafe extern "system" fn enum_monitors_callback(
             });
         }
 
-        1
+        windows::core::BOOL::from(true)
     }
 }
 
@@ -795,7 +795,7 @@ impl OverlayPlatform for WindowsOverlay {
     fn poll_events(&mut self) -> bool {
         unsafe {
             let mut msg = MSG::default();
-            while PeekMessageW(&mut msg, Some(self.hwnd), 0, 0, PM_REMOVE) != 0 {
+            while PeekMessageW(&mut msg, Some(self.hwnd), 0, 0, PM_REMOVE) != false {
                 if msg.message == WM_QUIT {
                     overlay_log!("HWND={:?}: Received WM_QUIT - exiting", self.hwnd);
                     self.running = false;
