@@ -2773,16 +2773,6 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                         onclick: sort_click(SortColumn::Effective, false),
                                                         "EHPS"
                                                     }
-                                                    th {
-                                                        class: "num col-shield {sort_class(SortColumn::ShieldTotal)}",
-                                                        onclick: sort_click(SortColumn::ShieldTotal, false),
-                                                        "Shielded"
-                                                    }
-                                                    th {
-                                                        class: "num col-shield {sort_class(SortColumn::Sps)}",
-                                                        onclick: sort_click(SortColumn::Sps, false),
-                                                        "SPS"
-                                                    }
                                                 }
                                                 if is_damage_tab {
                                                     th {
@@ -2887,12 +2877,6 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                                     format_number(ehps)
                                                                 }
                                                             }
-                                                            td { class: "num group-stat col-shield",
-                                                                if stats.shield_total > 0.0 { "{format_number(stats.shield_total)}" } else { "-" }
-                                                            }
-                                                            td { class: "num group-stat col-shield",
-                                                                if stats.shield_rate > 0.0 { "{format_number(stats.shield_rate)}" } else { "-" }
-                                                            }
                                                         }
                                                         if is_damage_tab {
                                                             td { class: "num group-stat col-pct", "{format_pct(group_miss_pct(stats))}" }
@@ -2974,7 +2958,7 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                             }
                                                             td { class: "num", "{ability.hit_count}" }
                                                             // Total with inline bar
-                                                            td { class: "num col-val", "{format_number(ability.total_value)}" }
+                                                            td { class: if is_healing_tab && ability.is_shield { "num col-shield" } else { "num col-val" }, "{format_number(ability.total_value)}" }
                                                             // %
                                                             td { class: "num col-pct col-pct-bar",
                                                                 div { class: "pct-bar-track",
@@ -2983,22 +2967,16 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                                 }
                                                             }
                                                             if is_healing_tab {
-                                                                td { class: "num col-val", "{format_number(ability.effective_total)}" }
+                                                                td { class: if ability.is_shield { "num col-shield" } else { "num col-val" }, "{format_number(ability.effective_total)}" }
                                                                 td { class: "num col-pct", "{format_pct(ability_eff_pct(ability))}" }
                                                             }
-                                                            td { class: "num col-val", "{format_number(ability.dps)}" }
+                                                            td { class: if is_healing_tab && ability.is_shield { "num col-shield" } else { "num col-val" }, "{format_number(ability.dps)}" }
                                                             if is_healing_tab {
-                                                                td { class: "num col-val",
+                                                                td { class: if ability.is_shield { "num col-shield" } else { "num col-val" },
                                                                     {
                                                                         let ehps = if ability.total_value > 0.0 { ability.dps * ability.effective_total / ability.total_value } else { 0.0 };
                                                                         format_number(ehps)
                                                                     }
-                                                                }
-                                                                td { class: "num col-shield",
-                                                                    if ability.is_shield { "{format_number(ability.total_value)}" } else { "-" }
-                                                                }
-                                                                td { class: "num col-shield",
-                                                                    if ability.is_shield { "{format_number(ability.dps)}" } else { "-" }
                                                                 }
                                                             }
                                                             if is_damage_tab {
@@ -3089,8 +3067,6 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                 let total_eff: f64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().map(|a| a.effective_total)).sum();
                                                 let total_miss: i64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().map(|a| a.miss_count)).sum();
                                                 let total_crits: i64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().map(|a| a.crit_count)).sum();
-                                                let total_shield_val: f64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().filter(|a| a.is_shield).map(|a| a.total_value)).sum();
-                                                let total_shield_rate: f64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().filter(|a| a.is_shield).map(|a| a.dps)).sum();
                                                 let total_shield_count: i64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().map(|a| a.shield_count)).sum();
                                                 let total_absorbed: f64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().map(|a| a.absorbed_total)).sum();
                                                 let total_max_hit: f64 = groups.iter().flat_map(|(_, abilities)| abilities.iter().map(|a| a.max_hit)).fold(0.0_f64, f64::max);
@@ -3129,12 +3105,6 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                         td { class: "num col-val", "{format_number(total_rate)}" }
                                                         if is_healing_tab {
                                                             td { class: "num col-val", "{format_number(ehps)}" }
-                                                            td { class: "num col-shield",
-                                                                if total_shield_val > 0.0 { "{format_number(total_shield_val)}" } else { "-" }
-                                                            }
-                                                            td { class: "num col-shield",
-                                                                if total_shield_rate > 0.0 { "{format_number(total_shield_rate)}" } else { "-" }
-                                                            }
                                                         }
                                                         if is_damage_tab {
                                                             td { class: "num col-pct", "{format_pct(miss_pct)}" }
