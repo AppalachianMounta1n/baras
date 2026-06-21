@@ -2161,13 +2161,12 @@ impl EffectTracker {
                             }
                             new_expires = new_expires.max(timestamp);
                             effect.expires_at = Some(new_expires);
-                            // Update duration if modifier extended past initial
-                            let new_total = (new_expires - effect.applied_at).to_std().ok();
-                            if let Some(new_dur) = new_total {
-                                if effect.duration.is_some_and(|d| new_dur > d) {
-                                    effect.duration = Some(new_dur);
-                                }
-                            }
+                            // NOTE: `duration` (the fill denominator) is intentionally
+                            // left at the base/effective duration. fill_percent clamps
+                            // to 1.0, so an extension shows a full bar until remaining
+                            // drops back below the base duration. Inflating `duration`
+                            // here folded elapsed time into the denominator and shrank
+                            // the bar on every proc.
                             if modifier.refill_duration || modifier.adjust_duration_secs > 0.0 {
                                 effect.audio_played = false;
                                 effect.countdown_announced = [false; 10];
@@ -2505,13 +2504,11 @@ impl EffectTracker {
                 // Don't let expires_at go into the past
                 let final_expires = clamped.max(game_time);
                 effect.expires_at = Some(final_expires);
-                // Update duration if modifier extended past initial
-                let new_total = (final_expires - effect.applied_at).to_std().ok();
-                if let Some(new_dur) = new_total {
-                    if effect.duration.is_some_and(|d| new_dur > d) {
-                        effect.duration = Some(new_dur);
-                    }
-                }
+                // NOTE: `duration` (the fill denominator) is intentionally left at the
+                // base/effective duration. fill_percent clamps to 1.0, so an extension
+                // shows a full bar until remaining drops back below the base duration.
+                // Inflating `duration` here folded elapsed time into the denominator and
+                // shrank the bar on every proc.
 
                 // Reset audio/alert state if duration was extended
                 if adj.refill_duration || adj.adjust_duration_secs > 0.0 {
