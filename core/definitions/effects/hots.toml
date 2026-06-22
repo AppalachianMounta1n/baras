@@ -129,17 +129,6 @@ color = [168, 96, 171, 255]
 display_target = "raid_frames"
 
 [[effect]]
-id = "fueled_corruption"
-name = "Fueled Corruption"
-trigger = { type = "effect_applied", effects = [
-  4483988806696960,
-], source = "any", target = "any" }
-refresh_abilities = [3411032961712128]
-duration_secs = 12.0
-color = [111, 96, 171, 255]
-display_target = "raid_frames"
-
-[[effect]]
 id = "sustained_aura"
 name = "Sustained Aura"
 trigger = { type = "effect_applied", effects = [
