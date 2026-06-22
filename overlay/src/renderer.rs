@@ -115,6 +115,31 @@ pub struct Renderer {
     /// Active font family name (resolved from the shared DB at shaping time).
     /// Global setting; changing it clears the text cache.
     font_family: String,
+    /// Whether the active family actually has a bold / italic face. When it
+    /// doesn't, we avoid requesting that weight/style so the text stays in the
+    /// selected family instead of falling back to a different font (e.g. the
+    /// bundled Inter Bold).
+    font_has_bold: bool,
+    font_has_italic: bool,
+}
+
+/// Inspect the shared DB for whether `family` provides a bold face and an
+/// italic face. Returns `(has_bold, has_italic)`.
+fn family_face_support(db: &fontdb::Database, family: &str) -> (bool, bool) {
+    let mut has_bold = false;
+    let mut has_italic = false;
+    for face in db.faces() {
+        if face.families.iter().any(|(n, _)| n == family) {
+            // Weight 600+ (semibold/bold) counts as a usable bold face.
+            if face.weight.0 >= 600 {
+                has_bold = true;
+            }
+            if face.style != fontdb::Style::Normal {
+                has_italic = true;
+            }
+        }
+    }
+    (has_bold, has_italic)
 }
 
 impl Renderer {
@@ -133,6 +158,9 @@ impl Renderer {
             text_cache: HashMap::with_capacity(256),
             cache_access_counter: 0,
             font_family: DEFAULT_FONT_FAMILY.to_string(),
+            // Bundled Inter ships Regular + Bold + Italic.
+            font_has_bold: true,
+            font_has_italic: true,
         }
     }
 
@@ -146,6 +174,10 @@ impl Renderer {
         };
         if self.font_family != family {
             self.font_family = family.to_string();
+            let (has_bold, has_italic) =
+                family_face_support(self.font_system.db(), &self.font_family);
+            self.font_has_bold = has_bold;
+            self.font_has_italic = has_italic;
             self.text_cache.clear();
         }
     }
@@ -221,11 +253,14 @@ impl Renderer {
         // Clone the family name so the immutable borrow of `self.font_family`
         // doesn't conflict with the mutable `self.font_system` borrow below.
         let family = self.font_family.clone();
+        // Only request bold/italic when the active family actually provides that
+        // face. Otherwise the shaper would fall back to a *different* family that
+        // does (e.g. bundled Inter Bold), breaking the chosen-font consistency.
         let mut attrs = Attrs::new().family(Family::Name(&family));
-        if bold {
+        if bold && self.font_has_bold {
             attrs = attrs.weight(Weight::BOLD);
         }
-        if italic {
+        if italic && self.font_has_italic {
             attrs = attrs.style(Style::Italic);
         }
         text_buffer.set_text(text, &attrs, Shaping::Advanced, None);

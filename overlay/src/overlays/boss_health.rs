@@ -472,6 +472,7 @@ impl BossHealthOverlay {
             .with_fill_color(bar_color)
             .with_bg_color(colors::dps_bar_bg())
             .with_text_color(font_color)
+            .with_gradient(self.config.bar_gradient)
             .with_text_glow();
         if self.config.show_percent {
             bar = bar.with_right_text(percent_text);
@@ -632,6 +633,7 @@ impl BossHealthOverlay {
                 .with_fill_color(bar_color)
                 .with_bg_color(colors::dps_bar_bg())
                 .with_text_color(font_color)
+                .with_gradient(self.config.bar_gradient)
                 .with_text_glow();
             if self.config.show_percent {
                 bar = bar.with_right_text(percent_text);

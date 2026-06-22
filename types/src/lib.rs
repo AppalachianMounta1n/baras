@@ -1825,6 +1825,9 @@ pub struct BossHealthConfig {
     /// Color of the per-HP-bar border outline
     #[serde(default = "default_overlay_border_color")]
     pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_boss_bar_color() -> Color {
@@ -1844,6 +1847,7 @@ impl Default for BossHealthConfig {
             clear_after_combat: true,
             show_border: true,
             border_color: default_overlay_border_color(),
+            bar_gradient: false,
         }
     }
 }
