@@ -975,6 +975,18 @@ pub fn SettingsPanel(
                         }
                     }
                     div { class: "setting-row",
+                        label { "Gradient Bars" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.timers_a_overlay.bar_gradient,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.timers_a_overlay.bar_gradient = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
                         label { "Show Border" }
                         input {
                             r#type: "checkbox",
@@ -1081,6 +1093,18 @@ pub fn SettingsPanel(
                             onchange: move |e: Event<FormData>| {
                                 let mut new_settings = draft_settings();
                                 new_settings.timers_b_overlay.stack_from_bottom = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Gradient Bars" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.timers_b_overlay.bar_gradient,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.timers_b_overlay.bar_gradient = e.checked();
                                 update_draft(new_settings);
                             }
                         }

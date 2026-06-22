@@ -331,6 +331,7 @@ impl TimerOverlay {
                 .with_text_color(font_color)
                 .with_right_text(time_text)
                 .with_bold_text()
+                .with_gradient(self.config.bar_gradient)
                 .with_text_glow();
 
             // Add label offset to make room for icon

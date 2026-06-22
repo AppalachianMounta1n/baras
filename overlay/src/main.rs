@@ -45,7 +45,10 @@ mod examples {
             target_monitor_id: None,
         };
 
-        let appearance = OverlayAppearanceConfig::default();
+        let appearance = OverlayAppearanceConfig {
+            bar_gradient: true,
+            ..Default::default()
+        };
         let mut metric = match MetricOverlay::new(
             config,
             "DPS Meter",
@@ -80,6 +83,8 @@ mod examples {
                 role: None,
                 discipline_icon: None,
                 class_name: None,
+                display_value: None,
+                display_total: None,
                 is_local: true,
             },
             MetricEntry {
@@ -95,6 +100,8 @@ mod examples {
                 role: None,
                 discipline_icon: None,
                 class_name: None,
+                display_value: None,
+                display_total: None,
                 is_local: false,
             },
             MetricEntry {
@@ -110,6 +117,8 @@ mod examples {
                 role: None,
                 discipline_icon: None,
                 class_name: None,
+                display_value: None,
+                display_total: None,
                 is_local: false,
             },
             MetricEntry {
@@ -125,6 +134,8 @@ mod examples {
                 role: None,
                 discipline_icon: None,
                 class_name: None,
+                display_value: None,
+                display_total: None,
                 is_local: false,
             },
         ];
@@ -170,6 +181,7 @@ mod examples {
 
         let appearance = OverlayAppearanceConfig {
             max_entries: 8,
+            bar_gradient: true,
             ..Default::default()
         };
 
@@ -223,6 +235,8 @@ mod examples {
                 role: None,
                 discipline_icon: None,
                 class_name: None,
+                display_value: None,
+                display_total: None,
                 is_local: false,
             })
             .collect();
@@ -276,6 +290,7 @@ mod examples {
 
         let appearance = OverlayAppearanceConfig {
             max_entries: 16,
+            bar_gradient: true,
             ..Default::default()
         };
 
@@ -339,6 +354,8 @@ mod examples {
                 role: None,
                 discipline_icon: None,
                 class_name: None,
+                display_value: None,
+                display_total: None,
                 is_local: false,
             })
             .collect();
@@ -801,7 +818,10 @@ mod examples {
             target_monitor_id: None,
         };
 
-        let timer_config = TimerOverlayConfig::default();
+        let timer_config = TimerOverlayConfig {
+            bar_gradient: true,
+            ..Default::default()
+        };
 
         let mut overlay = match TimerOverlay::new(config, timer_config, 0, "Timers") {
             Ok(o) => o,

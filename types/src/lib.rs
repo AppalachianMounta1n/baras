@@ -1882,6 +1882,9 @@ pub struct TimerOverlayConfig {
     /// Color of the per-entry border outline
     #[serde(default = "default_timer_border_color")]
     pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_timer_bar_color() -> Color {
@@ -1910,6 +1913,7 @@ impl Default for TimerOverlayConfig {
             stack_from_bottom: false,
             show_border: true,
             border_color: default_timer_border_color(),
+            bar_gradient: false,
         }
     }
 }
