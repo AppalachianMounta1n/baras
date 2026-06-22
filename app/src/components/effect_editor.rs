@@ -301,12 +301,12 @@ pub fn EffectEditorPanel(mut props: EffectEditorProps) -> Element {
     // Import state
     let mut import_preview = use_signal(|| None::<EffectImportPreview>);
     let mut import_toml_content = use_signal(|| None::<String>);
-    
+
     // Extract persisted state fields
     let mut search_query = use_signal(|| props.state.read().effects_editor.search_query.clone());
     let mut expanded_effect = use_signal(|| props.state.read().effects_editor.expanded_effect.clone());
     let mut hide_disabled_effects = use_signal(|| props.state.read().effects_editor.hide_disabled_effects);
-    
+
     // Sync persisted state back to unified state
     use_effect(move || {
         let mut state = props.state.write();
@@ -322,7 +322,7 @@ pub fn EffectEditorPanel(mut props: EffectEditorProps) -> Element {
         }
         loading.set(false);
     });
-    
+
     // Scroll to expanded effect when effects finish loading
     use_effect(move || {
         if !loading() {
@@ -2410,7 +2410,7 @@ fn RefreshAbilitiesEditor(
                 "Refresh Abilities:"
                 span {
                     class: "help-icon",
-                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks (and prevents the ability from creating the effect when it isn't already present). Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land, so an interrupted cast won't refresh.",
+                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks (and prevents the ability from creating the effect when it isn't already present). Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land. Note: DoT-tracker effects using 'On Cast' already defer the refresh until the ability's damage lands, so an interrupted cast won't refresh them.",
                     "?"
                 }
             }
