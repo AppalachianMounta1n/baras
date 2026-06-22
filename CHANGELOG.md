@@ -1,29 +1,24 @@
-# v2026.6.17
+# v2026.6.22
 
-## Improved Combat Log Filtering
+## Overlay Formatting
 
-Combat log now supports the AND keyword as well as composition within parenthesis. Example: `(Dark Ward AND Player_Name) AND NOT Dark Bulwark`
+- **Gradients** - Gradient bars have been added and enabled by default on metrics overlays. This option can be toggled on/off in the overlay customization menu.
+  It is also present on bar mode effects overlays, timers, and boss HP, but not as a default.
+- **Bar Spacing** - Spacing between bars on metrics overlays can now be adjusted in the overlay customization menu.
+- **Overlay Font Selection** - Users can now select any of their available system fonts as the font face for the overlays.
 
-## Effect Modifiers
+Enjoy customizing.
 
-Implemented optional modifiers from tracked effects/cooldowns. These are meant to model non-standard behavior such as thermal yield refreshing on damage, cooldowns being reduced by events etc. This feature is experimental.
+## Other
 
-## Other Features
-
-- Added APM Overlay
-- Improved chart tooltip formatting
-- Added option for AOE refresh to always fire on damage (for things that aren't corrosive grenade basically)
-- Overlay settings panel is now free floating; allowing for interaction with overlay controls while the menu is open
-- Alacrity value can now be set to 2 decimal places
+- Refresh on immune toggle option added for effects tracking
+- Shielding and SPS columns have been condensed into to the HPS/EHPS columns in the data explorer. Blue-text coloring is used to distinguish between shielding from healing.
+- Various additions to HP markers, alert text rewording in encounter timers
+- Added entry for tracking group revive cooldowns
+- Log file search now supports compound terms using the comma (e.g. `Player Name, Dxun` will find all Dxuns for `Player Name`)
 
 ## Bugfixes
 
-- Fixed name collision error in effects selection on charts tab
-- Huntmaster encounter should now be guaranteed to end upon entering a cutscene (opening Apex door) preventing the parser from freezing
-- Updated Dxun encounter victory conditions to handle more edge cases
-- Creeping terror and Sever Force tracked DOTs are set to filer target to "Any Except Local" by default
-- All dots have been set to track outside of combat = false by default
-
-## Definitions
-
-- Various HP markers and HP pushes_at values have been added to encounters
+- Fixed issue causing duration modifiers that add time to improperly render total duration in the overlay
+- Removed Sustaining Aura/Fueled Corruption from tracked effects
+- Challenges overlay will now display class/discipline icons when parsed from a historical file
