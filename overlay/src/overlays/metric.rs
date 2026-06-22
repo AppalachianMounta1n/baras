@@ -278,7 +278,13 @@ impl MetricOverlay {
         let bar_font_size = self.frame.scaled(BASE_FONT_SIZE * font_scale);
         let scaled_bar_height = BASE_BAR_HEIGHT * self.scaling_factor;
         let ideal_bar_height = self.frame.scaled(scaled_bar_height);
-        let bar_spacing = self.frame.scaled(BASE_BAR_SPACING);
+        // Inter-bar gap is proportional to bar height so it stays consistent
+        // across scales/resolutions. 0.0 = connected (no gap). Default 0.2
+        // reproduces the legacy fixed 4px gap at the default 20px bar height.
+        let spacing_ratio = self.appearance.bar_spacing_ratio.clamp(0.0, 0.6);
+        let bar_spacing = ideal_bar_height * spacing_ratio;
+        // Header/footer separators keep a stable gap regardless of bar density.
+        let header_spacing = self.frame.scaled(BASE_BAR_SPACING);
         // Use absolute minimum bar height (not scaled) to handle extreme aspect ratios
         let min_bar_height = MIN_BAR_HEIGHT_ABSOLUTE;
 
@@ -305,12 +311,12 @@ impl MetricOverlay {
         // Footer: 2.0 (separator offset) + spacing + font_size + buffer
         let scale = self.frame.scale_factor();
         let header_space = if self.appearance.show_header {
-            base_font_size + bar_spacing + 2.0 + bar_spacing + 4.0 * scale
+            base_font_size + header_spacing + 2.0 + header_spacing + 4.0 * scale
         } else {
             0.0
         };
         let footer_space = if self.appearance.show_footer {
-            2.0 + bar_spacing + bar_font_size + 6.0 * scale // separator + spacing + text + buffer
+            2.0 + header_spacing + bar_font_size + 6.0 * scale // separator + spacing + text + buffer
         } else {
             0.0
         };
@@ -327,8 +333,14 @@ impl MetricOverlay {
                 // Compress both bars and spacing proportionally
                 let compression_ratio = available_for_bars / ideal_total;
                 let compressed_bar = (ideal_bar_height * compression_ratio).max(min_bar_height);
-                let compressed_spacing =
-                    (bar_spacing * compression_ratio).max(MIN_BAR_SPACING_ABSOLUTE);
+                // Preserve a fully-connected look (ratio 0) under compression;
+                // otherwise keep a readable minimum gap.
+                let min_spacing = if spacing_ratio <= 0.0 {
+                    0.0
+                } else {
+                    MIN_BAR_SPACING_ABSOLUTE
+                };
+                let compressed_spacing = (bar_spacing * compression_ratio).max(min_spacing);
                 (compressed_bar, compressed_spacing)
             } else {
                 (ideal_bar_height, bar_spacing)
@@ -395,7 +407,7 @@ impl MetricOverlay {
                 header_y,
                 content_width,
                 base_font_size,
-                bar_spacing,
+                header_spacing,
             );
             bars_start_y
         } else {

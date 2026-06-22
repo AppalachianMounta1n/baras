@@ -376,7 +376,8 @@ impl OverlayFrame {
     }
 
     /// Draw a filled rounded rectangle with a horizontal linear gradient
-    /// fading `start_color` (left) to `end_color` (right)
+    /// fading `start_color` to `end_color`. `grad_x0`/`grad_x1` set the
+    /// gradient span independently of the rect bounds.
     pub fn fill_rounded_rect_gradient(
         &mut self,
         x: f32,
@@ -384,11 +385,13 @@ impl OverlayFrame {
         w: f32,
         h: f32,
         radius: f32,
+        grad_x0: f32,
+        grad_x1: f32,
         start_color: Color,
         end_color: Color,
     ) {
         self.window
-            .fill_rounded_rect_gradient(x, y, w, h, radius, start_color, end_color);
+            .fill_rounded_rect_gradient(x, y, w, h, radius, grad_x0, grad_x1, start_color, end_color);
     }
 
     /// Draw a rounded rectangle outline

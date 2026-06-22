@@ -3026,6 +3026,25 @@ pub fn SettingsPanel(
                                 }
                             }
 
+                            Slider {
+                                label: "Bar Spacing",
+                                value: (current_appearance.bar_spacing_ratio * 100.0) as i32 as f64,
+                                min: 0.0,
+                                max: 60.0,
+                                step: 5.0,
+                                suffix: "%",
+                                on_change: {
+                                    let tab = tab_key.clone();
+                                    move |v: f64| {
+                                        let mut new_settings = draft_settings();
+                                        let default = new_settings.default_appearances.get(&tab).cloned().unwrap_or_default();
+                                        let appearance = new_settings.appearances.entry(tab.clone()).or_insert(default);
+                                        appearance.bar_spacing_ratio = (v as f32 / 100.0).clamp(0.0, 0.6);
+                                        update_draft(new_settings);
+                                    }
+                                },
+                            }
+
                             // Font Scale and Dynamic Background are in Global Metrics Settings
 
                             div { class: "setting-row reset-row",

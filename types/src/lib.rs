@@ -1341,6 +1341,14 @@ pub struct OverlayAppearanceConfig {
     /// (right), spanning the filled portion. Details-style single-color gradient.
     #[serde(default)]
     pub bar_gradient: bool,
+    /// Vertical gap between bars as a fraction of bar height. 0.0 = connected
+    /// (no gap), ~0.2 = default. Keeps spacing consistent across resolutions.
+    #[serde(default = "default_bar_spacing_ratio")]
+    pub bar_spacing_ratio: f32,
+}
+
+fn default_bar_spacing_ratio() -> f32 {
+    0.2
 }
 
 fn default_font_color() -> Color {
@@ -1368,6 +1376,7 @@ impl Default for OverlayAppearanceConfig {
             show_duration: true,
             use_class_color: false,
             bar_gradient: false,
+            bar_spacing_ratio: 0.2,
         }
     }
 }

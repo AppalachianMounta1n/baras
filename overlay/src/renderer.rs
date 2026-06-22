@@ -296,9 +296,12 @@ impl Renderer {
     }
 
     /// Draw a rounded rectangle filled with a horizontal linear gradient.
-    /// The gradient runs left-to-right across the rect, fading `start_color`
-    /// (at x) to `end_color` (at x + w). Falls back to a solid `start_color`
-    /// fill if the gradient shader cannot be built.
+    /// The gradient runs left-to-right fading `start_color` (at `grad_x0`) to
+    /// `end_color` (at `grad_x1`). The gradient span is given independently of
+    /// the rect so a segment can show its own fade even when it is overdrawn
+    /// by another segment (e.g. split healing/shield bars). Regions outside
+    /// `[grad_x0, grad_x1]` are padded with the nearest stop color. Falls back
+    /// to a solid `start_color` fill if the gradient shader cannot be built.
     pub fn fill_rounded_rect_gradient(
         &self,
         buffer: &mut [u8],
@@ -309,6 +312,8 @@ impl Renderer {
         w: f32,
         h: f32,
         radius: f32,
+        grad_x0: f32,
+        grad_x1: f32,
         start_color: Color,
         end_color: Color,
     ) {
@@ -327,8 +332,8 @@ impl Renderer {
         let mut paint = Paint::default();
         paint.anti_alias = true;
         match LinearGradient::new(
-            Point::from_xy(x, y),
-            Point::from_xy(x + w, y),
+            Point::from_xy(grad_x0, y),
+            Point::from_xy(grad_x1, y),
             vec![
                 GradientStop::new(0.0, start_color),
                 GradientStop::new(1.0, end_color),

@@ -107,7 +107,8 @@ impl OverlayWindow {
         }
     }
 
-    /// Draw a filled rounded rectangle with a horizontal linear gradient
+    /// Draw a filled rounded rectangle with a horizontal linear gradient.
+    /// `grad_x0`/`grad_x1` set the gradient span independently of the rect.
     pub fn fill_rounded_rect_gradient(
         &mut self,
         x: f32,
@@ -115,6 +116,8 @@ impl OverlayWindow {
         w: f32,
         h: f32,
         radius: f32,
+        grad_x0: f32,
+        grad_x1: f32,
         start_color: Color,
         end_color: Color,
     ) {
@@ -122,7 +125,8 @@ impl OverlayWindow {
         let height = self.platform.height();
         if let Some(buffer) = self.platform.pixel_buffer() {
             self.renderer.fill_rounded_rect_gradient(
-                buffer, width, height, x, y, w, h, radius, start_color, end_color,
+                buffer, width, height, x, y, w, h, radius, grad_x0, grad_x1, start_color,
+                end_color,
             );
         }
     }
