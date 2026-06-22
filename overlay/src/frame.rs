@@ -414,6 +414,21 @@ impl OverlayFrame {
             .stroke_rounded_rect(x, y, w, h, radius, stroke_width, color);
     }
 
+    /// Stroke an open folder-tab outline (rounded top + sides, open bottom)
+    pub fn stroke_tab_outline(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        stroke_width: f32,
+        color: Color,
+    ) {
+        self.window
+            .stroke_tab_outline(x, y, w, h, radius, stroke_width, color);
+    }
+
     /// Draw a dashed rounded rectangle outline (useful for alignment guides)
     pub fn stroke_rounded_rect_dashed(
         &mut self,

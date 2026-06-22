@@ -246,16 +246,20 @@ impl BossHealthOverlay {
         let tab_h = tab_font + pad_y * 2.0;
         let radius = tab_h * 0.35;
         let tab_top = bar_y - tab_h;
+        // Inset the tab right by the bar's corner radius so its left edge sits on
+        // the flat part of the HP bar (overlapping it) instead of hanging off the
+        // bar's rounded top-left corner.
+        let tab_x = bar_x + 1.0 * self.frame.scale_factor() * compression;
 
         // Rounded-top, square-bottom: a fully-rounded rect for the top corners,
         // then a square body fill that overdraws the rounded bottom corners.
         self.frame
-            .fill_rounded_rect(bar_x, tab_top, tab_w, tab_h, radius, bg_color);
+            .fill_rounded_rect(tab_x, tab_top, tab_w, tab_h, radius, bg_color);
         self.frame
-            .fill_rect(bar_x, tab_top + radius, tab_w, tab_h - radius, bg_color);
+            .fill_rect(tab_x, tab_top + radius, tab_w, tab_h - radius, bg_color);
         if self.config.show_border {
-            self.frame.stroke_rounded_rect(
-                bar_x,
+            self.frame.stroke_tab_outline(
+                tab_x,
                 tab_top,
                 tab_w,
                 tab_h,
@@ -266,7 +270,7 @@ impl BossHealthOverlay {
         }
         let text_y = tab_top + tab_h / 2.0 + tab_font / 3.0;
         self.frame
-            .draw_text_glowed(text, bar_x + pad_x, text_y, tab_font, font_color);
+            .draw_text_glowed(text, tab_x + pad_x, text_y, tab_font, font_color);
         tab_h
     }
 

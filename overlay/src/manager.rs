@@ -165,6 +165,26 @@ impl OverlayWindow {
         }
     }
 
+    /// Stroke an open folder-tab outline (top + sides, open bottom)
+    pub fn stroke_tab_outline(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        stroke_width: f32,
+        color: Color,
+    ) {
+        let width = self.platform.width();
+        let height = self.platform.height();
+        if let Some(buffer) = self.platform.pixel_buffer() {
+            self.renderer.stroke_tab_outline(
+                buffer, width, height, x, y, w, h, radius, stroke_width, color,
+            );
+        }
+    }
+
     /// Draw a dashed rounded rectangle outline
     pub fn stroke_rounded_rect_dashed(
         &mut self,

@@ -455,6 +455,56 @@ impl Renderer {
         pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
     }
 
+    /// Stroke an open "folder tab" outline: up the left side, around the rounded
+    /// top corners, across the top, and down the right side — leaving the bottom
+    /// edge open so the tab visually flows into whatever sits below it.
+    pub fn stroke_tab_outline(
+        &self,
+        buffer: &mut [u8],
+        width: u32,
+        height: u32,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        stroke_width: f32,
+        color: Color,
+    ) {
+        if w <= 0.0 || h <= 0.0 {
+            return;
+        }
+
+        let Some(mut pixmap) = PixmapMut::from_bytes(buffer, width, height) else {
+            return;
+        };
+
+        let r = radius.min(w / 2.0).min(h);
+        let mut pb = PathBuilder::new();
+        // Open path (not closed): bottom-left → up → top-left corner → top edge
+        // → top-right corner → down → bottom-right. No bottom edge.
+        pb.move_to(x, y + h);
+        pb.line_to(x, y + r);
+        pb.quad_to(x, y, x + r, y);
+        pb.line_to(x + w - r, y);
+        pb.quad_to(x + w, y, x + w, y + r);
+        pb.line_to(x + w, y + h);
+        let Some(path) = pb.finish() else { return };
+
+        let mut paint = Paint::default();
+        paint.set_color(color);
+        paint.anti_alias = true;
+
+        let stroke = Stroke {
+            width: stroke_width,
+            line_cap: LineCap::Butt,
+            line_join: LineJoin::Round,
+            ..Default::default()
+        };
+
+        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+    }
+
     /// Draw a dashed rounded rectangle outline (useful for alignment guides)
     pub fn stroke_rounded_rect_dashed(
         &self,
