@@ -375,6 +375,22 @@ impl OverlayFrame {
         self.window.fill_rounded_rect(x, y, w, h, radius, color);
     }
 
+    /// Draw a filled rounded rectangle with a horizontal linear gradient
+    /// fading `start_color` (left) to `end_color` (right)
+    pub fn fill_rounded_rect_gradient(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        start_color: Color,
+        end_color: Color,
+    ) {
+        self.window
+            .fill_rounded_rect_gradient(x, y, w, h, radius, start_color, end_color);
+    }
+
     /// Draw a rounded rectangle outline
     pub fn stroke_rounded_rect(
         &mut self,

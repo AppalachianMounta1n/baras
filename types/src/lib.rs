@@ -1337,6 +1337,10 @@ pub struct OverlayAppearanceConfig {
     /// Falls back to `bar_color` when class is unknown.
     #[serde(default)]
     pub use_class_color: bool,
+    /// Fade each bar's fill from its base color (left) to a darkened version
+    /// (right), spanning the filled portion. Details-style single-color gradient.
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_font_color() -> Color {
@@ -1363,6 +1367,7 @@ impl Default for OverlayAppearanceConfig {
             show_percent: true,
             show_duration: true,
             use_class_color: false,
+            bar_gradient: false,
         }
     }
 }

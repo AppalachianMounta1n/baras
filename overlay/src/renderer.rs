@@ -11,8 +11,8 @@ use cosmic_text::{
     SwashCache, Weight,
 };
 use tiny_skia::{
-    Color, FillRule, LineCap, LineJoin, Paint, PathBuilder, PixmapMut, Rect, Stroke, StrokeDash,
-    Transform,
+    Color, FillRule, GradientStop, LineCap, LineJoin, LinearGradient, Paint, PathBuilder, PixmapMut,
+    Point, Rect, SpreadMode, Stroke, StrokeDash, Transform,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -285,6 +285,60 @@ impl Renderer {
         let mut paint = Paint::default();
         paint.set_color(color);
         paint.anti_alias = true;
+
+        pixmap.fill_path(
+            &path,
+            &paint,
+            FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
+    }
+
+    /// Draw a rounded rectangle filled with a horizontal linear gradient.
+    /// The gradient runs left-to-right across the rect, fading `start_color`
+    /// (at x) to `end_color` (at x + w). Falls back to a solid `start_color`
+    /// fill if the gradient shader cannot be built.
+    pub fn fill_rounded_rect_gradient(
+        &self,
+        buffer: &mut [u8],
+        width: u32,
+        height: u32,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        start_color: Color,
+        end_color: Color,
+    ) {
+        if w <= 0.0 || h <= 0.0 {
+            return;
+        }
+
+        let Some(mut pixmap) = PixmapMut::from_bytes(buffer, width, height) else {
+            return;
+        };
+
+        let Some(path) = create_rounded_rect_path(x, y, w, h, radius) else {
+            return;
+        };
+
+        let mut paint = Paint::default();
+        paint.anti_alias = true;
+        match LinearGradient::new(
+            Point::from_xy(x, y),
+            Point::from_xy(x + w, y),
+            vec![
+                GradientStop::new(0.0, start_color),
+                GradientStop::new(1.0, end_color),
+            ],
+            SpreadMode::Pad,
+            Transform::identity(),
+        ) {
+            Some(shader) => paint.shader = shader,
+            None => paint.set_color(start_color),
+        }
 
         pixmap.fill_path(
             &path,

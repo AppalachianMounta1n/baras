@@ -3008,6 +3008,24 @@ pub fn SettingsPanel(
                                 }
                             }
 
+                            div { class: "setting-row",
+                                label { "Gradient Bars" }
+                                input {
+                                    r#type: "checkbox",
+                                    checked: current_appearance.bar_gradient,
+                                    onchange: {
+                                        let tab = tab_key.clone();
+                                        move |e: Event<FormData>| {
+                                            let mut new_settings = draft_settings();
+                                            let default = new_settings.default_appearances.get(&tab).cloned().unwrap_or_default();
+                                            let appearance = new_settings.appearances.entry(tab.clone()).or_insert(default);
+                                            appearance.bar_gradient = e.checked();
+                                            update_draft(new_settings);
+                                        }
+                                    }
+                                }
+                            }
+
                             // Font Scale and Dynamic Background are in Global Metrics Settings
 
                             div { class: "setting-row reset-row",

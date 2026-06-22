@@ -18,6 +18,22 @@ fn lighten_color(color: Color, amount: f32) -> Color {
     .unwrap_or(color)
 }
 
+/// Darken a color by blending it toward black, used as the trailing edge of a
+/// single-color gradient. `amount` is 0.0 (no change) to 1.0 (full black).
+fn darken_color(color: Color, amount: f32) -> Color {
+    let factor = 1.0 - amount.clamp(0.0, 1.0);
+    Color::from_rgba(
+        color.red() * factor,
+        color.green() * factor,
+        color.blue() * factor,
+        color.alpha(),
+    )
+    .unwrap_or(color)
+}
+
+/// How much the trailing edge of a gradient fill is darkened relative to the base color.
+const GRADIENT_DARKEN: f32 = 0.55;
+
 /// A horizontal progress bar with label and optional center/right text
 ///
 /// Layout options:
@@ -48,6 +64,9 @@ pub struct ProgressBar {
     pub bold_text: bool,
     /// Whether to render text with full surrounding glow instead of drop shadow (default: false)
     pub text_glow: bool,
+    /// Fade the fill from `fill_color` (left) to a darkened version (right),
+    /// spanning the filled portion. Details-style single-color gradient.
+    pub gradient: bool,
 }
 
 impl ProgressBar {
@@ -65,7 +84,14 @@ impl ProgressBar {
             label_offset: 0.0,
             bold_text: false,
             text_glow: false,
+            gradient: false,
         }
+    }
+
+    /// Enable a single-color gradient fill (base color fading to a darker shade)
+    pub fn with_gradient(mut self, gradient: bool) -> Self {
+        self.gradient = gradient;
+        self
     }
 
     /// Set offset for label text (to make room for icon)
@@ -176,6 +202,32 @@ impl ProgressBar {
         }
     }
 
+    /// Draw a fill segment, applying the single-color gradient when enabled.
+    fn draw_fill(
+        &self,
+        frame: &mut OverlayFrame,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        color: Color,
+    ) {
+        if self.gradient {
+            frame.fill_rounded_rect_gradient(
+                x,
+                y,
+                w,
+                h,
+                radius,
+                color,
+                darken_color(color, GRADIENT_DARKEN),
+            );
+        } else {
+            frame.fill_rounded_rect(x, y, w, h, radius, color);
+        }
+    }
+
     /// Render the progress bar to an OverlayFrame
     pub fn render(
         &self,
@@ -203,11 +255,11 @@ impl ProgressBar {
                 // Draw primary segment on top (covers left portion)
                 let primary_width = fill_width * primary_fraction;
                 if primary_width > 0.0 {
-                    frame.fill_rounded_rect(x, y, primary_width, height, radius, self.fill_color);
+                    self.draw_fill(frame, x, y, primary_width, height, radius, self.fill_color);
                 }
             } else {
                 // Normal single-color fill
-                frame.fill_rounded_rect(x, y, fill_width, height, radius, self.fill_color);
+                self.draw_fill(frame, x, y, fill_width, height, radius, self.fill_color);
             }
         }
 

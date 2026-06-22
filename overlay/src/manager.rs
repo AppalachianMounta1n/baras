@@ -107,6 +107,26 @@ impl OverlayWindow {
         }
     }
 
+    /// Draw a filled rounded rectangle with a horizontal linear gradient
+    pub fn fill_rounded_rect_gradient(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        start_color: Color,
+        end_color: Color,
+    ) {
+        let width = self.platform.width();
+        let height = self.platform.height();
+        if let Some(buffer) = self.platform.pixel_buffer() {
+            self.renderer.fill_rounded_rect_gradient(
+                buffer, width, height, x, y, w, h, radius, start_color, end_color,
+            );
+        }
+    }
+
     /// Draw a rounded rectangle outline
     pub fn stroke_rounded_rect(
         &mut self,
