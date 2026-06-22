@@ -784,6 +784,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "ttf-parser",
  "wayland-client",
  "wayland-protocols",
  "wayland-protocols-wlr",

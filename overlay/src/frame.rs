@@ -62,6 +62,11 @@ impl OverlayFrame {
         self.label = Some(label.into());
     }
 
+    /// Set the font family used for all text rendering on this overlay
+    pub fn set_font_family(&mut self, family: &str) {
+        self.window.set_font_family(family);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Scaling
     // ─────────────────────────────────────────────────────────────────────────

@@ -78,6 +78,11 @@ impl OverlayWindow {
         self.platform.take_pending_click()
     }
 
+    /// Set the font family used for all text rendering on this window
+    pub fn set_font_family(&mut self, family: &str) {
+        self.renderer.set_font_family(family);
+    }
+
     /// Clear the overlay with a color
     pub fn clear(&mut self, color: Color) {
         let width = self.platform.width();

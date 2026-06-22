@@ -235,6 +235,8 @@ pub fn run() {
             commands::apply_not_live_auto_hide,
             commands::toggle_move_mode,
             commands::toggle_raid_rearrange,
+            commands::list_system_fonts,
+            commands::set_overlay_font_family,
             commands::get_overlay_status,
             commands::refresh_overlay_settings,
             commands::preview_overlay_settings,

@@ -642,6 +642,7 @@ impl ChallengeOverlay {
                 .with_fill_color(bar_color)
                 .with_bg_color(bg_color)
                 .with_text_color(font_color)
+                .with_gradient(self.config.bar_gradient)
                 .with_text_glow();
 
             if player.is_local {

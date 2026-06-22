@@ -150,6 +150,10 @@ where
                         overlay.update_config(config);
                         needs_render = true;
                     }
+                    OverlayCommand::SetFontFamily(family) => {
+                        overlay.frame_mut().set_font_family(&family);
+                        needs_render = true;
+                    }
                     OverlayCommand::SetPosition(x, y) => {
                         overlay.frame_mut().window_mut().set_position(x, y);
                         needs_render = true;
@@ -315,6 +319,13 @@ where
                         dispatch::Queue::main().exec_sync(move || {
                             let overlay = unsafe { &mut *overlay_ptr.get() };
                             overlay.update_config(config);
+                        });
+                        needs_render = true;
+                    }
+                    OverlayCommand::SetFontFamily(family) => {
+                        dispatch::Queue::main().exec_sync(move || {
+                            let overlay = unsafe { &mut *overlay_ptr.get() };
+                            overlay.frame_mut().set_font_family(&family);
                         });
                         needs_render = true;
                     }
@@ -810,6 +821,7 @@ pub fn create_effects_a_overlay(
         stack_from_bottom: effects_config.stack_from_bottom,
         show_border: effects_config.show_border,
         border_color: effects_config.border_color,
+        bar_gradient: effects_config.bar_gradient,
     };
 
     let factory = move || {
@@ -868,6 +880,7 @@ pub fn create_effects_b_overlay(
         stack_from_bottom: effects_config.stack_from_bottom,
         show_border: effects_config.show_border,
         border_color: effects_config.border_color,
+        bar_gradient: effects_config.bar_gradient,
     };
 
     let factory = move || {
@@ -918,6 +931,7 @@ pub fn create_cooldowns_overlay(
         stack_from_bottom: cooldowns_config.stack_from_bottom,
         show_border: cooldowns_config.show_border,
         border_color: cooldowns_config.border_color,
+        bar_gradient: cooldowns_config.bar_gradient,
     };
 
     let factory = move || {

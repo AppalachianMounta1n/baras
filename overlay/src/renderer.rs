@@ -31,6 +31,9 @@ const INTER_REGULAR: &[u8] = include_bytes!("../assets/fonts/Inter-Regular.ttf")
 const INTER_BOLD: &[u8] = include_bytes!("../assets/fonts/Inter-Bold.ttf");
 const INTER_ITALIC: &[u8] = include_bytes!("../assets/fonts/Inter-Italic.ttf");
 
+/// Default overlay font family. Bundled, so always present as a fallback.
+pub const DEFAULT_FONT_FAMILY: &str = "Inter";
+
 /// Get a clone of the shared font database.
 /// First call initializes by scanning system fonts and registering the
 /// bundled Inter faces; subsequent calls are cheap clones.
@@ -43,6 +46,44 @@ fn get_shared_font_db() -> fontdb::Database {
             db.load_font_data(INTER_BOLD.to_vec());
             db.load_font_data(INTER_ITALIC.to_vec());
             db
+        })
+        .clone()
+}
+
+/// Cached list of Latin-capable font families (computed once — scanning every
+/// face's glyph coverage touches font files, so we don't want to repeat it).
+static LATIN_FONT_FAMILIES: OnceLock<Vec<String>> = OnceLock::new();
+
+/// Representative Latin letters a usable Roman-text font must cover. Fonts that
+/// can't map these (Hebrew/Arabic/CJK-only, symbol/icon fonts) are filtered out.
+const LATIN_PROBE: [char; 6] = ['A', 'a', 'g', 'R', 'z', 'e'];
+
+/// Whether a face has cmap glyphs for the Latin probe characters.
+fn face_supports_latin(db: &fontdb::Database, id: fontdb::ID) -> bool {
+    db.with_face_data(id, |data, index| {
+        match ttf_parser::Face::parse(data, index) {
+            Ok(face) => LATIN_PROBE.iter().all(|&c| face.glyph_index(c).is_some()),
+            Err(_) => false,
+        }
+    })
+    .unwrap_or(false)
+}
+
+/// Enumerate the distinct font family names available on this system that can
+/// render Roman/Latin text (plus the bundled Inter), sorted alphabetically.
+/// Used to populate the font picker. Computed once and cached.
+pub fn available_font_families() -> Vec<String> {
+    LATIN_FONT_FAMILIES
+        .get_or_init(|| {
+            let db = get_shared_font_db();
+            let mut families: Vec<String> = db
+                .faces()
+                .filter(|face| face_supports_latin(&db, face.id))
+                .filter_map(|face| face.families.first().map(|(name, _)| name.clone()))
+                .collect();
+            families.sort_unstable();
+            families.dedup();
+            families
         })
         .clone()
 }
@@ -71,6 +112,9 @@ pub struct Renderer {
     text_cache: HashMap<TextCacheKey, CachedText>,
     /// Counter for LRU tracking
     cache_access_counter: u64,
+    /// Active font family name (resolved from the shared DB at shaping time).
+    /// Global setting; changing it clears the text cache.
+    font_family: String,
 }
 
 impl Renderer {
@@ -88,6 +132,21 @@ impl Renderer {
             swash_cache: SwashCache::new(),
             text_cache: HashMap::with_capacity(256),
             cache_access_counter: 0,
+            font_family: DEFAULT_FONT_FAMILY.to_string(),
+        }
+    }
+
+    /// Set the font family used for all text. A blank name resets to the
+    /// bundled default. Clears the shaped-text cache so the change takes effect.
+    pub fn set_font_family(&mut self, family: &str) {
+        let family = if family.is_empty() {
+            DEFAULT_FONT_FAMILY
+        } else {
+            family
+        };
+        if self.font_family != family {
+            self.font_family = family.to_string();
+            self.text_cache.clear();
         }
     }
 
@@ -159,7 +218,10 @@ impl Renderer {
         let metrics = Metrics::new(font_size, font_size * 1.2);
         let mut text_buffer = Buffer::new(&mut self.font_system, metrics);
 
-        let mut attrs = Attrs::new().family(Family::Name("Inter"));
+        // Clone the family name so the immutable borrow of `self.font_family`
+        // doesn't conflict with the mutable `self.font_system` borrow below.
+        let family = self.font_family.clone();
+        let mut attrs = Attrs::new().family(Family::Name(&family));
         if bold {
             attrs = attrs.weight(Weight::BOLD);
         }

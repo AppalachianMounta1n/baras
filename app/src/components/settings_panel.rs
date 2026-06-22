@@ -55,6 +55,12 @@ pub fn SettingsPanel(
         role_defaults.set(api::get_default_profiles_per_role().await);
     });
 
+    // Available system fonts for the global font picker (loaded once)
+    let mut system_fonts: Signal<Vec<String>> = use_signal(Vec::new);
+    use_future(move || async move {
+        system_fonts.set(api::list_system_fonts().await);
+    });
+
     let current_settings = draft_settings();
     let tab = selected_tab();
 
@@ -208,6 +214,31 @@ pub fn SettingsPanel(
                     },
                     onmousedown: move |e| e.stop_propagation(),
                     "X"
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // Global font (applies to all overlays, live)
+            // ─────────────────────────────────────────────────────────────────
+            div { class: "settings-section",
+                div { class: "setting-row",
+                    label { "Overlay Font" }
+                    select {
+                        value: "{current_settings.overlay_font_family}",
+                        onchange: move |e: Event<FormData>| {
+                            let family = e.value();
+                            let mut new_settings = draft_settings();
+                            new_settings.overlay_font_family = family.clone();
+                            update_draft(new_settings);
+                            // Apply immediately across all overlays (also persists)
+                            spawn(async move {
+                                let _ = api::set_overlay_font_family(family).await;
+                            });
+                        },
+                        for font in system_fonts().iter() {
+                            option { key: "{font}", value: "{font}", "{font}" }
+                        }
+                    }
                 }
             }
 
@@ -1318,6 +1349,19 @@ pub fn SettingsPanel(
                         }
                     }
                     div { class: "setting-row",
+                        label { "Gradient Bars (bar layout)" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.effects_a.bar_gradient,
+                            disabled: !current_settings.effects_a.layout_bar,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.effects_a.bar_gradient = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
                         label { "Show Border (bar layout)" }
                         input {
                             r#type: "checkbox",
@@ -1527,6 +1571,19 @@ pub fn SettingsPanel(
                         }
                     }
                     div { class: "setting-row",
+                        label { "Gradient Bars (bar layout)" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.effects_b.bar_gradient,
+                            disabled: !current_settings.effects_b.layout_bar,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.effects_b.bar_gradient = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
                         label { "Show Border (bar layout)" }
                         input {
                             r#type: "checkbox",
@@ -1703,6 +1760,19 @@ pub fn SettingsPanel(
                             onchange: move |e: Event<FormData>| {
                                 let mut new_settings = draft_settings();
                                 new_settings.cooldown_tracker.stack_from_bottom = e.checked();
+                                update_draft(new_settings);
+                            }
+                        }
+                    }
+                    div { class: "setting-row",
+                        label { "Gradient Bars (bar layout)" }
+                        input {
+                            r#type: "checkbox",
+                            checked: current_settings.cooldown_tracker.bar_gradient,
+                            disabled: !current_settings.cooldown_tracker.layout_bar,
+                            onchange: move |e: Event<FormData>| {
+                                let mut new_settings = draft_settings();
+                                new_settings.cooldown_tracker.bar_gradient = e.checked();
                                 update_draft(new_settings);
                             }
                         }
@@ -2274,6 +2344,19 @@ pub fn SettingsPanel(
                                     onchange: move |e: Event<FormData>| {
                                         let mut new_settings = draft_settings();
                                         new_settings.challenge_overlay.show_background_bar = e.checked();
+                                        update_draft(new_settings);
+                                    }
+                                }
+                            }
+
+                            div { class: "setting-row",
+                                label { "Gradient Bars" }
+                                input {
+                                    r#type: "checkbox",
+                                    checked: challenge_config.bar_gradient,
+                                    onchange: move |e: Event<FormData>| {
+                                        let mut new_settings = draft_settings();
+                                        new_settings.challenge_overlay.bar_gradient = e.checked();
                                         update_draft(new_settings);
                                     }
                                 }

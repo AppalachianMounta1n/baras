@@ -2031,6 +2031,9 @@ pub struct ChallengeOverlayConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_challenge_bar_color() -> Color {
@@ -2052,6 +2055,7 @@ impl Default for ChallengeOverlayConfig {
             show_background_bar: false,
             font_scale: 1.0,
             dynamic_background: false,
+            bar_gradient: false,
         }
     }
 }
@@ -2102,6 +2106,10 @@ pub struct EffectsAConfig {
     /// Color of the per-entry border outline (bar layout only)
     #[serde(default = "default_overlay_border_color")]
     pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    /// Bar layout only.
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_icon_size() -> u8 {
@@ -2127,6 +2135,7 @@ impl Default for EffectsAConfig {
             stack_from_bottom: false,
             show_border: true,
             border_color: default_overlay_border_color(),
+            bar_gradient: false,
         }
     }
 }
@@ -2173,6 +2182,10 @@ pub struct EffectsBConfig {
     /// Color of the per-entry border outline (bar layout only)
     #[serde(default = "default_overlay_border_color")]
     pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    /// Bar layout only.
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 impl Default for EffectsBConfig {
@@ -2191,6 +2204,7 @@ impl Default for EffectsBConfig {
             stack_from_bottom: false,
             show_border: true,
             border_color: default_overlay_border_color(),
+            bar_gradient: false,
         }
     }
 }
@@ -2245,6 +2259,10 @@ pub struct CooldownTrackerConfig {
     /// Color of the per-entry border outline (bar layout only)
     #[serde(default = "default_overlay_border_color")]
     pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    /// Bar layout only.
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_max_cooldowns() -> u8 {
@@ -2267,6 +2285,7 @@ impl Default for CooldownTrackerConfig {
             stack_from_bottom: false,
             show_border: true,
             border_color: default_overlay_border_color(),
+            bar_gradient: false,
         }
     }
 }
@@ -2532,6 +2551,9 @@ pub struct OverlaySettings {
     pub enabled: HashMap<String, bool>,
     #[serde(default = "default_true")]
     pub overlays_visible: bool,
+    /// Global font family for all overlay text. Empty = bundled default (Inter).
+    #[serde(default = "default_overlay_font_family")]
+    pub overlay_font_family: String,
     #[serde(default)]
     pub personal_overlay: PersonalOverlayConfig,
     #[serde(default = "default_opacity")]
@@ -2628,6 +2650,13 @@ pub struct OverlaySettings {
     pub class_colors: ClassColorConfig,
 }
 
+/// Default overlay font family. Must match `baras_overlay::DEFAULT_FONT_FAMILY`
+/// (the bundled Inter face); kept as a literal here since `baras-types` is the
+/// lowest crate and cannot depend on `baras-overlay`.
+fn default_overlay_font_family() -> String {
+    "Inter".to_string()
+}
+
 impl Default for OverlaySettings {
     fn default() -> Self {
         Self {
@@ -2635,6 +2664,7 @@ impl Default for OverlaySettings {
             appearances: HashMap::new(),
             enabled: HashMap::new(),
             overlays_visible: true,
+            overlay_font_family: default_overlay_font_family(),
             personal_overlay: PersonalOverlayConfig::default(),
             metric_opacity: 180,
             metric_show_empty_bars: true,

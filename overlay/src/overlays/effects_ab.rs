@@ -113,6 +113,8 @@ pub struct EffectsABConfig {
     pub show_border: bool,
     /// Color of the per-entry border outline (bar layout only)
     pub border_color: [u8; 4],
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    pub bar_gradient: bool,
 }
 
 impl Default for EffectsABConfig {
@@ -131,6 +133,7 @@ impl Default for EffectsABConfig {
             stack_from_bottom: false,
             show_border: true,
             border_color: [128, 128, 128, 255],
+            bar_gradient: false,
         }
     }
 }
@@ -721,6 +724,7 @@ impl EffectsABOverlay {
                 .with_bg_color(colors::dps_bar_bg())
                 .with_text_color(font_color)
                 .with_bold_text()
+                .with_gradient(self.config.bar_gradient)
                 .with_text_glow();
 
             if self.config.show_countdown {

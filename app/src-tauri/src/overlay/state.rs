@@ -24,6 +24,8 @@ pub enum OverlayCommand {
     UpdateData(OverlayData),
     /// Update overlay configuration
     UpdateConfig(OverlayConfigUpdate),
+    /// Set the text font family (global, all overlays)
+    SetFontFamily(String),
     /// Set overlay position (x, y in screen coordinates)
     SetPosition(i32, i32),
     /// Set overlay size (width, height in pixels)
