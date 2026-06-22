@@ -10,14 +10,14 @@ use wasm_bindgen_futures::spawn_local as spawn;
 
 use super::encounter_editor::InlineNameCreator;
 use super::encounter_editor::triggers::{
-    AbilitySelectorEditor, EffectSelectorEditor, EntityFilterDropdown,
+    EffectSelectorEditor, EntityFilterDropdown,
 };
 use crate::api;
 use super::sound_picker::SoundPicker;
 use crate::types::{
     AbilitySelector, AlertTrigger, AudioConfig, DisplayTarget, EffectImportPreview,
-    EffectListItem, EffectSelector, EntityFilter, RefreshAbility, RefreshScope, Trigger,
-    UiSessionState, effect_alert_label,
+    EffectListItem, EffectSelector, EntityFilter, RefreshAbility, RefreshScope, RefreshTrigger,
+    Trigger, UiSessionState, effect_alert_label,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -221,6 +221,7 @@ fn default_effect(name: String) -> EffectListItem {
         cooldown_ready_secs: 0.0,
         disciplines: vec![],
         ignore_refreshes: false,
+        refresh_on_immune: true,
         refresh_scope: Default::default(),
         persist_past_death: false,
         track_outside_combat: true,
@@ -1449,12 +1450,11 @@ fn EffectEditForm(
                                 if !draft().is_alert {
                                     // Refresh Abilities
                                     div { class: "form-row-hz", style: "align-items: flex-start;",
-                                        AbilitySelectorEditor {
-                                            label: "Refresh Abilities",
-                                            selectors: draft().refresh_abilities.iter().map(|r| r.ability().clone()).collect(),
-                                            on_change: move |ids: Vec<AbilitySelector>| {
+                                        RefreshAbilitiesEditor {
+                                            abilities: draft().refresh_abilities.clone(),
+                                            on_change: move |abilities: Vec<RefreshAbility>| {
                                                 let mut d = draft();
-                                                d.refresh_abilities = ids.into_iter().map(RefreshAbility::Simple).collect();
+                                                d.refresh_abilities = abilities;
                                                 draft.set(d);
                                             }
                                         }
@@ -1593,6 +1593,27 @@ fn EffectEditForm(
                                             span {
                                                 class: "help-icon",
                                                 title: "When the effect is already active, do not reset its duration if the trigger fires again. Useful for damage/healing taken triggers.",
+                                                "?"
+                                            }
+                                        }
+                                    }
+
+                                    label {
+                                        class: "flex items-center gap-xs text-sm",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: draft().refresh_on_immune,
+                                            onchange: move |e| {
+                                                let mut d = draft();
+                                                d.refresh_on_immune = e.checked();
+                                                draft.set(d);
+                                            }
+                                        }
+                                        span { class: "flex items-center",
+                                            "Refresh On Immune"
+                                            span {
+                                                class: "help-icon",
+                                                title: "For DOT trackers: refresh the duration as soon as the effect is reapplied, even when the target is immune (no damage lands). Disable for abilities that do not refresh their DOT on immune targets — those wait for confirming damage.",
                                                 "?"
                                             }
                                         }
@@ -2344,6 +2365,155 @@ fn TriggerAbilitiesEditor(
                             if !new_abs.iter().any(|s| s.display() == selector.display()) {
                                 new_abs.push(selector);
                                 on_change.call(new_abs);
+                            }
+                            new_input.set(String::new());
+                        }
+                    },
+                    "Add"
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Refresh Abilities Editor (per-ability min_stacks + trigger)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Build a `RefreshAbility`, collapsing to the simple form when no conditions
+/// are set so unmodified definitions keep serializing as a bare selector.
+fn make_refresh_ability(
+    ability: AbilitySelector,
+    min_stacks: Option<u8>,
+    trigger: RefreshTrigger,
+) -> RefreshAbility {
+    if min_stacks.is_none() && trigger == RefreshTrigger::Activation {
+        RefreshAbility::Simple(ability)
+    } else {
+        RefreshAbility::Conditional { ability, min_stacks, trigger }
+    }
+}
+
+#[component]
+fn RefreshAbilitiesEditor(
+    abilities: Vec<RefreshAbility>,
+    on_change: EventHandler<Vec<RefreshAbility>>,
+) -> Element {
+    let mut new_input = use_signal(String::new);
+
+    let abilities_for_keydown = abilities.clone();
+    let abilities_for_click = abilities.clone();
+
+    rsx! {
+        div { class: "flex-col gap-xs items-start",
+            span { class: "flex items-center text-sm text-secondary text-left",
+                "Refresh Abilities:"
+                span {
+                    class: "help-icon",
+                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks (and prevents the ability from creating the effect when it isn't already present). Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land, so an interrupted cast won't refresh.",
+                    "?"
+                }
+            }
+
+            // One row per refresh ability
+            for (idx, ra) in abilities.iter().enumerate() {
+                {
+                    let display = ra.ability().display();
+                    let min_stacks = ra.min_stacks();
+                    let trigger = ra.trigger();
+                    let abilities_rm = abilities.clone();
+                    let abilities_ms = abilities.clone();
+                    let abilities_tr = abilities.clone();
+                    rsx! {
+                        div { class: "flex gap-xs items-center", style: "flex-wrap: wrap;",
+                            span { class: "chip",
+                                "{display}"
+                                button {
+                                    class: "chip-remove",
+                                    onclick: move |_| {
+                                        let mut next = abilities_rm.clone();
+                                        next.remove(idx);
+                                        on_change.call(next);
+                                    },
+                                    "×"
+                                }
+                            }
+                            label { class: "flex items-center gap-xs text-sm text-secondary",
+                                "Min Stacks"
+                                input {
+                                    r#type: "number",
+                                    class: "input-inline",
+                                    style: "width: 4rem;",
+                                    min: "0",
+                                    placeholder: "any",
+                                    value: min_stacks.map(|m| m.to_string()).unwrap_or_default(),
+                                    onchange: move |e| {
+                                        let parsed = e.value().trim().parse::<u8>().ok().filter(|n| *n > 0);
+                                        let mut next = abilities_ms.clone();
+                                        let ability = next[idx].ability().clone();
+                                        next[idx] = make_refresh_ability(ability, parsed, trigger);
+                                        on_change.call(next);
+                                    }
+                                }
+                            }
+                            select {
+                                class: "select-inline",
+                                onchange: move |e| {
+                                    let trig = match e.value().as_str() {
+                                        "heal" => RefreshTrigger::Heal,
+                                        _ => RefreshTrigger::Activation,
+                                    };
+                                    let mut next = abilities_tr.clone();
+                                    let ability = next[idx].ability().clone();
+                                    next[idx] = make_refresh_ability(ability, min_stacks, trig);
+                                    on_change.call(next);
+                                },
+                                option {
+                                    value: "activation",
+                                    selected: trigger == RefreshTrigger::Activation,
+                                    "On Cast"
+                                }
+                                option {
+                                    value: "heal",
+                                    selected: trigger == RefreshTrigger::Heal,
+                                    "On Heal"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Add new ability (defaults to On Cast, any stacks)
+            div { class: "flex gap-xs",
+                input {
+                    r#type: "text",
+                    class: "input-inline",
+                    style: "flex: 1; min-width: 0;",
+                    placeholder: "Ability ID or Name (Enter)",
+                    value: "{new_input}",
+                    oninput: move |e| new_input.set(e.value()),
+                    onkeydown: move |e| {
+                        if e.key() == Key::Enter && !new_input().trim().is_empty() {
+                            let selector = AbilitySelector::from_input(&new_input());
+                            let mut next = abilities_for_keydown.clone();
+                            if !next.iter().any(|r| r.ability().display() == selector.display()) {
+                                next.push(RefreshAbility::Simple(selector));
+                                on_change.call(next);
+                            }
+                            new_input.set(String::new());
+                        }
+                    }
+                }
+                button {
+                    class: "btn btn-sm",
+                    onclick: move |_| {
+                        if !new_input().trim().is_empty() {
+                            let selector = AbilitySelector::from_input(&new_input());
+                            let mut next = abilities_for_click.clone();
+                            if !next.iter().any(|r| r.ability().display() == selector.display()) {
+                                next.push(RefreshAbility::Simple(selector));
+                                on_change.call(next);
                             }
                             new_input.set(String::new());
                         }

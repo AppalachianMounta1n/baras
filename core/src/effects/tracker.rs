@@ -1054,13 +1054,23 @@ impl EffectTracker {
                         // timer_expired was set OR by handle_effect_removed — exactly once.
                         existing.refresh(timestamp, duration);
                         self.ticking_count += 1;
-                    } else {
+                    } else if def.refresh_on_immune {
                         // Refresh duration directly from EffectApplied. This covers
                         // immune targets where no DamageTaken event arrives to confirm
                         // the pending_dot_refresh. Also updates last_refreshed_at so
                         // the stale-removal guard covers the incoming EffectRemoved
                         // for the old DOT instance.
                         existing.refresh(timestamp, duration);
+                        if let Some(c) = charges {
+                            existing.set_stacks(c);
+                        }
+                    } else {
+                        // This ability does not refresh on immune targets. Don't
+                        // refresh the duration here — wait for a DamageTaken event to
+                        // confirm a real hit (handle_damage_for_dot_refresh). Still
+                        // touch last_refreshed_at so the 1-second stale-removal guard
+                        // covers the incoming EffectRemoved for the old DOT instance.
+                        existing.last_refreshed_at = timestamp;
                         if let Some(c) = charges {
                             existing.set_stacks(c);
                         }

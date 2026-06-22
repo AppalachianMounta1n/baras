@@ -48,6 +48,7 @@ pub use baras_types::{
     RaidOverlaySettings,
     RefreshAbility,
     RefreshScope,
+    RefreshTrigger,
     SortColumn,
     SortDirection,
     SoundCategory,
@@ -919,6 +920,8 @@ pub struct EffectListItem {
     // Behavior
     #[serde(default)]
     pub ignore_refreshes: bool,
+    #[serde(default = "crate::utils::default_true")]
+    pub refresh_on_immune: bool,
     #[serde(default)]
     pub refresh_scope: RefreshScope,
     #[serde(default)]
