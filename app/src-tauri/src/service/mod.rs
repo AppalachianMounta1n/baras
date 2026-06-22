@@ -2954,29 +2954,51 @@ async fn calculate_combat_data(shared: &Arc<SharedState>) -> Option<CombatData> 
         let difficulty = summary.difficulty.clone();
         let metrics = summary.player_metrics.clone();
 
+        // Lookup map for class/discipline icons from the persisted player
+        // metrics — same as the live path — so historical loads render icons
+        // and bold the local player too.
+        use baras_core::game_data::Role as GameRole;
+        use baras_overlay::Role as OverlayRole;
+        let player_lookup: std::collections::HashMap<i64, (Option<String>, Option<String>, Option<OverlayRole>)> =
+            metrics
+                .iter()
+                .map(|m| {
+                    let class_icon = m.class_icon.clone();
+                    let discipline_icon = m.discipline.map(|d| d.icon_name().to_string());
+                    let role = m.discipline.map(|d| match d.role() {
+                        GameRole::Tank => OverlayRole::Tank,
+                        GameRole::Healer => OverlayRole::Healer,
+                        GameRole::Dps => OverlayRole::Damage,
+                    });
+                    (m.entity_id, (class_icon, discipline_icon, role))
+                })
+                .collect();
+
         // Build ChallengeData from historical summary if challenges exist
         let challenges = if !summary.challenges.is_empty() {
             let entries: Vec<ChallengeEntry> = summary
                 .challenges
                 .iter()
                 .map(|cs| {
-                    // Historical fallback: class info isn't persisted in the
-                    // summary, so icons + local-bold are skipped. Live path
-                    // populates these fields; this is the degraded read for
-                    // initial-hydration only.
                     let by_player: Vec<PlayerContribution> = cs
                         .by_player
                         .iter()
-                        .map(|p| PlayerContribution {
-                            entity_id: p.entity_id,
-                            name: p.name.clone(),
-                            value: p.value,
-                            percent: p.percent,
-                            per_second: p.per_second,
-                            is_local: false,
-                            class_icon: None,
-                            discipline_icon: None,
-                            role: None,
+                        .map(|p| {
+                            let (class_icon, discipline_icon, role) = player_lookup
+                                .get(&p.entity_id)
+                                .cloned()
+                                .unwrap_or((None, None, None));
+                            PlayerContribution {
+                                entity_id: p.entity_id,
+                                name: p.name.clone(),
+                                value: p.value,
+                                percent: p.percent,
+                                per_second: p.per_second,
+                                is_local: p.entity_id == player_entity_id,
+                                class_icon,
+                                discipline_icon,
+                                role,
+                            }
                         })
                         .collect();
                     ChallengeEntry {
