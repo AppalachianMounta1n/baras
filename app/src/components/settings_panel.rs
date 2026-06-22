@@ -2362,6 +2362,20 @@ pub fn SettingsPanel(
                                 }
                             }
 
+                            Slider {
+                                label: "Bar Spacing",
+                                value: (challenge_config.bar_spacing_ratio * 100.0) as i32 as f64,
+                                min: 0.0,
+                                max: 60.0,
+                                step: 5.0,
+                                suffix: "%",
+                                on_change: move |v: f64| {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.challenge_overlay.bar_spacing_ratio = (v as f32 / 100.0).clamp(0.0, 0.6);
+                                    update_draft(new_settings);
+                                },
+                            }
+
                             h4 { style: "margin-top: 16px;", "Colors" }
 
                             // Default bar color

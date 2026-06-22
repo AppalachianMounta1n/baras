@@ -2034,6 +2034,10 @@ pub struct ChallengeOverlayConfig {
     /// Fade each bar's fill from its color (left) to a darkened version (right).
     #[serde(default)]
     pub bar_gradient: bool,
+    /// Vertical gap between player bars as a fraction of bar height. 0.0 =
+    /// connected, ~0.2 = default. Keeps spacing consistent across resolutions.
+    #[serde(default = "default_bar_spacing_ratio")]
+    pub bar_spacing_ratio: f32,
 }
 
 fn default_challenge_bar_color() -> Color {
@@ -2056,6 +2060,7 @@ impl Default for ChallengeOverlayConfig {
             font_scale: 1.0,
             dynamic_background: false,
             bar_gradient: false,
+            bar_spacing_ratio: 0.2,
         }
     }
 }
