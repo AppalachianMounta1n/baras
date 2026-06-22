@@ -236,7 +236,14 @@ pub fn SettingsPanel(
                             });
                         },
                         for font in system_fonts().iter() {
-                            option { key: "{font}", value: "{font}", "{font}" }
+                            // `selected` (not just the select's `value`) so the active
+                            // font stays chosen even though options load asynchronously.
+                            option {
+                                key: "{font}",
+                                value: "{font}",
+                                selected: *font == current_settings.overlay_font_family,
+                                "{font}"
+                            }
                         }
                     }
                 }
