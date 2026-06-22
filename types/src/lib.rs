@@ -1339,7 +1339,8 @@ pub struct OverlayAppearanceConfig {
     pub use_class_color: bool,
     /// Fade each bar's fill from its base color (left) to a darkened version
     /// (right), spanning the filled portion. Details-style single-color gradient.
-    #[serde(default)]
+    /// Enabled by default for metric overlays.
+    #[serde(default = "default_true")]
     pub bar_gradient: bool,
     /// Vertical gap between bars as a fraction of bar height. 0.0 = connected
     /// (no gap), ~0.2 = default. Keeps spacing consistent across resolutions.
@@ -1375,7 +1376,7 @@ impl Default for OverlayAppearanceConfig {
             show_percent: true,
             show_duration: true,
             use_class_color: false,
-            bar_gradient: false,
+            bar_gradient: true,
             bar_spacing_ratio: 0.2,
         }
     }
@@ -2036,7 +2037,8 @@ pub struct ChallengeOverlayConfig {
     #[serde(default)]
     pub dynamic_background: bool,
     /// Fade each bar's fill from its color (left) to a darkened version (right).
-    #[serde(default)]
+    /// Enabled by default for the challenges overlay.
+    #[serde(default = "default_true")]
     pub bar_gradient: bool,
     /// Vertical gap between player bars as a fraction of bar height. 0.0 =
     /// connected, ~0.2 = default. Keeps spacing consistent across resolutions.
@@ -2063,7 +2065,7 @@ impl Default for ChallengeOverlayConfig {
             show_background_bar: false,
             font_scale: 1.0,
             dynamic_background: false,
-            bar_gradient: false,
+            bar_gradient: true,
             bar_spacing_ratio: 0.2,
         }
     }
