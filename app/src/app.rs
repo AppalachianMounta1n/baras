@@ -2301,43 +2301,45 @@ pub fn App() -> Element {
                         onclick: move |e| e.stop_propagation(),
 
                         div { class: "file-browser-header",
-                            h3 {
-                                i { class: "fa-solid fa-folder-open" }
-                                " Log Files"
+                            div { class: "file-browser-header-top",
+                                h3 {
+                                    i { class: "fa-solid fa-folder-open" }
+                                    " Log Files"
+                                }
+                                label {
+                                    class: "file-browser-filter-toggle",
+                                    title: "Hide files smaller than 1MB",
+                                    input {
+                                        r#type: "checkbox",
+                                        checked: hide_small_log_files(),
+                                        onchange: move |e| {
+                                            let checked = e.checked();
+                                            hide_small_log_files.set(checked);
+                                            let mut toast = use_toast();
+                                            spawn(async move {
+                                                if let Some(mut cfg) = api::get_config().await {
+                                                    cfg.hide_small_log_files = checked;
+                                                    if let Err(err) = api::update_config(&cfg).await {
+                                                        toast.show(format!("Failed to save settings: {}", err), ToastSeverity::Normal);
+                                                    }
+                                                }
+                                            });
+                                        },
+                                    }
+                                    " Hide <1MB"
+                                }
+                                button {
+                                    class: "btn btn-close",
+                                    onclick: move |_| file_browser_open.set(false),
+                                    "X"
+                                }
                             }
                             input {
                                 class: "file-browser-search",
                                 r#type: "text",
-                                placeholder: "Filter by name, date, day, or operation...",
+                                placeholder: "Filter by name, date, day, or operation (comma = AND, e.g. \"X,Y\")...",
                                 value: "{file_browser_filter}",
                                 oninput: move |e| file_browser_filter.set(e.value()),
-                            }
-                            label {
-                                class: "file-browser-filter-toggle",
-                                title: "Hide files smaller than 1MB",
-                                input {
-                                    r#type: "checkbox",
-                                    checked: hide_small_log_files(),
-                                    onchange: move |e| {
-                                        let checked = e.checked();
-                                        hide_small_log_files.set(checked);
-                                        let mut toast = use_toast();
-                                        spawn(async move {
-                                            if let Some(mut cfg) = api::get_config().await {
-                                                cfg.hide_small_log_files = checked;
-                                                if let Err(err) = api::update_config(&cfg).await {
-                                                    toast.show(format!("Failed to save settings: {}", err), ToastSeverity::Normal);
-                                                }
-                                            }
-                                        });
-                                    },
-                                }
-                                " Hide <1MB"
-                            }
-                            button {
-                                class: "btn btn-close",
-                                onclick: move |_| file_browser_open.set(false),
-                                "X"
                             }
                         }
 
@@ -2356,21 +2358,29 @@ pub fn App() -> Element {
                                         if hide_small && f.file_size < 1024 * 1024 {
                                             return false;
                                         }
-                                        // Text filter
-                                        if filter.is_empty() {
+                                        // Text filter: comma-separated terms are ANDed
+                                        // together (e.g. "X,Y" matches files with both X and Y).
+                                        let terms: Vec<&str> = filter
+                                            .split(',')
+                                            .map(|t| t.trim())
+                                            .filter(|t| !t.is_empty())
+                                            .collect();
+                                        if terms.is_empty() {
                                             return true;
                                         }
                                         let name = f.character_name.as_deref().unwrap_or("").to_lowercase();
                                         let date = f.date.to_lowercase();
                                         let day = f.day_of_week.to_lowercase();
-                                        // Also check area names for operation search
-                                        let areas_match = f.areas.as_ref().map_or(false, |areas| {
-                                            areas.iter().any(|a| {
-                                                a.display.to_lowercase().contains(&filter)
-                                                    || a.area_name.to_lowercase().contains(&filter)
-                                            })
-                                        });
-                                        name.contains(&filter) || date.contains(&filter) || day.contains(&filter) || areas_match
+                                        terms.iter().all(|term| {
+                                            // Also check area names for operation search
+                                            let areas_match = f.areas.as_ref().map_or(false, |areas| {
+                                                areas.iter().any(|a| {
+                                                    a.display.to_lowercase().contains(term)
+                                                        || a.area_name.to_lowercase().contains(term)
+                                                })
+                                            });
+                                            name.contains(term) || date.contains(term) || day.contains(term) || areas_match
+                                        })
                                     }).cloned().collect();
                                     rsx! {
                                         for file in filtered.iter() {
