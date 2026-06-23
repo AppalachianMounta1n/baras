@@ -59,6 +59,7 @@ impl OverlayManager {
                     settings.metric_font_scale,
                     settings.metric_dynamic_background,
                     settings.metric_show_background_bar,
+                    settings.metric_gradient_intensity,
                 )?
             }
             OverlayType::Personal => {
@@ -350,6 +351,7 @@ impl OverlayManager {
                     eu,
                     settings.metric_show_background_bar,
                     settings.class_colors.clone(),
+                    settings.metric_gradient_intensity,
                 )
             }
             OverlayType::Personal => {

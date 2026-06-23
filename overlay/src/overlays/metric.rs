@@ -150,6 +150,8 @@ pub struct MetricOverlay {
     icon_mode: ClassIconMode,
     /// Global font scale for metric bar text (0.3 - 2.0)
     font_scale: f32,
+    /// Global gradient darkening intensity for metric bars (0.0 - 1.0)
+    gradient_intensity: f32,
     /// Global dynamic background setting for metrics
     dynamic_background: bool,
     /// Show grey background bar behind each player's fill bar
@@ -180,6 +182,7 @@ impl MetricOverlay {
         font_scale: f32,
         dynamic_background: bool,
         show_background_bar: bool,
+        gradient_intensity: f32,
     ) -> Result<Self, PlatformError> {
         let mut frame = OverlayFrame::new(config, BASE_WIDTH, BASE_HEIGHT)?;
         frame.set_background_alpha(background_alpha);
@@ -195,6 +198,7 @@ impl MetricOverlay {
             scaling_factor: scaling_factor.clamp(0.3, 2.0),
             icon_mode,
             font_scale: font_scale.clamp(0.3, 2.0),
+            gradient_intensity: gradient_intensity.clamp(0.0, 1.0),
             dynamic_background,
             show_background_bar,
             european_number_format: false,
@@ -237,6 +241,11 @@ impl MetricOverlay {
     /// Update font scale (clamped to 0.3-2.0)
     pub fn set_font_scale(&mut self, scale: f32) {
         self.font_scale = scale.clamp(0.3, 2.0);
+    }
+
+    /// Update gradient darkening intensity (clamped to 0.0-1.0)
+    pub fn set_gradient_intensity(&mut self, intensity: f32) {
+        self.gradient_intensity = intensity.clamp(0.0, 1.0);
     }
 
     /// Update dynamic background setting
@@ -488,6 +497,7 @@ impl MetricOverlay {
                 .with_bg_color(bg_color)
                 .with_text_color(font_color)
                 .with_gradient(self.appearance.bar_gradient)
+                .with_gradient_intensity(self.gradient_intensity)
                 .with_text_glow();
 
             if entry.is_local {
@@ -640,6 +650,7 @@ impl Overlay for MetricOverlay {
             european,
             show_bg_bar,
             class_colors,
+            gradient_intensity,
         ) = config
         {
             self.use_class_color = appearance.use_class_color;
@@ -654,6 +665,7 @@ impl Overlay for MetricOverlay {
             self.european_number_format = european;
             self.set_show_background_bar(show_bg_bar);
             self.class_colors = class_colors;
+            self.set_gradient_intensity(gradient_intensity);
         }
     }
 

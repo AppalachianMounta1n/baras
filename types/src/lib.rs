@@ -2578,6 +2578,11 @@ pub struct OverlaySettings {
     /// Font scale multiplier for metric overlays (1.0 - 2.0, default 1.0)
     #[serde(default = "default_scaling_factor")]
     pub metric_font_scale: f32,
+    /// How strongly metric bar fills darken toward their trailing edge when the
+    /// single-color gradient is enabled. 0.0 = flat color, ~0.32 = default,
+    /// higher = more aggressive dark→light fade.
+    #[serde(default = "default_gradient_intensity")]
+    pub metric_gradient_intensity: f32,
     /// When true, metric overlay backgrounds shrink to fit content
     #[serde(default)]
     pub metric_dynamic_background: bool,
@@ -2668,6 +2673,12 @@ fn default_overlay_font_family() -> String {
     "Inter".to_string()
 }
 
+/// Default metric bar gradient intensity. Must match
+/// `baras_overlay::widgets::progress_bar::GRADIENT_DARKEN`.
+fn default_gradient_intensity() -> f32 {
+    0.32
+}
+
 impl Default for OverlaySettings {
     fn default() -> Self {
         Self {
@@ -2682,6 +2693,7 @@ impl Default for OverlaySettings {
             metric_stack_from_bottom: false,
             metric_scaling_factor: 1.0,
             metric_font_scale: 1.0,
+            metric_gradient_intensity: 0.32,
             metric_dynamic_background: false,
             metric_show_background_bar: false,
             personal_opacity: 180,

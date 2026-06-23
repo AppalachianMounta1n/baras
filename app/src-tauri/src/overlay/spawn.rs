@@ -488,6 +488,7 @@ pub fn create_metric_overlay(
     font_scale: f32,
     dynamic_background: bool,
     show_background_bar: bool,
+    gradient_intensity: f32,
 ) -> Result<OverlayHandle, String> {
     // Position is already relative to the monitor - pass directly
     // On Wayland: used as layer-shell margins
@@ -519,6 +520,7 @@ pub fn create_metric_overlay(
             font_scale,
             dynamic_background,
             show_background_bar,
+            gradient_intensity,
         )
         .map_err(|e| format!("Failed to create {} overlay: {}", title, e))
     };

@@ -112,6 +112,8 @@ pub fn SettingsPanel(
                     new_settings.metric_stack_from_bottom;
                 config.overlay_settings.metric_scaling_factor = new_settings.metric_scaling_factor;
                 config.overlay_settings.metric_font_scale = new_settings.metric_font_scale;
+                config.overlay_settings.metric_gradient_intensity =
+                    new_settings.metric_gradient_intensity;
                 config.overlay_settings.metric_dynamic_background = new_settings.metric_dynamic_background;
                 config.overlay_settings.metric_show_background_bar = new_settings.metric_show_background_bar;
                 config.overlay_settings.class_icon_mode = new_settings.class_icon_mode;
@@ -769,6 +771,20 @@ pub fn SettingsPanel(
                                 on_change: move |v: f64| {
                                     let mut new_settings = draft_settings();
                                     new_settings.metric_font_scale = (v as f32 / 100.0).clamp(0.3, 2.0);
+                                    update_draft(new_settings);
+                                },
+                            }
+
+                            Slider {
+                                label: "Gradient Intensity",
+                                value: (current_settings.metric_gradient_intensity * 100.0) as i32 as f64,
+                                min: 0.0,
+                                max: 60.0,
+                                step: 2.0,
+                                suffix: "%",
+                                on_change: move |v: f64| {
+                                    let mut new_settings = draft_settings();
+                                    new_settings.metric_gradient_intensity = (v as f32 / 100.0).clamp(0.0, 0.6);
                                     update_draft(new_settings);
                                 },
                             }
