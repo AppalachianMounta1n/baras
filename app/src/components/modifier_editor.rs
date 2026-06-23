@@ -163,7 +163,7 @@ pub fn ModifierListEditor(props: ModifierListEditorProps) -> Element {
             div { class: "form-card-content",
                 if modifiers.is_empty() {
                     div { class: "text-muted text-sm", style: "padding: 4px 0;",
-                        "No modifiers configured. Add one to reactively adjust this effect's duration or charges when events occur."
+                        "No modifiers configured. Add one to reactively adjust this effect's duration when events occur."
                     }
                 }
                 for (idx, modifier) in modifiers.iter().enumerate() {

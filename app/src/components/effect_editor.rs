@@ -1592,7 +1592,7 @@ fn EffectEditForm(
                                             "Ignore Refreshes"
                                             span {
                                                 class: "help-icon",
-                                                title: "When the effect is already active, do not reset its duration if the trigger fires again. Useful for damage/healing taken triggers.",
+                                                title: "When the effect is already active, do not reset its duration if the trigger fires again.",
                                                 "?"
                                             }
                                         }
@@ -1613,7 +1613,7 @@ fn EffectEditForm(
                                             "Refresh On Immune"
                                             span {
                                                 class: "help-icon",
-                                                title: "For DOT trackers: refresh the duration as soon as the effect is reapplied, even when the target is immune (no damage lands). Disable for abilities that do not refresh their DOT on immune targets — those wait for confirming damage.",
+                                                title: "Refresh the duration as soon as the effect is reapplied, even when the target is immune (no damage lands). Disable for abilities that do not refresh their DOT on immune targets.",
                                                 "?"
                                             }
                                         }
@@ -2410,7 +2410,7 @@ fn RefreshAbilitiesEditor(
                 "Refresh Abilities:"
                 span {
                     class: "help-icon",
-                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks (and prevents the ability from creating the effect when it isn't already present). Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land. Note: DoT-tracker effects using 'On Cast' already defer the refresh until the ability's damage lands, so an interrupted cast won't refresh them.",
+                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks. Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land. Note: DoT-tracker effects using 'On Cast' defer the refresh until the ability's damage lands, so an interrupted cast won't refresh them.",
                     "?"
                 }
             }
