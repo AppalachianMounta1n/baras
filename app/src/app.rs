@@ -2337,7 +2337,7 @@ pub fn App() -> Element {
                             input {
                                 class: "file-browser-search",
                                 r#type: "text",
-                                placeholder: "Filter by name, date, day, or operation (comma = AND, e.g. \"X,Y\")...",
+                                placeholder: "Filter by name, date, day, or operation (comma = AND, e.g. \"ToonName,Dxun\")...",
                                 value: "{file_browser_filter}",
                                 oninput: move |e| file_browser_filter.set(e.value()),
                             }
