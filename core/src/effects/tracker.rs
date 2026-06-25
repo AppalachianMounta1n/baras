@@ -1054,21 +1054,10 @@ impl EffectTracker {
                         // timer_expired was set OR by handle_effect_removed — exactly once.
                         existing.refresh(timestamp, duration);
                         self.ticking_count += 1;
-                    } else if def.refresh_on_immune {
-                        // Refresh duration directly from EffectApplied. This covers
-                        // immune targets where no DamageTaken event arrives to confirm
-                        // the pending_dot_refresh. Also updates last_refreshed_at so
-                        // the stale-removal guard covers the incoming EffectRemoved
-                        // for the old DOT instance.
-                        existing.refresh(timestamp, duration);
-                        if let Some(c) = charges {
-                            existing.set_stacks(c);
-                        }
                     } else {
-                        // This ability does not refresh on immune targets. Don't
-                        // refresh the duration here — wait for a DamageTaken event to
-                        // confirm a real hit (handle_damage_for_dot_refresh). Still
-                        // touch last_refreshed_at so the 1-second stale-removal guard
+                        // Don't refresh the duration here — wait for a DamageTaken
+                        // event to confirm a real hit (handle_damage_for_dot_refresh).
+                        // Touch last_refreshed_at so the 1-second stale-removal guard
                         // covers the incoming EffectRemoved for the old DOT instance.
                         existing.last_refreshed_at = timestamp;
                         if let Some(c) = charges {
@@ -1581,6 +1570,7 @@ impl EffectTracker {
         &mut self,
         ability_id: i64,
         target_id: i64,
+        defense_type_id: i64,
         timestamp: NaiveDateTime,
     ) {
         const PENDING_TIMEOUT_MS: i64 = 2000;
@@ -1612,11 +1602,14 @@ impl EffectTracker {
 
         // Find all DotTracker definitions refreshable by this ability and refresh
         // the effect on the damaged target
+        let is_immune = defense_type_id == crate::game_data::defense_type::IMMUNE;
+
         let refreshable_def_ids: Vec<_> = self
             .definitions
             .find_refreshable_by(ability_id as u64, None)
             .into_iter()
             .filter(|def| def.display_targets.contains(&DisplayTarget::DotTracker))
+            .filter(|def| !is_immune || def.refresh_on_immune)
             .map(|def| (def.id.clone(), def.refresh_scope, self.effective_duration(def)))
             .collect();
 
@@ -2769,12 +2762,13 @@ impl SignalHandler for EffectTracker {
                 target_name,
                 target_npc_id,
                 timestamp,
+                defense_type_id,
                 ..
             } => {
                 // AoE refresh damage correlation
                 self.handle_damage_for_aoe_refresh(*ability_id, *target_id, *timestamp);
                 // Single-target DotTracker refresh damage confirmation
-                self.handle_damage_for_dot_refresh(*ability_id, *target_id, *timestamp);
+                self.handle_damage_for_dot_refresh(*ability_id, *target_id, *defense_type_id, *timestamp);
                 // DamageTaken trigger matching for effects tracker
                 self.handle_ability_event_trigger(
                     *ability_id,
