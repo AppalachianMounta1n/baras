@@ -1492,6 +1492,7 @@ pub async fn query_combat_log_find(
     find_text: &str,
     source_filter: Option<&str>,
     target_filter: Option<&str>,
+    search_filter: Option<&str>,
     time_range: Option<&TimeRange>,
     event_filters: Option<&CombatLogFilters>,
     sort_column: CombatLogSortColumn,
@@ -1513,6 +1514,11 @@ pub async fn query_combat_log_find(
         js_set(&obj, "targetFilter", &JsValue::from_str(t));
     } else {
         js_set(&obj, "targetFilter", &JsValue::NULL);
+    }
+    if let Some(sf) = search_filter {
+        js_set(&obj, "searchFilter", &JsValue::from_str(sf));
+    } else {
+        js_set(&obj, "searchFilter", &JsValue::NULL);
     }
     if let Some(tr) = time_range {
         let tr_js = serde_wasm_bindgen::to_value(tr).unwrap_or(JsValue::NULL);

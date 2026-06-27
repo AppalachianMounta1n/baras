@@ -359,6 +359,7 @@ impl EncounterQuery<'_> {
         find_text: &str,
         source_filter: Option<&str>,
         target_filter: Option<&str>,
+        search_filter: Option<&str>,
         time_range: Option<&TimeRange>,
         event_filters: Option<&CombatLogFilters>,
         sort_column: CombatLogSortColumn,
@@ -403,6 +404,11 @@ impl EncounterQuery<'_> {
                 _ => {
                     where_clauses.push(format!("target_name = '{}'", sql_escape(target)));
                 }
+            }
+        }
+        if let Some(search) = search_filter {
+            if !search.is_empty() {
+                where_clauses.push(build_search_clause(search));
             }
         }
         if let Some(tr) = time_range {
