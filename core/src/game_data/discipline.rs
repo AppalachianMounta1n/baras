@@ -22,6 +22,23 @@ impl Role {
             Role::Dps => "icon_dps.png",
         }
     }
+
+    pub const fn to_u8(self) -> u8 {
+        match self {
+            Role::Tank => 1,
+            Role::Healer => 2,
+            Role::Dps => 3,
+        }
+    }
+
+    pub const fn from_u8(v: u8) -> Option<Self> {
+        match v {
+            1 => Some(Role::Tank),
+            2 => Some(Role::Healer),
+            3 => Some(Role::Dps),
+            _ => None,
+        }
+    }
 }
 
 /// SWTOR base classes

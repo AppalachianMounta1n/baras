@@ -394,14 +394,17 @@ impl CombatSignalHandler {
         overlay_tx: mpsc::Sender<OverlayUpdate>,
         cmd_tx: mpsc::Sender<ServiceCommand>,
     ) -> Self {
+        let last_id = shared.last_player_id.load(Ordering::SeqCst);
+        let local_player_id = if last_id != 0 { Some(last_id) } else { None };
+        let current_role = Role::from_u8(shared.last_player_role.load(Ordering::SeqCst));
         Self {
             shared,
             trigger_tx,
             session_event_tx,
             overlay_tx,
             cmd_tx,
-            local_player_id: None,
-            current_role: None,
+            local_player_id,
+            current_role,
             monitor_requested: false,
             current_boss_is_final: false,
             current_area_kind: AreaKind::Other,
@@ -486,9 +489,11 @@ impl SignalHandler for CombatSignalHandler {
                 discipline_id,
                 ..
             } => {
-                // First DisciplineChanged is always the local player
+                // First DisciplineChanged is always the local player (only when
+                // no player ID was restored from a previous handler via SharedState)
                 if self.local_player_id.is_none() {
                     self.local_player_id = Some(*entity_id);
+                    self.shared.last_player_id.store(*entity_id, Ordering::SeqCst);
                 }
                 // Update raid registry with discipline info for role icons
                 let mut registry = self.shared.raid_registry.lock().unwrap_or_else(|p| p.into_inner());
@@ -508,6 +513,7 @@ impl SignalHandler for CombatSignalHandler {
                         let new_role = discipline.role();
                         let role_changed = self.current_role.map_or(true, |r| r != new_role);
                         self.current_role = Some(new_role);
+                        self.shared.last_player_role.store(new_role.to_u8(), Ordering::SeqCst);
                         if role_changed {
                             let role_name = format!("{:?}", new_role);
                             let _ = self.cmd_tx.try_send(ServiceCommand::AutoSwitchProfile { role_name });
@@ -1370,6 +1376,12 @@ impl CombatService {
                             self.emit_operation_timer_tick();
                         }
                         ServiceCommand::AutoSwitchProfile { role_name } => {
+                            // Only auto-switch profiles during live tailing — historical
+                            // file playback should never change the user's active profile.
+                            if !self.shared.is_live_tailing.load(Ordering::SeqCst) {
+                                debug!("Ignoring auto-switch profile for role {} (not live tailing)", role_name);
+                                continue;
+                            }
                             let config = self.shared.config.read().await;
                             if let Some(profile_name) = config.default_profile_per_role.get(&role_name) {
                                 // Skip if this profile is already active
@@ -2062,13 +2074,18 @@ impl CombatService {
                             }
                         }
 
-                        // Sync player context to effect tracker so discipline-scoped
-                        // effects work immediately (tracker missed historical signals)
+                        // Sync player context to effect tracker and shared state so
+                        // discipline-scoped effects and profile auto-switching work
+                        // immediately (handler missed historical signals from subprocess)
                         if let Some((player_id, discipline_id)) = player_context {
                             if let Some(tracker) = session_guard.effect_tracker() {
                                 if let Ok(mut tracker) = tracker.lock() {
                                     tracker.set_player_context(player_id, discipline_id);
                                 }
+                            }
+                            self.shared.last_player_id.store(player_id, Ordering::SeqCst);
+                            if let Some(discipline) = Discipline::from_guid(discipline_id) {
+                                self.shared.last_player_role.store(discipline.role().to_u8(), Ordering::SeqCst);
                             }
                         }
 
