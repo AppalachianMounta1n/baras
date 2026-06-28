@@ -703,9 +703,13 @@ impl EffectsABOverlay {
         let mut y = bars_start_y;
 
         for effect in &effects {
-            // Build label: stacks prefix + optional name + optional source
+            let has_icon = effect.show_icon && effect.icon.is_some();
+
+            // Build label: optional name + optional source.
+            // When an icon is present the stack count is drawn inside the icon
+            // (like the icon layouts); otherwise it's prefixed to the label text.
             let mut label = String::new();
-            if effect.stacks > 0 {
+            if effect.stacks > 0 && !has_icon {
                 label.push_str(&format!("{}x ", effect.stacks));
             }
             if self.config.show_effect_names || label.is_empty() {
@@ -716,7 +720,6 @@ impl EffectsABOverlay {
                 label.push_str(&format!(" ({})", effect.source_name));
             }
 
-            let has_icon = effect.show_icon && effect.icon.is_some();
             let bar_color = color_from_rgba(effect.color);
 
             let mut bar = ProgressBar::new(&label, effect.progress())
@@ -784,6 +787,23 @@ impl EffectsABOverlay {
                         icon_x, icon_y, icon_size, icon_size,
                         icon_radius, 1.0 * scale, inner_border,
                     );
+
+                    // Stack count in the bottom-right corner of the icon
+                    if effect.stacks >= 1 {
+                        let stack_text = format!("{}", effect.stacks);
+                        let stack_font_size = icon_size * 0.5;
+                        let stack_x = icon_x + icon_size
+                            - self.frame.measure_text(&stack_text, stack_font_size).0
+                            - 2.0 * scale;
+                        let stack_y = icon_y + icon_size - 3.0 * scale;
+                        self.frame.draw_text_glowed(
+                            &stack_text,
+                            stack_x,
+                            stack_y,
+                            stack_font_size,
+                            colors::white(),
+                        );
+                    }
                 }
             }
 
