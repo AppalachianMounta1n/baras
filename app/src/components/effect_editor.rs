@@ -2365,11 +2365,22 @@ fn make_refresh_ability(
     min_stacks: Option<u8>,
     trigger: RefreshTrigger,
     ignore_immune_resist: bool,
+    on_first_damage: Option<bool>,
 ) -> RefreshAbility {
-    if min_stacks.is_none() && trigger == RefreshTrigger::Activation && !ignore_immune_resist {
+    if min_stacks.is_none()
+        && trigger == RefreshTrigger::Activation
+        && !ignore_immune_resist
+        && on_first_damage.is_none()
+    {
         RefreshAbility::Simple(ability)
     } else {
-        RefreshAbility::Conditional { ability, min_stacks, trigger, ignore_immune_resist }
+        RefreshAbility::Conditional {
+            ability,
+            min_stacks,
+            trigger,
+            ignore_immune_resist,
+            on_first_damage,
+        }
     }
 }
 
@@ -2389,7 +2400,7 @@ fn RefreshAbilitiesEditor(
                 "Refresh Abilities:"
                 span {
                     class: "help-icon",
-                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks. Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land; 'On Damage' refreshes on any damage dealt by the ability. Note: DoT-tracker effects using 'On Cast' defer the refresh until the ability's damage lands, so an interrupted cast won't refresh them.",
+                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks. Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land; 'On Damage' refreshes on any damage dealt by the ability. For 'On Cast', the 'Refresh on' control chooses Cast vs First Damage timing — 'Default' defers DoT-tracker effects to the ability's first damaging hit and refreshes everything else immediately.",
                     "?"
                 }
             }
@@ -2401,10 +2412,12 @@ fn RefreshAbilitiesEditor(
                     let min_stacks = ra.min_stacks();
                     let trigger = ra.trigger();
                     let ignore_immune = ra.ignore_immune_resist();
+                    let on_first_damage = ra.on_first_damage();
                     let abilities_rm = abilities.clone();
                     let abilities_ms = abilities.clone();
                     let abilities_tr = abilities.clone();
                     let abilities_ir = abilities.clone();
+                    let abilities_fd = abilities.clone();
                     rsx! {
                         div { class: "flex gap-xs items-center", style: "flex-wrap: wrap;",
                             span { class: "chip",
@@ -2429,7 +2442,7 @@ fn RefreshAbilitiesEditor(
                                     };
                                     let mut next = abilities_tr.clone();
                                     let ability = next[idx].ability().clone();
-                                    next[idx] = make_refresh_ability(ability, min_stacks, trig, ignore_immune);
+                                    next[idx] = make_refresh_ability(ability, min_stacks, trig, ignore_immune, on_first_damage);
                                     on_change.call(next);
                                 },
                                 option {
@@ -2461,8 +2474,47 @@ fn RefreshAbilitiesEditor(
                                         let parsed = e.value().trim().parse::<u8>().ok().filter(|n| *n > 0);
                                         let mut next = abilities_ms.clone();
                                         let ability = next[idx].ability().clone();
-                                        next[idx] = make_refresh_ability(ability, parsed, trigger, ignore_immune);
+                                        next[idx] = make_refresh_ability(ability, parsed, trigger, ignore_immune, on_first_damage);
                                         on_change.call(next);
+                                    }
+                                }
+                            }
+                            if trigger == RefreshTrigger::Activation {
+                                label { class: "flex items-center gap-xs text-sm text-secondary",
+                                    "Refresh on"
+                                    select {
+                                        class: "select-inline",
+                                        onchange: move |e| {
+                                            let fd = match e.value().as_str() {
+                                                "cast" => Some(false),
+                                                "first_damage" => Some(true),
+                                                _ => None,
+                                            };
+                                            let mut next = abilities_fd.clone();
+                                            let ability = next[idx].ability().clone();
+                                            next[idx] = make_refresh_ability(ability, min_stacks, trigger, ignore_immune, fd);
+                                            on_change.call(next);
+                                        },
+                                        option {
+                                            value: "default",
+                                            selected: on_first_damage.is_none(),
+                                            "Default"
+                                        }
+                                        option {
+                                            value: "cast",
+                                            selected: on_first_damage == Some(false),
+                                            "Cast"
+                                        }
+                                        option {
+                                            value: "first_damage",
+                                            selected: on_first_damage == Some(true),
+                                            "First Damage"
+                                        }
+                                    }
+                                    span {
+                                        class: "help-icon",
+                                        title: "When the refresh fires for an On Cast ability. 'Default' uses the effect's display type — DoT-tracker effects wait for the ability's damage to land, all others refresh the instant the ability is cast. 'Cast' forces an immediate refresh; 'First Damage' waits for the ability's first damaging hit (so an interrupted cast won't refresh).",
+                                        "?"
                                     }
                                 }
                             }
@@ -2474,7 +2526,7 @@ fn RefreshAbilitiesEditor(
                                         onchange: move |e| {
                                             let mut next = abilities_ir.clone();
                                             let ability = next[idx].ability().clone();
-                                            next[idx] = make_refresh_ability(ability, min_stacks, trigger, e.checked());
+                                            next[idx] = make_refresh_ability(ability, min_stacks, trigger, e.checked(), on_first_damage);
                                             on_change.call(next);
                                         }
                                     }

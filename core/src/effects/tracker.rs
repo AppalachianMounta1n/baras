@@ -1245,6 +1245,9 @@ impl EffectTracker {
             /// Minimum stacks required for this refresh (None = any)
             min_stacks: Option<u8>,
             refresh_scope: RefreshScope,
+            /// Resolved per-ability flag: defer the refresh to the first damage
+            /// event from this ability instead of firing on cast.
+            defer_to_first_damage: bool,
         }
 
         let local_discipline = self.local_player_discipline;
@@ -1308,19 +1311,22 @@ impl EffectTracker {
                     default_charges: def.default_charges,
                     min_stacks: refresh_ability.min_stacks(),
                     refresh_scope: def.refresh_scope,
+                    defer_to_first_damage: refresh_ability.refresh_on_first_damage(
+                        def.display_targets.contains(&DisplayTarget::DotTracker),
+                    ),
                 })
             })
             .collect();
 
         for def in refreshable_defs {
-            // DotTracker effects (non-AoE) defer refresh to the next DamageTaken event.
+            // First-damage refreshes (non-AoE) defer to the next DamageTaken event.
             // Instead of refreshing immediately on AbilityActivated, set pending state
             // that will be consumed when damage from this ability lands on a target.
+            // Whether to defer is resolved per refresh ability (`on_first_damage`),
+            // defaulting to true for DotTracker effects and false otherwise.
             // AoE refresh abilities are handled separately by the existing AoE damage
             // correlation path (setup_pending_aoe_refresh / handle_damage_for_aoe_refresh).
-            if def.display_targets.contains(&DisplayTarget::DotTracker)
-                && trigger_type == RefreshTrigger::Activation
-            {
+            if trigger_type == RefreshTrigger::Activation && def.defer_to_first_damage {
                 self.pending_dot_refresh = Some(PendingDotRefresh {
                     ability_id: action_id,
                     source_id,
@@ -1607,13 +1613,19 @@ impl EffectTracker {
         // Consume pending state — only the first non-self damage event triggers the refresh
         self.pending_dot_refresh = None;
 
-        // Find all DotTracker definitions refreshable by this ability and refresh
-        // the effect on the damaged target
+        // Find all definitions whose refresh ability is configured to defer to the
+        // first damage event from this ability, and refresh the effect on the
+        // damaged target. Defaults to DotTracker effects when `on_first_damage`
+        // is unspecified, but any display target can opt in.
         let refreshable_def_ids: Vec<_> = self
             .definitions
             .find_refreshable_by(ability_id as u64, None)
             .into_iter()
-            .filter(|def| def.display_targets.contains(&DisplayTarget::DotTracker))
+            .filter(|def| {
+                let is_dot_tracker = def.display_targets.contains(&DisplayTarget::DotTracker);
+                def.find_refresh_ability(ability_id as u64, None)
+                    .is_some_and(|ra| ra.refresh_on_first_damage(is_dot_tracker))
+            })
             .map(|def| (def.id.clone(), def.refresh_scope, self.effective_duration(def)))
             .collect();
 

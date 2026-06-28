@@ -12,7 +12,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   808192586022912,
 ], source = "local_player", target = "any" }
-refresh_abilities = [808192586022912]
+refresh_abilities = [{ ability = 808192586022912, on_first_damage = true }]
 duration_secs = 18.0
 is_affected_by_alacrity = true
 color = [62, 173, 28, 255]
@@ -25,7 +25,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   812861215473664,
 ], source = "local_player", target = "any" }
-refresh_abilities = [812861215473664]
+refresh_abilities = [{ ability = 812861215473664, on_first_damage = true }]
 duration_secs = 18.0
 is_affected_by_alacrity = true
 color = [153, 143, 121, 255]
@@ -38,7 +38,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   808424514256896,
 ], source = "local_player", target = "any_except_local" }
-refresh_abilities = [808424514256896]
+refresh_abilities = [{ ability = 808424514256896, on_first_damage = true }]
 duration_secs = 18.0
 is_affected_by_alacrity = true
 color = [145, 66, 9, 255]
@@ -51,7 +51,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   813226287693824,
 ], source = "local_player", target = "any_except_local" }
-refresh_abilities = [813226287693824]
+refresh_abilities = [{ ability = 813226287693824, on_first_damage = true }]
 duration_secs = 18.0
 is_affected_by_alacrity = true
 color = [64, 145, 76, 255]
@@ -64,23 +64,11 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   964675424485376,
 ], source = "local_player", target = "any" }
-refresh_abilities = [964675424485376]
+refresh_abilities = [{ ability = 964675424485376, on_first_damage = true }]
 duration_secs = 18.0
 is_affected_by_alacrity = true
 color = [184, 79, 15, 255]
 
-[[effect]]
-id = "corrosive_dart"
-name = "Corrosive Dart"
-display_target = "dot_tracker"
-track_outside_combat = false
-trigger = { type = "effect_applied", effects = [
-  3465720780292096,
-], source = "local_player", target = "any" }
-refresh_abilities = [3465720780292096]
-duration_secs = 24.0
-is_affected_by_alacrity = true
-color = [145, 64, 98, 255]
 
 [[effect]]
 id = "vital_shot"
@@ -90,7 +78,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   2115340112756736,
 ], source = "local_player", target = "any" }
-refresh_abilities = [2115340112756736]
+refresh_abilities = [{ ability = 2115340112756736, on_first_damage = true }]
 duration_secs = 24.0
 is_affected_by_alacrity = true
 color = [64, 64, 145, 255]
@@ -103,7 +91,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   1703989619982930,
 ], source = "local_player", target = "any" }
-refresh_abilities = [1703989619982930]
+refresh_abilities = [{ ability = 1703989619982930, on_first_damage = true }]
 is_aoe_refresh = true
 duration_secs = 24.0
 is_affected_by_alacrity = true
@@ -117,7 +105,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   1703989619982932,
 ], source = "local_player", target = "any" }
-refresh_abilities = [1703989619982932]
+refresh_abilities = [{ ability = 1703989619982932, on_first_damage = true }]
 is_aoe_refresh = true
 duration_secs = 24.0
 is_affected_by_alacrity = true
@@ -131,7 +119,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   807698664783872,
 ], source = "local_player", target = "any" }
-refresh_abilities = [807698664783872]
+refresh_abilities = [{ ability = 807698664783872, on_first_damage = true }]
 is_aoe_refresh = true
 duration_secs = 18.0
 is_affected_by_alacrity = true
@@ -145,7 +133,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   807698664784339,
 ], source = "local_player", target = "any" }
-refresh_abilities = [807698664784339]
+refresh_abilities = [{ ability = 807698664784339, on_first_damage = true }]
 is_aoe_refresh = true
 duration_secs = 18.0
 is_affected_by_alacrity = true
@@ -159,7 +147,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3384812186370048,
 ], source = "local_player", target = "any" }
-refresh_abilities = [3384812186370048]
+refresh_abilities = [{ ability = 3384812186370048, on_first_damage = true }]
 duration_secs = 30.0
 is_affected_by_alacrity = true
 color = [173, 46, 3, 255]
@@ -172,7 +160,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3391666954174464,
 ], source = "local_player", target = "any" }
-refresh_abilities = [3391666954174464]
+refresh_abilities = [{ ability = 3391666954174464, on_first_damage = true }]
 duration_secs = 30.0
 is_affected_by_alacrity = true
 color = [173, 3, 171, 255]
@@ -185,7 +173,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   2027022700249344,
 ], source = "local_player", target = "any" }
-refresh_abilities = [2027022700249088]
+refresh_abilities = [{ ability = 2027022700249088, on_first_damage = true }]
 duration_secs = 15.0
 is_affected_by_alacrity = true
 color = [204, 145, 37, 255]
@@ -198,7 +186,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3418278571540736,
 ], source = "local_player", target = "any" }
-refresh_abilities = [3418278571540480]
+refresh_abilities = [{ ability = 3418278571540480, on_first_damage = true }]
 duration_secs = 15.0
 is_affected_by_alacrity = true
 color = [144, 80, 204, 255]
@@ -211,7 +199,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3418278571540762,
 ], source = "local_player", target = "any" }
-refresh_abilities = [3418278571540480]
+refresh_abilities = [{ ability = 3418278571540480, on_first_damage = true }]
 duration_secs = 45.0
 is_affected_by_alacrity = true
 color = [144, 80, 204, 255]
@@ -224,7 +212,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3391477975613734,
 ], source = "local_player", target = "any" }
-refresh_abilities = [3391477975613440]
+refresh_abilities = [{ ability = 3391477975613440, on_first_damage = true }]
 duration_secs = 15.0
 is_affected_by_alacrity = true
 color = [173, 72, 14, 255]
@@ -237,7 +225,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   1169953386397696,
 ], source = "local_player", target = "any" }
-refresh_abilities = [1169953386397696]
+refresh_abilities = [{ ability = 1169953386397696, on_first_damage = true }]
 duration_secs = 12.0
 is_affected_by_alacrity = true
 color = [194, 116, 8, 255]
@@ -250,7 +238,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3429368177099009,
 ], source = "local_player", target = "any" }
-refresh_abilities = [3429368177098752]
+refresh_abilities = [{ ability = 3429368177098752, on_first_damage = true }]
 duration_secs = 12.0
 is_affected_by_alacrity = true
 color = [8, 157, 194, 255]
@@ -263,7 +251,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3426078232150278,
 ], source = "local_player", target = "any" }
-refresh_abilities = [2210507998101504]
+refresh_abilities = [{ ability = 2210507998101504, on_first_damage = true }]
 duration_secs = 6.0
 is_affected_by_alacrity = true
 color = [194, 8, 29, 255]
@@ -276,7 +264,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3429814853697796,
 ], source = "local_player", target = "any" }
-refresh_abilities = [2210512293068800]
+refresh_abilities = [{ ability = 2210512293068800, on_first_damage = true }]
 duration_secs = 6.0
 is_affected_by_alacrity = true
 color = [194, 70, 8, 255]
@@ -284,7 +272,10 @@ color = [194, 70, 8, 255]
 [[effect]]
 id = "draining_scream"
 name = "Draining Scream"
-refresh_abilities = [998270658674688, 1261367470325760]
+refresh_abilities = [
+  { ability = 998270658674688, on_first_damage = true },
+  { ability = 1261367470325760, on_first_damage = true },
+]
 duration_secs = 6.0
 is_affected_by_alacrity = true
 color = [153, 27, 2, 255]
@@ -306,7 +297,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   1280638988583168,
 ], source = "local_player", target = "any" }
-refresh_abilities = [1191698805817344]
+refresh_abilities = [{ ability = 1191698805817344, on_first_damage = true }]
 duration_secs = 6.0
 is_affected_by_alacrity = true
 color = [196, 148, 14, 255]
@@ -319,7 +310,7 @@ track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   808235535695872,
 ], source = "local_player", target = "any" }
-refresh_abilities = [808235535695872]
+refresh_abilities = [{ ability = 808235535695872, on_first_damage = true }]
 duration_secs = 18.0
 is_affected_by_alacrity = true
 color = [126, 14, 196, 255]
@@ -343,14 +334,14 @@ target = "boss"
 id = "rupture"
 name = "Rupture"
 refresh_abilities = [
-  3066602354376704,
-  807827513802752,
-  2145542322782208,
-  3455541707800576,
-  3460841697443840,
-  947001634062336,
-  3066615239278592,
-  3461554662014976,
+  { ability = 3066602354376704, on_first_damage = true },
+  { ability = 807827513802752, on_first_damage = true },
+  { ability = 2145542322782208, on_first_damage = true },
+  { ability = 3455541707800576, on_first_damage = true },
+  { ability = 3460841697443840, on_first_damage = true },
+  { ability = 947001634062336, on_first_damage = true },
+  { ability = 3066615239278592, on_first_damage = true },
+  { ability = 3461554662014976, on_first_damage = true },
 ]
 is_aoe_refresh = true
 aoe_refresh_immediate = true
@@ -400,7 +391,7 @@ target = "any"
 [[effect]]
 id = "corrosive_grenade_snipe"
 name = "Corrosive Grenade (Sniper)"
-refresh_abilities = [3465720780292096]
+refresh_abilities = [{ ability = 3465720780292096, on_first_damage = true }]
 is_aoe_refresh = true
 duration_secs = 24.0
 is_affected_by_alacrity = true
@@ -419,8 +410,8 @@ target = "any"
 id = "corrosive_dart_marksman"
 name = "Corrosive Dart Marksman"
 refresh_abilities = [
-  { ability = 3394699201085440, trigger = "damage" },
-  3465720780292096,
+  { ability = 3394699201085440, on_first_damage = true },
+  { ability = 3465720780292096, on_first_damage = true },
   { ability = 2300994369093632, trigger = "damage" },
 ]
 duration_secs = 18.0
@@ -439,7 +430,7 @@ target = "any"
 [[effect]]
 id = "corrosive_dart"
 name = "Corrosive Dart Viru"
-refresh_abilities = [1703989619982932]
+refresh_abilities = [{ ability = 1703989619982932, on_first_damage = true }]
 duration_secs = 24.0
 is_affected_by_alacrity = true
 color = [145, 64, 98, 255]
@@ -457,7 +448,7 @@ target = "any"
 [[effect]]
 id = "corrosive_dart_engi"
 name = "Corrosive Dart Engi"
-refresh_abilities = [3465720780292096]
+refresh_abilities = [{ ability = 3465720780292096, on_first_damage = true }]
 duration_secs = 18.0
 is_affected_by_alacrity = true
 color = [80, 200, 80, 255]
@@ -475,7 +466,7 @@ target = "any"
 id = "interrogation_probe"
 name = "Interrogation Probe"
 refresh_abilities = [
-  879630777057280,
+  { ability = 879630777057280, on_first_damage = false },
   { ability = 2299572734918656, trigger = "damage" },
 ]
 duration_secs = 18.0
@@ -492,7 +483,7 @@ target = "any"
 [[effect]]
 id = "plasma_probe"
 name = "Plasma Probe"
-refresh_abilities = ["Plasma Probe"]
+refresh_abilities = [{ ability = "Plasma Probe", on_first_damage = true }]
 duration_secs = 9.0
 color = [80, 200, 80, 255]
 display_targets = ["dot_tracker"]
@@ -520,7 +511,7 @@ target = "any"
 [[effect]]
 id = "corrosive_dart_op"
 name = "Corrosive Dart Lethality"
-refresh_abilities = [3465720780292096]
+refresh_abilities = [{ ability = 3465720780292096, on_first_damage = true }]
 duration_secs = 24.0
 is_affected_by_alacrity = true
 color = [80, 200, 80, 255]
@@ -537,7 +528,7 @@ target = "any"
 [[effect]]
 id = "toxic_blast"
 name = "Toxic Blast"
-refresh_abilities = [3440831444811776]
+refresh_abilities = [{ ability = 3440831444811776, on_first_damage = true }]
 duration_secs = 10.0
 color = [80, 200, 80, 255]
 display_targets = ["dot_tracker"]
@@ -552,7 +543,7 @@ target = "any"
 [[effect]]
 id = "corrosive_dart_concealment"
 name = "Corrosive Dart Concealment"
-refresh_abilities = [3465720780292096]
+refresh_abilities = [{ ability = 3465720780292096, on_first_damage = true }]
 duration_secs = 18.0
 is_affected_by_alacrity = true
 color = [80, 200, 80, 255]
@@ -569,7 +560,10 @@ target = "any"
 [[effect]]
 id = "bleeding_shatter"
 name = "Bleeding Shatter"
-refresh_abilities = [1169953386397696, 1261367470325760]
+refresh_abilities = [
+  { ability = 1169953386397696, on_first_damage = true },
+  { ability = 1261367470325760, on_first_damage = true },
+]
 duration_secs = 12.0
 is_affected_by_alacrity = true
 color = [80, 200, 80, 255]
@@ -585,7 +579,10 @@ target = "any"
 [[effect]]
 id = "eviscerate"
 name = "Eviscerate"
-refresh_abilities = [2210507998101504, 1261367470325760]
+refresh_abilities = [
+  { ability = 2210507998101504, on_first_damage = true },
+  { ability = 1261367470325760, on_first_damage = true },
+]
 duration_secs = 6.0
 is_affected_by_alacrity = true
 color = [194, 8, 29, 255]
