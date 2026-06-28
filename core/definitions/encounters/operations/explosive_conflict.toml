@@ -408,10 +408,11 @@ type = "combat_start"
 
 [[boss.timer]]
 id = "zorn_toth_drouks_enrage"
-name = "Drouks enrage"
+name = "Drouks Enrage"
 duration_secs = 310.0
 color = [200, 0, 0, 255]
-difficulties = ["story", "veteran", "master"]
+difficulties = ["veteran", "master"]
+group_size = 8
 enabled = true
 show_at_secs = 60.0
 display_target = "timers_a"
@@ -422,6 +423,26 @@ type = "combat_start"
 [boss.timer.cancel_trigger]
 type = "phase_entered"
 phase_id = "zorn_toth_murdok"
+
+[[boss.timer]]
+id = "zorn_toth_drouks_enrage_16"
+name = "Drouks enrage_16m"
+display_text = "Drouks Enrage"
+duration_secs = 320.0
+color = [200, 0, 0, 255]
+difficulties = ["veteran", "master"]
+group_size = 16
+enabled = true
+show_at_secs = 60.0
+display_target = "timers_a"
+
+[boss.timer.trigger]
+type = "combat_start"
+
+[boss.timer.cancel_trigger]
+type = "phase_entered"
+phase_id = "zorn_toth_murdok"
+
 
 # -- Timers --
 [[boss.timer]]
@@ -715,15 +736,32 @@ trigger = { type = "counter_reaches", counter_id = "fs_defensive_systems_ct", op
 [[boss.timer]]
 id = "firebrand_stormcaller_enrage"
 name = "Enrage"
-duration_secs = 360.0
+duration_secs = 380.0
 color = [200, 0, 0, 255]
-difficulties = ["story", "veteran", "master"]
+difficulties = ["veteran", "master"]
+group_size = 8
 enabled = true
 show_at_secs = 60.0
 display_target = "timers_a"
 
 [boss.timer.trigger]
 type = "combat_start"
+
+[[boss.timer]]
+id = "firebrand_stormcaller_enrage_16"
+name = "Enrage 16m"
+display_text = "Enrage"
+duration_secs = 460.0
+color = [200, 0, 0, 255]
+difficulties = ["veteran", "master"]
+group_size = 16
+enabled = true
+show_at_secs = 60.0
+display_target = "timers_a"
+
+[boss.timer.trigger]
+type = "combat_start"
+
 
 # -- Challenges --
 [[boss.challenges]]
@@ -738,7 +776,12 @@ columns = "total_percent"
 type = "target"
 
 [boss.challenges.conditions.match]
-selector = [2876425497477120, 2876429792444416, 2876477037084672, 2876489921986560]
+selector = [
+  2876425497477120,
+  2876429792444416,
+  2876477037084672,
+  2876489921986560,
+]
 
 # -- Combat Start Timers (initial cooldowns) --
 [[boss.timer]]
@@ -1039,6 +1082,29 @@ alert_text = "Turrets"
 color = [14, 128, 22, 255]
 difficulties = ["veteran", "master"]
 
+[[boss.timer]]
+id = "cv_minefield_enrage_hm"
+name = "Minefield Enrage (HM)"
+display_text = "Minefield Enrage"
+color = [214, 37, 32, 255]
+difficulties = ["veteran"]
+duration_secs = 285
+show_at_secs = 120.0
+trigger = { type = "combat_start" }
+cancel_trigger = { type = "phase_entered", phase_id = "cv_vorgath" }
+
+[[boss.timer]]
+id = "cv_minefield_enrage_nim"
+name = "Minefield Enrage (NiM)"
+display_text = "Minefield Enrage"
+color = [214, 37, 32, 255]
+difficulties = ["veteran"]
+duration_secs = 330
+show_at_secs = 120.0
+trigger = { type = "combat_start" }
+cancel_trigger = { type = "phase_entered", phase_id = "cv_vorgath" }
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Warlord Kephess
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1216,16 +1282,33 @@ difficulties = ["veteran", "master"]
 
 [[boss.timer]]
 id = "warlord_kephess_walker_enrage"
-name = "Walker enrage"
+name = "Walker Enrage"
 duration_secs = 450.0
 color = [200, 0, 0, 255]
-difficulties = ["story", "veteran", "master"]
+difficulties = ["veteran", "master"]
+group_size = 8
 enabled = true
 show_at_secs = 60.0
 display_target = "timers_a"
 
 [boss.timer.trigger]
 type = "combat_start"
+
+[[boss.timer]]
+id = "warlord_kephess_walker_enrage_16"
+name = "Walker Enrage 16m"
+display_text = "Walker Enrage"
+duration_secs = 510.0
+color = [200, 0, 0, 255]
+difficulties = ["veteran", "master"]
+group_size = 8
+enabled = true
+show_at_secs = 60.0
+display_target = "timers_a"
+
+[boss.timer.trigger]
+type = "combat_start"
+
 
 [[boss.timer]]
 id = "wk_baradium_countdown"
