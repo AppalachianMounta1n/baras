@@ -47,7 +47,6 @@ fn make_effect(
         display_source: false,
         disciplines: vec![],
         ignore_refreshes: false,
-        refresh_on_immune: true,
         refresh_scope: RefreshScope::Both,
         persist_past_death: false,
         track_outside_combat: true,

@@ -221,7 +221,6 @@ fn default_effect(name: String) -> EffectListItem {
         cooldown_ready_secs: 0.0,
         disciplines: vec![],
         ignore_refreshes: false,
-        refresh_on_immune: true,
         refresh_scope: Default::default(),
         persist_past_death: false,
         track_outside_combat: true,
@@ -1602,27 +1601,6 @@ fn EffectEditForm(
                                         class: "flex items-center gap-xs text-sm",
                                         input {
                                             r#type: "checkbox",
-                                            checked: draft().refresh_on_immune,
-                                            onchange: move |e| {
-                                                let mut d = draft();
-                                                d.refresh_on_immune = e.checked();
-                                                draft.set(d);
-                                            }
-                                        }
-                                        span { class: "flex items-center",
-                                            "Refresh On Immune"
-                                            span {
-                                                class: "help-icon",
-                                                title: "Refresh the duration as soon as the effect is reapplied, even when the target is immune (no damage lands). Disable for abilities that do not refresh their DOT on immune targets.",
-                                                "?"
-                                            }
-                                        }
-                                    }
-
-                                    label {
-                                        class: "flex items-center gap-xs text-sm",
-                                        input {
-                                            r#type: "checkbox",
                                             checked: draft().persist_past_death,
                                             onchange: move |e| {
                                                 let mut d = draft();
@@ -2386,11 +2364,12 @@ fn make_refresh_ability(
     ability: AbilitySelector,
     min_stacks: Option<u8>,
     trigger: RefreshTrigger,
+    ignore_immune_resist: bool,
 ) -> RefreshAbility {
-    if min_stacks.is_none() && trigger == RefreshTrigger::Activation {
+    if min_stacks.is_none() && trigger == RefreshTrigger::Activation && !ignore_immune_resist {
         RefreshAbility::Simple(ability)
     } else {
-        RefreshAbility::Conditional { ability, min_stacks, trigger }
+        RefreshAbility::Conditional { ability, min_stacks, trigger, ignore_immune_resist }
     }
 }
 
@@ -2410,7 +2389,7 @@ fn RefreshAbilitiesEditor(
                 "Refresh Abilities:"
                 span {
                     class: "help-icon",
-                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks. Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land. Note: DoT-tracker effects using 'On Cast' defer the refresh until the ability's damage lands, so an interrupted cast won't refresh them.",
+                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks. Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land; 'On Damage' refreshes on any damage dealt by the ability. Note: DoT-tracker effects using 'On Cast' defer the refresh until the ability's damage lands, so an interrupted cast won't refresh them.",
                     "?"
                 }
             }
@@ -2421,9 +2400,11 @@ fn RefreshAbilitiesEditor(
                     let display = ra.ability().display();
                     let min_stacks = ra.min_stacks();
                     let trigger = ra.trigger();
+                    let ignore_immune = ra.ignore_immune_resist();
                     let abilities_rm = abilities.clone();
                     let abilities_ms = abilities.clone();
                     let abilities_tr = abilities.clone();
+                    let abilities_ir = abilities.clone();
                     rsx! {
                         div { class: "flex gap-xs items-center", style: "flex-wrap: wrap;",
                             span { class: "chip",
@@ -2436,6 +2417,35 @@ fn RefreshAbilitiesEditor(
                                         on_change.call(next);
                                     },
                                     "×"
+                                }
+                            }
+                            select {
+                                class: "select-inline",
+                                onchange: move |e| {
+                                    let trig = match e.value().as_str() {
+                                        "heal" => RefreshTrigger::Heal,
+                                        "damage" => RefreshTrigger::Damage,
+                                        _ => RefreshTrigger::Activation,
+                                    };
+                                    let mut next = abilities_tr.clone();
+                                    let ability = next[idx].ability().clone();
+                                    next[idx] = make_refresh_ability(ability, min_stacks, trig, ignore_immune);
+                                    on_change.call(next);
+                                },
+                                option {
+                                    value: "activation",
+                                    selected: trigger == RefreshTrigger::Activation,
+                                    "On Cast"
+                                }
+                                option {
+                                    value: "heal",
+                                    selected: trigger == RefreshTrigger::Heal,
+                                    "On Heal"
+                                }
+                                option {
+                                    value: "damage",
+                                    selected: trigger == RefreshTrigger::Damage,
+                                    "On Damage"
                                 }
                             }
                             label { class: "flex items-center gap-xs text-sm text-secondary",
@@ -2451,32 +2461,31 @@ fn RefreshAbilitiesEditor(
                                         let parsed = e.value().trim().parse::<u8>().ok().filter(|n| *n > 0);
                                         let mut next = abilities_ms.clone();
                                         let ability = next[idx].ability().clone();
-                                        next[idx] = make_refresh_ability(ability, parsed, trigger);
+                                        next[idx] = make_refresh_ability(ability, parsed, trigger, ignore_immune);
                                         on_change.call(next);
                                     }
                                 }
                             }
-                            select {
-                                class: "select-inline",
-                                onchange: move |e| {
-                                    let trig = match e.value().as_str() {
-                                        "heal" => RefreshTrigger::Heal,
-                                        _ => RefreshTrigger::Activation,
-                                    };
-                                    let mut next = abilities_tr.clone();
-                                    let ability = next[idx].ability().clone();
-                                    next[idx] = make_refresh_ability(ability, min_stacks, trig);
-                                    on_change.call(next);
-                                },
-                                option {
-                                    value: "activation",
-                                    selected: trigger == RefreshTrigger::Activation,
-                                    "On Cast"
-                                }
-                                option {
-                                    value: "heal",
-                                    selected: trigger == RefreshTrigger::Heal,
-                                    "On Heal"
+                            if trigger == RefreshTrigger::Damage {
+                                label { class: "flex items-center gap-xs text-sm text-secondary",
+                                    input {
+                                        r#type: "checkbox",
+                                        checked: ignore_immune,
+                                        onchange: move |e| {
+                                            let mut next = abilities_ir.clone();
+                                            let ability = next[idx].ability().clone();
+                                            next[idx] = make_refresh_ability(ability, min_stacks, trigger, e.checked());
+                                            on_change.call(next);
+                                        }
+                                    }
+                                    span { class: "flex items-center",
+                                        "Ignore Immune/Resist"
+                                        span {
+                                            class: "help-icon",
+                                            title: "When refreshing on damage, skip damage events that were immune or resisted — they won't refresh the effect.",
+                                            "?"
+                                        }
+                                    }
                                 }
                             }
                         }

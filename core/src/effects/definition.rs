@@ -186,17 +186,6 @@ pub struct EffectDefinition {
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
     pub ignore_refreshes: bool,
 
-    /// For DotTracker effects: refresh the duration directly from `EffectApplied`
-    /// instead of waiting for a confirming `DamageTaken` event. Immune targets
-    /// produce no `DamageTaken`, so this controls whether the DOT refreshes when
-    /// the enemy is immune. `true` (default) refreshes on immune; `false` only
-    /// refreshes once damage confirms (so immune targets do not refresh).
-    #[serde(
-        default = "crate::serde_defaults::default_true",
-        skip_serializing_if = "crate::serde_defaults::is_true"
-    )]
-    pub refresh_on_immune: bool,
-
     /// Scoping for refresh/dedup logic. Controls which axis of the
     /// (source, target) pair is used to identify "the same effect instance".
     /// Default (`Both`) preserves the existing per-(source, target) behavior.

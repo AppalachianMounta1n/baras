@@ -604,6 +604,8 @@ pub enum RefreshTrigger {
     Activation,
     /// Refresh on heal completion (for abilities with cast time)
     Heal,
+    /// Refresh on any damage dealt by the ability
+    Damage,
 }
 
 /// An ability that can refresh an effect, with optional conditions.
@@ -623,6 +625,10 @@ pub enum RefreshAbility {
         /// When the refresh triggers
         #[serde(default)]
         trigger: RefreshTrigger,
+        /// For the `Damage` trigger: ignore immune/resist damage events
+        /// (they do not refresh the effect). No effect for other triggers.
+        #[serde(default, skip_serializing_if = "is_false_ref")]
+        ignore_immune_resist: bool,
     },
 }
 
@@ -648,6 +654,14 @@ impl RefreshAbility {
         match self {
             Self::Simple(_) => RefreshTrigger::Activation,
             Self::Conditional { trigger, .. } => *trigger,
+        }
+    }
+
+    /// Whether immune/resist damage events should be ignored (Damage trigger only)
+    pub fn ignore_immune_resist(&self) -> bool {
+        match self {
+            Self::Simple(_) => false,
+            Self::Conditional { ignore_immune_resist, .. } => *ignore_immune_resist,
         }
     }
 

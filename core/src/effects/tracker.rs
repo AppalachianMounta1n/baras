@@ -1197,6 +1197,9 @@ impl EffectTracker {
         timestamp: NaiveDateTime,
         encounter: Option<&crate::encounter::CombatEncounter>,
         trigger_type: RefreshTrigger,
+        // For the Damage trigger: whether this damage event was immune or resisted.
+        // Refresh abilities with `ignore_immune_resist` skip these events.
+        is_immune_or_resist: bool,
     ) {
         // For AoE abilities (target_id == 0), we can't reliably detect which targets
         // were actually hit. Damage events from ongoing DOTs on other targets look
@@ -1279,6 +1282,11 @@ impl EffectTracker {
 
                 // Check if trigger type matches
                 if refresh_ability.trigger() != trigger_type {
+                    return None;
+                }
+
+                // Damage trigger: optionally ignore immune/resist hits
+                if is_immune_or_resist && refresh_ability.ignore_immune_resist() {
                     return None;
                 }
 
@@ -1570,7 +1578,6 @@ impl EffectTracker {
         &mut self,
         ability_id: i64,
         target_id: i64,
-        defense_type_id: i64,
         timestamp: NaiveDateTime,
     ) {
         const PENDING_TIMEOUT_MS: i64 = 2000;
@@ -1602,14 +1609,11 @@ impl EffectTracker {
 
         // Find all DotTracker definitions refreshable by this ability and refresh
         // the effect on the damaged target
-        let is_immune = defense_type_id == crate::game_data::defense_type::IMMUNE;
-
         let refreshable_def_ids: Vec<_> = self
             .definitions
             .find_refreshable_by(ability_id as u64, None)
             .into_iter()
             .filter(|def| def.display_targets.contains(&DisplayTarget::DotTracker))
-            .filter(|def| !is_immune || def.refresh_on_immune)
             .map(|def| (def.id.clone(), def.refresh_scope, self.effective_duration(def)))
             .collect();
 
@@ -2745,6 +2749,7 @@ impl SignalHandler for EffectTracker {
                     *timestamp,
                     encounter,
                     RefreshTrigger::Activation,
+                    false,
                 );
 
                 // For AoE abilities, set up pending state for damage correlation
@@ -2768,7 +2773,25 @@ impl SignalHandler for EffectTracker {
                 // AoE refresh damage correlation
                 self.handle_damage_for_aoe_refresh(*ability_id, *target_id, *timestamp);
                 // Single-target DotTracker refresh damage confirmation
-                self.handle_damage_for_dot_refresh(*ability_id, *target_id, *defense_type_id, *timestamp);
+                self.handle_damage_for_dot_refresh(*ability_id, *target_id, *timestamp);
+                // Refresh abilities configured with the Damage trigger
+                let is_immune_or_resist = *defense_type_id
+                    == crate::game_data::defense_type::IMMUNE
+                    || *defense_type_id == crate::game_data::defense_type::RESIST;
+                self.refresh_effects_by_action(
+                    *ability_id,
+                    *ability_name,
+                    *source_id,
+                    *source_name,
+                    *source_entity_type,
+                    *target_id,
+                    *target_name,
+                    *target_entity_type,
+                    *timestamp,
+                    encounter,
+                    RefreshTrigger::Damage,
+                    is_immune_or_resist,
+                );
                 // DamageTaken trigger matching for effects tracker
                 self.handle_ability_event_trigger(
                     *ability_id,
@@ -2812,6 +2835,7 @@ impl SignalHandler for EffectTracker {
                     *timestamp,
                     encounter,
                     RefreshTrigger::Heal,
+                    false,
                 );
                 // HealingTaken trigger matching for effects tracker
                 self.handle_ability_event_trigger(
