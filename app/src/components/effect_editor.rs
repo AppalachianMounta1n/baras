@@ -358,7 +358,10 @@ pub fn EffectEditorPanel(mut props: EffectEditorProps) -> Element {
                         || e.id.to_lowercase().contains(&query)
                         || e.display_targets
                             .iter()
-                            .any(|t| t.label().to_lowercase().contains(&query));
+                            .any(|t| t.label().to_lowercase().contains(&query))
+                        || e.disciplines
+                            .iter()
+                            .any(|d| d.to_lowercase().contains(&query));
                 }
                 true
             })
@@ -621,7 +624,7 @@ pub fn EffectEditorPanel(mut props: EffectEditorProps) -> Element {
             div { class: "effect-search-bar",
                 input {
                     r#type: "text",
-                    placeholder: "Search by name, ID, or display overlay...",
+                    placeholder: "Search by name, ID, overlay, or discipline...",
                     value: "{search_query}",
                     class: "effect-search-input",
                     oninput: move |e| search_query.set(e.value())
