@@ -10,6 +10,9 @@ struct TimeSeriesConfig<'a> {
     entity_column: &'static str,
     /// Optional entity name filter
     entity_filter: Option<&'a str>,
+    /// Exclude self-damage (source_id == target_id) from aggregation.
+    /// Only set for outgoing damage, matching the breakdown/overview pattern.
+    exclude_self_damage: bool,
 }
 
 impl EncounterQuery<'_> {
@@ -33,6 +36,9 @@ impl EncounterQuery<'_> {
 
         // Entity-specific conditions (used for value aggregation)
         let mut entity_conditions = tr_conditions.clone();
+        if config.exclude_self_damage {
+            entity_conditions.push("source_id != target_id".to_string());
+        }
         if let Some(name) = config.entity_filter {
             entity_conditions.push(format!("{} = '{}'", entity_col, sql_escape(name)));
         }
@@ -97,6 +103,7 @@ ORDER BY time_series.bucket_start_ms
                 value_column: "dmg_amount",
                 entity_column: "source_name",
                 entity_filter: source_name,
+                exclude_self_damage: true,
             },
             time_range,
         )
@@ -116,6 +123,7 @@ ORDER BY time_series.bucket_start_ms
                 value_column: "heal_amount",
                 entity_column: "source_name",
                 entity_filter: source_name,
+                exclude_self_damage: false,
             },
             time_range,
         )
@@ -135,6 +143,7 @@ ORDER BY time_series.bucket_start_ms
                 value_column: "heal_effective",
                 entity_column: "source_name",
                 entity_filter: source_name,
+                exclude_self_damage: false,
             },
             time_range,
         )
@@ -154,6 +163,7 @@ ORDER BY time_series.bucket_start_ms
                 value_column: "heal_effective",
                 entity_column: "target_name",
                 entity_filter: target_name,
+                exclude_self_damage: false,
             },
             time_range,
         )
@@ -173,6 +183,7 @@ ORDER BY time_series.bucket_start_ms
                 value_column: "dmg_amount",
                 entity_column: "target_name",
                 entity_filter: target_name,
+                exclude_self_damage: false,
             },
             time_range,
         )
