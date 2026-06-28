@@ -741,6 +741,7 @@ impl EncounterQuery<'_> {
         let value_col = tab.value_column();
         let is_outgoing = tab.is_outgoing();
         let is_healing_taken = tab == DataTab::HealingTaken;
+        let is_healing_outgoing = tab == DataTab::Healing;
 
         // For outgoing: group by source (who dealt)
         // For incoming: group by target (who received)
@@ -789,6 +790,56 @@ impl EncounterQuery<'_> {
             FROM healing h
             FULL OUTER JOIN shielding s
               ON h.{name_col} = s.{name_col} AND h.{id_col} = s.{id_col}
+            ORDER BY total_value DESC
+            "#
+            )
+        } else if is_healing_outgoing {
+            // Outgoing healing credits shielding to the shield's caster, not to the
+            // source of the absorbed-damage event. Attribute via the pre-computed
+            // `active_shields` column (FIFO: position=1 holds the full dmg_absorbed),
+            // mirroring query_shield_attribution in overview.rs.
+            let time_filter = time_range
+                .map(|tr| format!("AND {}", tr.sql_filter()))
+                .unwrap_or_default();
+            format!(
+                r#"
+            WITH healing AS (
+                SELECT {name_col}, {id_col}, MIN({type_col}) as entity_type,
+                       SUM({value_col}) as heal_total,
+                       COUNT(DISTINCT ability_id) as abilities_used
+                FROM events {filter}
+                GROUP BY {name_col}, {id_col}
+            ),
+            shield_raw AS (
+                SELECT CAST(shield['source_id'] AS BIGINT) as sid,
+                       CAST(dmg_absorbed AS BIGINT) as absorbed
+                FROM (
+                    SELECT dmg_absorbed, UNNEST(active_shields) as shield
+                    FROM events
+                    WHERE dmg_absorbed > 0 AND cardinality(active_shields) > 0 {time_filter}
+                )
+                WHERE CAST(shield['position'] AS BIGINT) = 1
+            ),
+            entities AS (
+                SELECT source_id, MIN(source_name) as source_name,
+                       MIN(source_entity_type) as entity_type
+                FROM events GROUP BY source_id
+            ),
+            shielding AS (
+                SELECT sr.sid as {id_col}, e.source_name as {name_col}, e.entity_type,
+                       SUM(sr.absorbed) as shield_total
+                FROM shield_raw sr
+                JOIN entities e ON sr.sid = e.source_id
+                GROUP BY sr.sid, e.source_name, e.entity_type
+            )
+            SELECT COALESCE(h.{name_col}, s.{name_col}) as {name_col},
+                   COALESCE(h.{id_col}, s.{id_col}) as {id_col},
+                   COALESCE(h.entity_type, s.entity_type) as entity_type,
+                   COALESCE(h.heal_total, 0) + COALESCE(s.shield_total, 0) as total_value,
+                   COALESCE(h.abilities_used, 0) as abilities_used
+            FROM healing h
+            FULL OUTER JOIN shielding s
+              ON h.{id_col} = s.{id_col}
             ORDER BY total_value DESC
             "#
             )
