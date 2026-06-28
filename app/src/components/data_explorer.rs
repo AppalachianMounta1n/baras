@@ -1250,7 +1250,6 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
         let dir = *sort_direction.read();
         let mode = *breakdown_mode.read();
         let list: Vec<AbilityBreakdown> = abilities.read().clone();
-        let is_healing = matches!(*view_mode.read(), ViewMode::Detailed(t) if t.is_healing());
 
         // Sort function for abilities within groups
         let sort_abilities = |mut items: Vec<AbilityBreakdown>| -> Vec<AbilityBreakdown> {
@@ -1325,8 +1324,13 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                     SortColumn::MaxHit => a.max_hit.partial_cmp(&b.max_hit).unwrap_or(std::cmp::Ordering::Equal),
                     SortColumn::AvgPerActivation => {
                         let val = |x: &AbilityBreakdown| {
-                            let num = if is_healing { x.effective_total } else { x.total_value };
-                            if x.activation_count > 0 { num / x.activation_count as f64 } else { 0.0 }
+                            if x.activation_count > 0 { x.total_value / x.activation_count as f64 } else { 0.0 }
+                        };
+                        val(a).partial_cmp(&val(b)).unwrap_or(std::cmp::Ordering::Equal)
+                    }
+                    SortColumn::AvgPerActivationEff => {
+                        let val = |x: &AbilityBreakdown| {
+                            if x.activation_count > 0 { x.effective_total / x.activation_count as f64 } else { 0.0 }
                         };
                         val(a).partial_cmp(&val(b)).unwrap_or(std::cmp::Ordering::Equal)
                     }
@@ -2656,8 +2660,6 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                 let is_damage_taken = tab == DataTab::DamageTaken;
                                 let is_healing_tab = tab.is_healing();
                                 let is_outgoing_tab = tab.is_outgoing();
-                                // Avg/Act column shows effective healing on healing tabs - mark it spearmint
-                                let eff_avg_cls = if is_healing_tab { " col-eff" } else { "" };
                                 let current_sort = *sort_column.read();
                                 let current_dir = *sort_direction.read();
 
@@ -2839,9 +2841,16 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                 }
                                                 if is_outgoing_tab {
                                                     th {
-                                                        class: "num col-avg{eff_avg_cls} {sort_class(SortColumn::AvgPerActivation)}",
+                                                        class: "num col-avg {sort_class(SortColumn::AvgPerActivation)}",
                                                         onclick: sort_click(SortColumn::AvgPerActivation, false),
-                                                        if is_healing_tab { "Avg/Act (eff)" } else { "Avg/Act" }
+                                                        "Avg/Act"
+                                                    }
+                                                }
+                                                if is_healing_tab {
+                                                    th {
+                                                        class: "num col-avg col-eff {sort_class(SortColumn::AvgPerActivationEff)}",
+                                                        onclick: sort_click(SortColumn::AvgPerActivationEff, false),
+                                                        "Avg/Act (eff)"
                                                     }
                                                 }
                                             }
@@ -2925,11 +2934,21 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                             if stats.max_hit > 0.0 { "{format_number(stats.max_hit)}" } else { "-" }
                                                         }
                                                         if is_outgoing_tab {
-                                                            td { class: "num group-stat col-avg{eff_avg_cls}",
+                                                            td { class: "num group-stat col-avg",
                                                                 {
                                                                     if stats.activation_count > 0 {
-                                                                        let avg_val = if is_healing_tab { stats.effective_total } else { stats.total };
-                                                                        format_number(avg_val / stats.activation_count as f64)
+                                                                        format_number(stats.total / stats.activation_count as f64)
+                                                                    } else {
+                                                                        "-".to_string()
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        if is_healing_tab {
+                                                            td { class: "num group-stat col-avg col-eff",
+                                                                {
+                                                                    if stats.activation_count > 0 {
+                                                                        format_number(stats.effective_total / stats.activation_count as f64)
                                                                     } else {
                                                                         "-".to_string()
                                                                     }
@@ -3048,11 +3067,21 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                                 if ability.max_hit > 0.0 { "{format_number(ability.max_hit)}" } else { "-" }
                                                             }
                                                             if is_outgoing_tab {
-                                                                td { class: "num col-avg{eff_avg_cls}",
+                                                                td { class: "num col-avg",
                                                                     {
                                                                         if ability.activation_count > 0 {
-                                                                            let avg_val = if is_healing_tab { ability.effective_total } else { ability.total_value };
-                                                                            format_number(avg_val / ability.activation_count as f64)
+                                                                            format_number(ability.total_value / ability.activation_count as f64)
+                                                                        } else {
+                                                                            "-".to_string()
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                            if is_healing_tab {
+                                                                td { class: "num col-avg col-eff",
+                                                                    {
+                                                                        if ability.activation_count > 0 {
+                                                                            format_number(ability.effective_total / ability.activation_count as f64)
                                                                         } else {
                                                                             "-".to_string()
                                                                         }
@@ -3136,11 +3165,21 @@ pub fn DataExplorerPanel(mut props: DataExplorerProps) -> Element {
                                                             if total_max_hit > 0.0 { "{format_number(total_max_hit)}" } else { "-" }
                                                         }
                                                         if is_outgoing_tab {
-                                                            td { class: "num col-avg{eff_avg_cls}",
+                                                            td { class: "num col-avg",
                                                                 {
                                                                     if total_activations > 0 {
-                                                                        let avg_val = if is_healing_tab { total_eff } else { total_val };
-                                                                        format_number(avg_val / total_activations as f64)
+                                                                        format_number(total_val / total_activations as f64)
+                                                                    } else {
+                                                                        "-".to_string()
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        if is_healing_tab {
+                                                            td { class: "num col-avg col-eff",
+                                                                {
+                                                                    if total_activations > 0 {
+                                                                        format_number(total_eff / total_activations as f64)
                                                                     } else {
                                                                         "-".to_string()
                                                                     }

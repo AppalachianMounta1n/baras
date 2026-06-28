@@ -3320,6 +3320,7 @@ pub enum SortColumn {
     Absorbed,
     MaxHit,
     AvgPerActivation,
+    AvgPerActivationEff,
 }
 
 /// Sort column for ability usage table
