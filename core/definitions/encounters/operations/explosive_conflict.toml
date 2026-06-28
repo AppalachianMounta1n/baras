@@ -1294,6 +1294,10 @@ display_target = "timers_a"
 [boss.timer.trigger]
 type = "combat_start"
 
+[boss.timer.cancel_trigger]
+type = "entity_death"
+selector = ["Warstrider Battlewalker"]
+
 [[boss.timer]]
 id = "warlord_kephess_walker_enrage_16"
 name = "Walker Enrage 16m"
@@ -1309,6 +1313,9 @@ display_target = "timers_a"
 [boss.timer.trigger]
 type = "combat_start"
 
+[boss.timer.cancel_trigger]
+type = "entity_death"
+selector = ["Warstrider Battlewalker"]
 
 [[boss.timer]]
 id = "wk_baradium_countdown"
