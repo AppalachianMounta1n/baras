@@ -7917,6 +7917,14 @@ details[open] .collapsible-summary::before {
   color: hsl(30, 60%, 60%);
 }
 
+/* Effective healing columns - lighter spearmint green to distinguish from raw heals */
+.ability-table.healing-tab .col-eff {
+  color: hsl(158, 52%, 64%);
+}
+.ability-table.healing-tab .group-stat.col-eff {
+  color: hsl(158, 46%, 58%);
+}
+
 /* (Bar column merged into % column - see .pct-bar-fill above) */
 
 /* ─────────────────────────────────────────────────────────────────────────────
