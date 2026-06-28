@@ -180,13 +180,17 @@ color = [204, 145, 37, 255]
 
 [[effect]]
 id = "serrated_bolt"
-name = "Serrated bolt"
+name = "Serrated Bolt"
 display_target = "dot_tracker"
 track_outside_combat = false
 trigger = { type = "effect_applied", effects = [
   3418278571540736,
+  3394707791020290,
 ], source = "local_player", target = "any" }
-refresh_abilities = [{ ability = 3418278571540480, on_first_damage = true }]
+refresh_abilities = [
+  { ability = 3418278571540480, on_first_damage = true },
+  { ability = 3394707791020032, on_first_damage = true },
+]
 duration_secs = 15.0
 is_affected_by_alacrity = true
 color = [144, 80, 204, 255]
