@@ -40,6 +40,10 @@ pub struct MetricEntry {
     pub class_name: Option<String>,
     /// Whether this entry belongs to the local player
     pub is_local: bool,
+    /// Pre-formatted rate string (overrides format_compact when set)
+    pub display_value: Option<String>,
+    /// Pre-formatted total string (overrides format_compact when set)
+    pub display_total: Option<String>,
 }
 
 impl MetricEntry {
@@ -58,12 +62,20 @@ impl MetricEntry {
             discipline_icon: None,
             class_name: None,
             is_local: false,
+            display_value: None,
+            display_total: None,
         }
     }
 
     /// Set the cumulative total value
     pub fn with_total(mut self, total: i64) -> Self {
         self.total_value = total;
+        self
+    }
+
+    pub fn with_display(mut self, value: String, total: String) -> Self {
+        self.display_value = Some(value);
+        self.display_total = Some(total);
         self
     }
 
@@ -136,8 +148,10 @@ pub struct MetricOverlay {
     stack_from_bottom: bool,
     scaling_factor: f32,
     icon_mode: ClassIconMode,
-    /// Global font scale for metric bar text (1.0 - 2.0)
+    /// Global font scale for metric bar text (0.3 - 2.0)
     font_scale: f32,
+    /// Global gradient darkening intensity for metric bars (0.0 - 1.0)
+    gradient_intensity: f32,
     /// Global dynamic background setting for metrics
     dynamic_background: bool,
     /// Show grey background bar behind each player's fill bar
@@ -168,6 +182,7 @@ impl MetricOverlay {
         font_scale: f32,
         dynamic_background: bool,
         show_background_bar: bool,
+        gradient_intensity: f32,
     ) -> Result<Self, PlatformError> {
         let mut frame = OverlayFrame::new(config, BASE_WIDTH, BASE_HEIGHT)?;
         frame.set_background_alpha(background_alpha);
@@ -180,9 +195,10 @@ impl MetricOverlay {
             appearance,
             show_empty_bars,
             stack_from_bottom,
-            scaling_factor: scaling_factor.clamp(1.0, 2.0),
+            scaling_factor: scaling_factor.clamp(0.3, 2.0),
             icon_mode,
-            font_scale: font_scale.clamp(1.0, 2.0),
+            font_scale: font_scale.clamp(0.3, 2.0),
+            gradient_intensity: gradient_intensity.clamp(0.0, 1.0),
             dynamic_background,
             show_background_bar,
             european_number_format: false,
@@ -212,9 +228,9 @@ impl MetricOverlay {
         self.stack_from_bottom = stack;
     }
 
-    /// Update scaling factor (clamped to 1.0-2.0)
+    /// Update scaling factor (clamped to 0.3-2.0)
     pub fn set_scaling_factor(&mut self, factor: f32) {
-        self.scaling_factor = factor.clamp(1.0, 2.0);
+        self.scaling_factor = factor.clamp(0.3, 2.0);
     }
 
     /// Update icon display mode
@@ -222,9 +238,14 @@ impl MetricOverlay {
         self.icon_mode = mode;
     }
 
-    /// Update font scale (clamped to 1.0-2.0)
+    /// Update font scale (clamped to 0.3-2.0)
     pub fn set_font_scale(&mut self, scale: f32) {
-        self.font_scale = scale.clamp(1.0, 2.0);
+        self.font_scale = scale.clamp(0.3, 2.0);
+    }
+
+    /// Update gradient darkening intensity (clamped to 0.0-1.0)
+    pub fn set_gradient_intensity(&mut self, intensity: f32) {
+        self.gradient_intensity = intensity.clamp(0.0, 1.0);
     }
 
     /// Update dynamic background setting
@@ -259,14 +280,20 @@ impl MetricOverlay {
 
         // Get scaled layout values
         let padding = self.frame.scaled(BASE_PADDING);
-        // Base font size for header/footer (NOT affected by font_scale or scaling_factor)
+        // Base font size for the header (NOT affected by font_scale or scaling_factor)
         let base_font_size = self.frame.scaled(BASE_FONT_SIZE);
-        // Font scale from global metric settings — only affects bar text, not header/footer
-        let font_scale = self.font_scale.clamp(1.0, 2.0);
+        // Font scale from global metric settings — affects bar text and footer, not header
+        let font_scale = self.font_scale.clamp(0.3, 2.0);
         let bar_font_size = self.frame.scaled(BASE_FONT_SIZE * font_scale);
         let scaled_bar_height = BASE_BAR_HEIGHT * self.scaling_factor;
         let ideal_bar_height = self.frame.scaled(scaled_bar_height);
-        let bar_spacing = self.frame.scaled(BASE_BAR_SPACING);
+        // Inter-bar gap is proportional to bar height so it stays consistent
+        // across scales/resolutions. 0.0 = connected (no gap). Default 0.2
+        // reproduces the legacy fixed 4px gap at the default 20px bar height.
+        let spacing_ratio = self.appearance.bar_spacing_ratio.clamp(0.0, 0.6);
+        let bar_spacing = ideal_bar_height * spacing_ratio;
+        // Header/footer separators keep a stable gap regardless of bar density.
+        let header_spacing = self.frame.scaled(BASE_BAR_SPACING);
         // Use absolute minimum bar height (not scaled) to handle extreme aspect ratios
         let min_bar_height = MIN_BAR_HEIGHT_ABSOLUTE;
 
@@ -293,12 +320,12 @@ impl MetricOverlay {
         // Footer: 2.0 (separator offset) + spacing + font_size + buffer
         let scale = self.frame.scale_factor();
         let header_space = if self.appearance.show_header {
-            base_font_size + bar_spacing + 2.0 + bar_spacing + 4.0 * scale
+            base_font_size + header_spacing + 2.0 + header_spacing + 4.0 * scale
         } else {
             0.0
         };
         let footer_space = if self.appearance.show_footer {
-            2.0 + bar_spacing + base_font_size + 6.0 * scale // separator + spacing + text + buffer
+            2.0 + header_spacing + bar_font_size + 6.0 * scale // separator + spacing + text + buffer
         } else {
             0.0
         };
@@ -315,8 +342,14 @@ impl MetricOverlay {
                 // Compress both bars and spacing proportionally
                 let compression_ratio = available_for_bars / ideal_total;
                 let compressed_bar = (ideal_bar_height * compression_ratio).max(min_bar_height);
-                let compressed_spacing =
-                    (bar_spacing * compression_ratio).max(MIN_BAR_SPACING_ABSOLUTE);
+                // Preserve a fully-connected look (ratio 0) under compression;
+                // otherwise keep a readable minimum gap.
+                let min_spacing = if spacing_ratio <= 0.0 {
+                    0.0
+                } else {
+                    MIN_BAR_SPACING_ABSOLUTE
+                };
+                let compressed_spacing = (bar_spacing * compression_ratio).max(min_spacing);
                 (compressed_bar, compressed_spacing)
             } else {
                 (ideal_bar_height, bar_spacing)
@@ -383,7 +416,7 @@ impl MetricOverlay {
                 header_y,
                 content_width,
                 base_font_size,
-                bar_spacing,
+                header_spacing,
             );
             bars_start_y
         } else {
@@ -463,6 +496,8 @@ impl MetricOverlay {
                 .with_fill_color(fill_color)
                 .with_bg_color(bg_color)
                 .with_text_color(font_color)
+                .with_gradient(self.appearance.bar_gradient)
+                .with_gradient_intensity(self.gradient_intensity)
                 .with_text_glow();
 
             if entry.is_local {
@@ -487,29 +522,20 @@ impl MetricOverlay {
 
             // Add text based on show_total and show_per_second settings
             // Per-second is always rightmost when enabled, total goes center or right
+            let eu = self.european_number_format;
+            let rate_text = entry.display_value.clone().unwrap_or_else(|| {
+                formatting::format_compact(entry.value, eu)
+            });
+            let total_text = entry.display_total.clone().unwrap_or_else(|| {
+                formatting::format_compact(entry.total_value, eu)
+            });
+
             if show_per_second && show_total {
-                // Both: total in center, rate on right
-                bar = bar
-                    .with_center_text(formatting::format_compact(
-                        entry.total_value,
-                        self.european_number_format,
-                    ))
-                    .with_right_text(formatting::format_compact(
-                        entry.value,
-                        self.european_number_format,
-                    ));
+                bar = bar.with_center_text(total_text).with_right_text(rate_text);
             } else if show_per_second {
-                // Rate only (default): rate on right
-                bar = bar.with_right_text(formatting::format_compact(
-                    entry.value,
-                    self.european_number_format,
-                ));
+                bar = bar.with_right_text(rate_text);
             } else if show_total {
-                // Total only: total on right
-                bar = bar.with_right_text(formatting::format_compact(
-                    entry.total_value,
-                    self.european_number_format,
-                ));
+                bar = bar.with_right_text(total_text);
             }
             // If neither, just show name (no values)
 
@@ -577,7 +603,7 @@ impl MetricOverlay {
                 padding,
                 y,
                 content_width,
-                base_font_size - 2.0,
+                text_font_size,
             );
         }
 
@@ -624,6 +650,7 @@ impl Overlay for MetricOverlay {
             european,
             show_bg_bar,
             class_colors,
+            gradient_intensity,
         ) = config
         {
             self.use_class_color = appearance.use_class_color;
@@ -638,6 +665,7 @@ impl Overlay for MetricOverlay {
             self.european_number_format = european;
             self.set_show_background_bar(show_bg_bar);
             self.class_colors = class_colors;
+            self.set_gradient_intensity(gradient_intensity);
         }
     }
 

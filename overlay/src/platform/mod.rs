@@ -4,8 +4,8 @@
 //! allowing the overlay rendering code to be platform-agnostic.
 /// Size constraints for overlays
 pub const MIN_OVERLAY_SIZE: u32 = 50;
-pub const MAX_OVERLAY_WIDTH: u32 = 1280;
-pub const MAX_OVERLAY_HEIGHT: u32 = 1024;
+pub const MAX_OVERLAY_WIDTH: u32 = 2560;
+pub const MAX_OVERLAY_HEIGHT: u32 = 2048;
 pub const RESIZE_CORNER_SIZE: i32 = 20;
 pub const SNAP_GRID_SIZE: i32 = 10;
 

@@ -11,7 +11,7 @@ use crate::combat_log::EntityType;
 use crate::context::empty_istr;
 use crate::dsl::{AudioConfig, EffectSelector, EntityFilter, Trigger};
 use crate::signal_processor::{GameSignal, SignalHandler};
-use baras_types::{AlertTrigger, RefreshAbility};
+use baras_types::{AlertTrigger, RefreshAbility, RefreshScope};
 
 fn now() -> chrono::NaiveDateTime {
     Local::now().naive_local()
@@ -33,6 +33,7 @@ fn make_effect(
         ignore_effect_removed: false,
         refresh_abilities: vec![],
         is_aoe_refresh: false,
+        aoe_refresh_immediate: false,
         is_refreshed_on_modify: false,
         default_charges: None,
         duration_secs,
@@ -45,6 +46,8 @@ fn make_effect(
         show_icon: true,
         display_source: false,
         disciplines: vec![],
+        ignore_refreshes: false,
+        refresh_scope: RefreshScope::Both,
         persist_past_death: false,
         track_outside_combat: true,
         on_apply_trigger_timer: None,
@@ -52,7 +55,9 @@ fn make_effect(
         is_alert: false,
         alert_text: None,
         alert_on: AlertTrigger::None,
+        alert_countdown_secs: None,
         audio: AudioConfig::default(),
+        modifiers: vec![],
     }
 }
 

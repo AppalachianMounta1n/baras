@@ -18,6 +18,7 @@ use chrono::NaiveDateTime;
 
 use super::DisplayTarget;
 use crate::context::IStr;
+use baras_types::RefreshScope;
 
 // Instant is still used for `removed_at` (a boolean-like flag for GC)
 
@@ -140,6 +141,15 @@ pub struct ActiveEffect {
     /// hidden from display and alerts fire normally on timer expiry.
     /// After a grace period, the effect is hard-removed for GC.
     pub timer_expired: bool,
+
+    // ─── Modifier state ───────────────────────────────────────────────────────
+    /// Absolute expiry cap set by refill modifiers with max_duration_secs.
+    /// Used by the overlay to show "elapsed / max" budget text.
+    pub max_expires_at: Option<NaiveDateTime>,
+
+    /// Last activation time for each modifier (parallel to definition's `modifiers` vec).
+    /// Used to enforce internal cooldown (`icd_secs`). Initialized lazily on first use.
+    pub modifier_last_proc: Vec<Option<NaiveDateTime>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -208,6 +218,17 @@ impl ActiveEffect {
             alert_text,
             alert_on_expire,
             timer_expired: false,
+            max_expires_at: None,
+            modifier_last_proc: Vec::new(),
+        }
+    }
+
+    /// Ensure modifier ICD vec is sized to match definition's modifier count.
+    /// Called lazily on first modifier evaluation to avoid allocation for effects
+    /// that have no modifiers.
+    pub fn ensure_modifier_icd(&mut self, modifier_count: usize) {
+        if self.modifier_last_proc.len() != modifier_count {
+            self.modifier_last_proc.resize(modifier_count, None);
         }
     }
 
@@ -278,6 +299,20 @@ impl ActiveEffect {
     /// Check if the effect is still active (not removed and not expired)
     pub fn is_active(&self, current_game_time: NaiveDateTime) -> bool {
         self.removed_at.is_none() && !self.has_duration_expired(current_game_time)
+    }
+
+    /// Check if the effect is active AND still in its base duration (not in ready state).
+    ///
+    /// Used by `ignore_refreshes`: once a cooldown enters the ready state, the
+    /// cooldown has effectively expired and a new trigger is a fresh activation
+    /// rather than a refresh. For effects without `cooldown_ready_secs` this is
+    /// equivalent to `is_active`.
+    pub fn is_in_base_duration(&self, current_game_time: NaiveDateTime) -> bool {
+        if !self.is_active(current_game_time) {
+            return false;
+        }
+        let remaining_total = self.remaining_secs(current_game_time).unwrap_or(0.0);
+        !self.has_base_duration_ended(remaining_total)
     }
 
     /// Get fill percentage for countdown display (1.0 = full, 0.0 = expired)
@@ -495,24 +530,49 @@ impl ActiveEffect {
 
 /// Key for identifying unique effect instances
 ///
-/// An effect is unique per (definition, source, target) triple.
+/// An effect is unique per (definition, source, target) triple by default.
 /// Source is included so that two healers of the same class tracking
 /// the same game effect (e.g., Kolto Shell from local vs other player)
 /// don't collide — each source entity gets its own slot.
 /// If the same source reapplies the same effect to the same target, it refreshes.
+///
+/// `RefreshScope::Source` and `Target` collapse one axis by setting the
+/// corresponding field to `None`. `Option<i64>` is used (not a sentinel like 0)
+/// because `target_id == 0` is a real value in the combat log meaning AoE / no target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EffectKey {
     pub definition_id: String,
-    pub source_entity_id: i64,
-    pub target_entity_id: i64,
+    pub source_entity_id: Option<i64>,
+    pub target_entity_id: Option<i64>,
 }
 
 impl EffectKey {
     pub fn new(definition_id: &str, source_entity_id: i64, target_entity_id: i64) -> Self {
         Self {
             definition_id: definition_id.to_string(),
-            source_entity_id,
-            target_entity_id,
+            source_entity_id: Some(source_entity_id),
+            target_entity_id: Some(target_entity_id),
+        }
+    }
+
+    /// Construct a key for a definition, dropping one axis when scope is
+    /// `Source` or `Target`. This is the canonical constructor for both
+    /// storage and lookup so they always agree.
+    pub fn for_scope(
+        definition_id: &str,
+        scope: RefreshScope,
+        source_entity_id: i64,
+        target_entity_id: i64,
+    ) -> Self {
+        let (s, t) = match scope {
+            RefreshScope::Both => (Some(source_entity_id), Some(target_entity_id)),
+            RefreshScope::Source => (Some(source_entity_id), None),
+            RefreshScope::Target => (None, Some(target_entity_id)),
+        };
+        Self {
+            definition_id: definition_id.to_string(),
+            source_entity_id: s,
+            target_entity_id: t,
         }
     }
 }

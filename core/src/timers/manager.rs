@@ -21,7 +21,7 @@ use super::matching::{
     is_definition_active, is_definition_active_with_snapshot, matches_source_target_filters,
 };
 use super::signal_handlers;
-use super::{ActiveTimer, TimerDefinition, TimerKey, TimerPreferences, TimerTrigger};
+use super::{ActiveTimer, TimerDefinition, TimerKey, TimerPreferences, TimerTrigger, TriggerContext};
 
 use crate::dsl::TriggerKind;
 
@@ -43,6 +43,9 @@ pub struct FiredAlert {
     pub audio_file: Option<String>,
     /// Optional ability ID for icon display in the alerts overlay
     pub icon_ability_id: Option<u64>,
+    /// For live-updating countdown alerts: seconds until this alert should
+    /// be auto-suppressed by the overlay (no fade). `None` for normal alerts.
+    pub remaining_secs: Option<f32>,
 }
 
 /// Manages ability cooldown and buff timers.
@@ -147,6 +150,27 @@ pub struct TimerManager {
     /// Fingerprint of loaded definitions (hash of definition IDs + count)
     /// Used to detect when definitions actually change vs. redundant reloads.
     definitions_fingerprint: u64,
+
+    // ─── Ability Queue: Unique-Next Tracking ────────────────────────────────
+    /// Definition ID of the timer currently solo-occupying the highest-priority
+    /// "next cast" slot in the ability queue. `None` when there is a tie or
+    /// nothing eligible. Used to detect session boundaries — when this id
+    /// transitions to a different value, the audio cue arms for the new id.
+    last_uniquely_next: Option<String>,
+
+    /// Definition ID we've already fired the "becomes next" audio cue for in
+    /// the current uniquely-next session. Cleared when `last_uniquely_next`
+    /// transitions to a different id (or to `None`), so the next emergence
+    /// of an ability can fire its cue exactly once. Without this, deferred
+    /// firing (waiting on `at_gcd_remaining`) would replay every subsequent
+    /// frame because the threshold stays satisfied.
+    last_audio_fired_for: Option<String>,
+
+    /// Game-time of the last audio fire. Acts as a cross-id jitter floor:
+    /// even if the uniquely-next id flaps None→A→None→A within the floor
+    /// window, the second A won't refire. Distinct from `last_audio_fired_for`
+    /// because that field is cleared on session boundaries.
+    last_audio_fired_at: Option<NaiveDateTime>,
 }
 
 impl Default for TimerManager {
@@ -186,6 +210,72 @@ impl TimerManager {
             combat_time_started: HashSet::new(),
             active_encounter_id: None,
             definitions_fingerprint: 0,
+            last_uniquely_next: None,
+            last_audio_fired_for: None,
+            last_audio_fired_at: None,
+        }
+    }
+
+    /// Decide whether the "becomes next cast" audio cue should fire on this
+    /// frame for the given uniquely-next definition_id. Returns `Some(id)`
+    /// at most once per uniquely-next session for a given id.
+    ///
+    /// A "session" begins when an id first becomes uniquely-next (or when it
+    /// returns to uniquely-next after the slot transitions to a different id
+    /// or to `None`). Within a single session, the cue fires exactly once —
+    /// on the first frame after `threshold_met` becomes true — and is then
+    /// suppressed for every subsequent frame, even if the threshold remains
+    /// satisfied. This is the fix for deferred (`at_gcd_remaining`) cues
+    /// that would otherwise replay every frame the GCD is below threshold.
+    ///
+    /// `jitter_floor` adds a global rate limit so brief None spikes (from a
+    /// momentary priority tie that resolves back to the same id) cannot
+    /// retrigger the cue: even if the session technically ended, the cue
+    /// is suppressed until at least `jitter_floor` has elapsed since the
+    /// last fire.
+    pub fn update_uniquely_next(
+        &mut self,
+        current: Option<&str>,
+        threshold_met: bool,
+        now: NaiveDateTime,
+        jitter_floor: chrono::Duration,
+    ) -> Option<String> {
+        match current {
+            None => {
+                // Session boundary: clear the per-id arm so the next emergence
+                // can fire. Keep `last_audio_fired_at` so jitter_floor still
+                // applies across the gap.
+                self.last_uniquely_next = None;
+                self.last_audio_fired_for = None;
+                None
+            }
+            Some(id) => {
+                // Different id than last frame? That's a session change for
+                // both the previous occupant (which leaves) and the new one
+                // (which is fresh-eligible). Clear the per-id arm.
+                let id_changed = self.last_uniquely_next.as_deref() != Some(id);
+                if id_changed {
+                    self.last_audio_fired_for = None;
+                }
+                self.last_uniquely_next = Some(id.to_string());
+
+                if self.last_audio_fired_for.as_deref() == Some(id) {
+                    return None;
+                }
+                if !threshold_met {
+                    return None;
+                }
+                if self
+                    .last_audio_fired_at
+                    .is_some_and(|t| now.signed_duration_since(t) < jitter_floor)
+                {
+                    return None;
+                }
+
+                self.last_audio_fired_for = Some(id.to_string());
+                self.last_audio_fired_at = Some(now);
+                Some(id.to_string())
+            }
         }
     }
 
@@ -256,9 +346,11 @@ impl TimerManager {
         hasher.finish()
     }
 
-    /// Format alert text for display
-    fn format_alert_text(&self, text: &str, _timestamp: NaiveDateTime) -> String {
-        text.to_string()
+    fn format_alert_text(&self, text: &str, ctx: Option<&TriggerContext>) -> String {
+        match ctx {
+            Some(ctx) => ctx.format(text),
+            None => text.to_string(),
+        }
     }
 
     /// Load timer definitions
@@ -492,6 +584,10 @@ impl TimerManager {
 
             self.process_expirations(interp_time, encounter);
 
+            // Emit live countdown alerts for active timers whose remaining
+            // time has entered their configured trailing window.
+            self.process_countdown_alerts(interp_time);
+
             // Process cancellation chains (timer_canceled triggers)
             for timer_id in self.canceled_this_tick.clone() {
                 self.start_timers_on_cancel(&timer_id, ts, encounter);
@@ -669,7 +765,7 @@ impl TimerManager {
         triggered
             .into_iter()
             .map(|(id, name, color, audio_file, icon_ability_id)| {
-                let text = self.format_alert_text(&name, interp_time);
+                let text = self.format_alert_text(&name, None);
                 FiredAlert {
                     id,
                     name,
@@ -680,6 +776,7 @@ impl TimerManager {
                     audio_enabled: true,
                     audio_file,
                     icon_ability_id,
+                    remaining_secs: None,
                 }
             })
             .collect()
@@ -774,11 +871,13 @@ impl TimerManager {
         def: &TimerDefinition,
         timestamp: NaiveDateTime,
         target_id: Option<i64>,
+        trigger_context: Option<TriggerContext>,
     ) {
-        // Apply preference overrides
-        let color = self.preferences.get_color(def);
+        // Material fields (color, audio file) come from the definition.
+        // Preferences only override visibility and audio on/off.
+        let color = def.color;
         let audio_enabled = self.preferences.is_audio_enabled(def);
-        let audio_file = self.preferences.get_audio_file(def);
+        let audio_file = def.audio.file.clone();
         let role_hidden = !self.preferences.is_role_visible(def, self.current_role);
 
         // Determine if we should fire an alert on start
@@ -787,8 +886,8 @@ impl TimerManager {
 
         // Fire start alert if needed (instant alerts always fire, or alert_on == OnApply)
         if should_alert_on_start {
-            let raw_text = def.alert_text.clone().unwrap_or_else(|| def.name.clone());
-            let text = self.format_alert_text(&raw_text, timestamp);
+            let raw_text = def.alert_text.as_deref().unwrap_or(&def.name);
+            let text = self.format_alert_text(raw_text, trigger_context.as_ref());
             // For instant alerts, audio fires with the alert since there's no timer lifecycle.
             // For regular timers, audio fires independently via offset/countdown/expiration,
             // so we don't attach it here — AlertOn only controls the text alert overlay.
@@ -807,6 +906,7 @@ impl TimerManager {
                 audio_enabled: alert_audio_enabled,
                 audio_file: alert_audio_file,
                 icon_ability_id: def.icon_ability_id,
+                    remaining_secs: None,
             });
         }
 
@@ -850,6 +950,7 @@ impl TimerManager {
             countdown_start: def.audio.countdown_start,
             countdown_voice: def.audio.countdown_voice.clone(),
             alert_text: def.audio.alert_text.clone(),
+            at_gcd_remaining: def.audio.at_gcd_remaining,
         };
 
         // Create new timer
@@ -870,12 +971,16 @@ impl TimerManager {
             def.display_targets.clone(),
             alert_on_expire,
             def.alert_text.clone(),
+            def.alert_countdown_secs,
             role_hidden,
             def.queue_on_expire,
             def.queue_priority,
             def.queue_blocking_timers.clone(),
+            def.queue_blocking_condition.clone(),
+            def.queue_next_audio.clone(),
             def.queue_countdown_bar,
             def.queue_hide_from_next,
+            trigger_context,
         );
         self.active_timers.insert(key, timer);
 
@@ -1149,6 +1254,47 @@ impl TimerManager {
         }
     }
 
+    /// Emit a fresh FiredAlert each tick for any active timer whose
+    /// remaining time is inside its configured countdown window. The alert
+    /// carries the timer's definition id so the alerts overlay can dedupe
+    /// and replace the entry in-place rather than stacking.
+    fn process_countdown_alerts(&mut self, current_time: NaiveDateTime) {
+        for timer in self.active_timers.values() {
+            if timer.is_queued || timer.role_hidden {
+                continue;
+            }
+            let Some(window) = timer.alert_countdown_secs else {
+                continue;
+            };
+            if window <= 0.0 {
+                continue;
+            }
+            let remaining = (timer.expires_at - current_time)
+                .num_milliseconds()
+                .max(0) as f32
+                / 1000.0;
+            if remaining > window {
+                continue;
+            }
+
+            let raw_name = timer.alert_text.as_deref().unwrap_or(&timer.name);
+            let formatted = self.format_alert_text(raw_name, timer.trigger_context.as_ref());
+            let text = format!("{} ({:.1})", formatted, remaining);
+            self.fired_alerts.push(FiredAlert {
+                id: timer.definition_id.clone(),
+                name: timer.name.clone(),
+                text,
+                color: Some(timer.color),
+                timestamp: current_time,
+                alert_text_enabled: true,
+                audio_enabled: false,
+                audio_file: None,
+                icon_ability_id: timer.icon_ability_id,
+                remaining_secs: Some(remaining),
+            });
+        }
+    }
+
     /// Process timer expirations, repeats, and chains
     fn process_expirations(
         &mut self,
@@ -1191,7 +1337,11 @@ impl TimerManager {
                     let should_fire_audio = !timer.role_hidden && timer.audio_enabled && timer.audio_file.is_some() && timer.audio_offset == 0;
                     let should_fire_expire_alert = !timer.role_hidden && timer.alert_on_expire;
                     if should_fire_audio || should_fire_expire_alert {
-                        let text = timer.alert_text.clone().unwrap_or_else(|| timer.name.clone());
+                        let raw_text = timer.alert_text.as_deref().unwrap_or(&timer.name);
+                        let text = match &timer.trigger_context {
+                            Some(ctx) => ctx.format(raw_text),
+                            None => raw_text.to_string(),
+                        };
                         self.fired_alerts.push(FiredAlert {
                             id: timer.definition_id.clone(),
                             name: timer.name.clone(),
@@ -1202,6 +1352,7 @@ impl TimerManager {
                             audio_enabled: should_fire_audio,
                             audio_file: timer.audio_file.clone(),
                             icon_ability_id: timer.icon_ability_id,
+                    remaining_secs: None,
                         });
                     }
 
@@ -1229,7 +1380,7 @@ impl TimerManager {
 
                 if should_fire_audio || should_fire_expire_alert {
                     let raw_text = timer.alert_text.as_deref().unwrap_or(&timer.name);
-                    let text = self.format_alert_text(raw_text, current_time);
+                    let text = self.format_alert_text(raw_text, timer.trigger_context.as_ref());
                     // Move fields from timer since we own it and are done with it (unless chaining)
                     let (id, name, audio_file) = if has_chain {
                         // Need to clone since timer is still used for chain
@@ -1256,6 +1407,7 @@ impl TimerManager {
                         audio_enabled: should_fire_audio,
                         audio_file,
                         icon_ability_id: timer.icon_ability_id,
+                    remaining_secs: None,
                     });
                 }
                 // Prepare chain to next timer (take ownership of triggers_timer)
@@ -1270,7 +1422,7 @@ impl TimerManager {
             if let Some(next_def) = self.definitions.get(&next_timer_id).cloned()
                 && self.is_definition_active(&next_def, encounter)
             {
-                self.start_timer(&next_def, current_time, target_id);
+                self.start_timer(&next_def, current_time, target_id, None);
             }
         }
 
@@ -1288,7 +1440,7 @@ impl TimerManager {
                 .collect();
 
             for def in matching {
-                self.start_timer(&def, current_time, None);
+                self.start_timer(&def, current_time, None, None);
             }
         }
 
@@ -1362,7 +1514,7 @@ impl TimerManager {
             .collect();
 
         for key in keys_to_start {
-            self.start_timer(&key, current_time, None);
+            self.start_timer(&key, current_time, None, None);
         }
     }
 

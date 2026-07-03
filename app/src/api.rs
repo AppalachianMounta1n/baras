@@ -108,6 +108,18 @@ pub async fn get_overlay_status() -> Option<OverlayStatus> {
     from_js(result)
 }
 
+/// List font family names available on this system (for the font picker)
+pub async fn list_system_fonts() -> Vec<String> {
+    let result = invoke("list_system_fonts", JsValue::NULL).await;
+    from_js(result).unwrap_or_default()
+}
+
+/// Set the global overlay font family (persists + applies to all overlays)
+pub async fn set_overlay_font_family(family: String) -> Result<(), String> {
+    try_invoke("set_overlay_font_family", build_args("family", &family)).await?;
+    Ok(())
+}
+
 /// Show an overlay (enable + spawn if visible)
 pub async fn show_overlay(kind: OverlayType) -> bool {
     let result = invoke("show_overlay", build_args("kind", &kind)).await;
@@ -933,8 +945,8 @@ pub async fn set_encounter_parsely_link(encounter_id: u64, link: &str) -> Result
 // Audio File Picker
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// List available sound files from bundled and user directories
-pub async fn list_sound_files() -> Vec<String> {
+/// List available sound files grouped by category for the picker UI.
+pub async fn list_sound_files() -> Vec<crate::types::SoundCategory> {
     let result = invoke("list_sound_files", JsValue::NULL).await;
     from_js(result).unwrap_or_default()
 }
@@ -1480,6 +1492,7 @@ pub async fn query_combat_log_find(
     find_text: &str,
     source_filter: Option<&str>,
     target_filter: Option<&str>,
+    search_filter: Option<&str>,
     time_range: Option<&TimeRange>,
     event_filters: Option<&CombatLogFilters>,
     sort_column: CombatLogSortColumn,
@@ -1501,6 +1514,11 @@ pub async fn query_combat_log_find(
         js_set(&obj, "targetFilter", &JsValue::from_str(t));
     } else {
         js_set(&obj, "targetFilter", &JsValue::NULL);
+    }
+    if let Some(sf) = search_filter {
+        js_set(&obj, "searchFilter", &JsValue::from_str(sf));
+    } else {
+        js_set(&obj, "searchFilter", &JsValue::NULL);
     }
     if let Some(tr) = time_range {
         let tr_js = serde_wasm_bindgen::to_value(tr).unwrap_or(JsValue::NULL);

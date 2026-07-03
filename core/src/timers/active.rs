@@ -16,6 +16,30 @@ use chrono::NaiveDateTime;
 
 use crate::dsl::AudioConfig;
 
+/// Context from the triggering event, used for `{source}` / `{target}` template substitution.
+#[derive(Debug, Clone, Default)]
+pub struct TriggerContext {
+    pub source_name: Option<String>,
+    pub target_name: Option<String>,
+}
+
+impl TriggerContext {
+    pub fn new(source_name: Option<String>, target_name: Option<String>) -> Self {
+        Self {
+            source_name,
+            target_name,
+        }
+    }
+
+    pub fn format(&self, text: &str) -> String {
+        if !text.contains('{') {
+            return text.to_string();
+        }
+        text.replace("{source}", self.source_name.as_deref().unwrap_or(""))
+            .replace("{target}", self.target_name.as_deref().unwrap_or(""))
+    }
+}
+
 /// An active timer instance
 ///
 /// Created when a `TimerDefinition`'s trigger condition is met.
@@ -57,6 +81,10 @@ pub struct ActiveTimer {
 
     /// Custom alert text (from definition, None = use timer name)
     pub alert_text: Option<String>,
+
+    /// When `Some(N)`, fire a live-updating alert during the final N seconds
+    /// of the timer (from alert_on == Countdown).
+    pub alert_countdown_secs: Option<f32>,
 
     // ─── Display (cached from definition) ───────────────────────────────────
     /// RGBA color for display
@@ -119,6 +147,13 @@ pub struct ActiveTimer {
     /// that block this ability queue entry from being considered ready.
     pub queue_blocking_timers: Vec<String>,
 
+    /// Cached from definition: condition that, when satisfied, blocks this
+    /// entry in the ability queue (OR'd with `queue_blocking_timers`).
+    pub queue_blocking_condition: Option<crate::dsl::Condition>,
+
+    /// Cached from definition: audio config for the "becomes next" cue.
+    pub queue_next_audio: Option<crate::dsl::AudioConfig>,
+
     /// Cached from definition: render this timer's ability-queue row as a
     /// trickling-down bar instead of the default filling-up progress bar.
     pub queue_countdown_bar: bool,
@@ -126,6 +161,9 @@ pub struct ActiveTimer {
     /// Cached from definition: never mark this timer as a "next cast"
     /// candidate. Used for display-only rows that aren't castable abilities.
     pub queue_hide_from_next: bool,
+
+    /// Context from the triggering event for `{source}`/`{target}` template substitution.
+    pub trigger_context: Option<TriggerContext>,
 }
 
 impl ActiveTimer {
@@ -146,12 +184,16 @@ impl ActiveTimer {
         display_targets: Vec<crate::timers::TimerDisplayTarget>,
         alert_on_expire: bool,
         alert_text: Option<String>,
+        alert_countdown_secs: Option<f32>,
         role_hidden: bool,
         queue_on_expire: bool,
         queue_priority: u8,
         queue_blocking_timers: Vec<String>,
+        queue_blocking_condition: Option<crate::dsl::Condition>,
+        queue_next_audio: Option<crate::dsl::AudioConfig>,
         queue_countdown_bar: bool,
         queue_hide_from_next: bool,
+        trigger_context: Option<TriggerContext>,
     ) -> Self {
         let expires_at =
             event_timestamp + chrono::Duration::milliseconds(duration.as_millis() as i64);
@@ -168,6 +210,7 @@ impl ActiveTimer {
             alert_fired: false,
             alert_on_expire,
             alert_text,
+            alert_countdown_secs,
             color,
             icon_ability_id,
             triggers_timer,
@@ -189,8 +232,11 @@ impl ActiveTimer {
             queue_on_expire,
             queue_priority,
             queue_blocking_timers,
+            queue_blocking_condition,
+            queue_next_audio,
             queue_countdown_bar,
             queue_hide_from_next,
+            trigger_context,
         }
     }
 

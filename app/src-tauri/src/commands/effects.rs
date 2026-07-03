@@ -18,7 +18,7 @@ use baras_core::effects::{
     AlertTrigger, DefinitionConfig, DisplayTarget, EFFECTS_DSL_VERSION, EffectDefinition,
 };
 use baras_core::game_data::Discipline;
-use baras_types::RefreshAbility;
+use baras_types::{RefreshAbility, RefreshScope};
 
 use crate::service::ServiceHandle;
 use tracing::warn;
@@ -45,6 +45,8 @@ pub struct EffectListItem {
     pub ignore_effect_removed: bool,
     pub refresh_abilities: Vec<RefreshAbility>,
     pub is_aoe_refresh: bool,
+    #[serde(default)]
+    pub aoe_refresh_immediate: bool,
     pub duration_secs: Option<f32>,
     pub is_refreshed_on_modify: bool,
     pub default_charges: Option<u8>,
@@ -68,6 +70,10 @@ pub struct EffectListItem {
     pub disciplines: Vec<String>,
 
     // Behavior
+    #[serde(default)]
+    pub ignore_refreshes: bool,
+    #[serde(default)]
+    pub refresh_scope: RefreshScope,
     pub persist_past_death: bool,
     pub track_outside_combat: bool,
 
@@ -80,9 +86,15 @@ pub struct EffectListItem {
     pub is_alert: bool,
     pub alert_text: Option<String>,
     pub alert_on: AlertTrigger,
+    #[serde(default)]
+    pub alert_countdown_secs: Option<f32>,
 
     // Audio
     pub audio: AudioConfig,
+
+    // Modifiers
+    #[serde(default)]
+    pub modifiers: Vec<baras_types::EffectModifier>,
 }
 
 impl EffectListItem {
@@ -98,6 +110,7 @@ impl EffectListItem {
             ignore_effect_removed: def.ignore_effect_removed,
             refresh_abilities: def.refresh_abilities.clone(),
             is_aoe_refresh: def.is_aoe_refresh,
+            aoe_refresh_immediate: def.aoe_refresh_immediate,
             duration_secs: def.duration_secs,
             is_refreshed_on_modify: def.is_refreshed_on_modify,
             default_charges: def.default_charges,
@@ -110,6 +123,8 @@ impl EffectListItem {
             is_affected_by_alacrity: def.is_affected_by_alacrity,
             cooldown_ready_secs: def.cooldown_ready_secs,
             disciplines: def.disciplines.iter().map(|d| d.name().to_string()).collect(),
+            ignore_refreshes: def.ignore_refreshes,
+            refresh_scope: def.refresh_scope,
             persist_past_death: def.persist_past_death,
             track_outside_combat: def.track_outside_combat,
             on_apply_trigger_timer: def.on_apply_trigger_timer.clone(),
@@ -117,7 +132,9 @@ impl EffectListItem {
             is_alert: def.is_alert,
             alert_text: def.alert_text.clone(),
             alert_on: def.alert_on,
+            alert_countdown_secs: def.alert_countdown_secs,
             audio: def.audio.clone(),
+            modifiers: def.modifiers.clone(),
         }
     }
 
@@ -131,6 +148,7 @@ impl EffectListItem {
             ignore_effect_removed: self.ignore_effect_removed,
             refresh_abilities: self.refresh_abilities.clone(),
             is_aoe_refresh: self.is_aoe_refresh,
+            aoe_refresh_immediate: self.aoe_refresh_immediate,
             duration_secs: self.duration_secs,
             is_refreshed_on_modify: self.is_refreshed_on_modify,
             default_charges: self.default_charges,
@@ -139,6 +157,8 @@ impl EffectListItem {
             disciplines: self.disciplines.iter()
                 .filter_map(|name| Discipline::from_name(name))
                 .collect(),
+            ignore_refreshes: self.ignore_refreshes,
+            refresh_scope: self.refresh_scope,
             persist_past_death: self.persist_past_death,
             track_outside_combat: self.track_outside_combat,
             on_apply_trigger_timer: self.on_apply_trigger_timer.clone(),
@@ -146,6 +166,7 @@ impl EffectListItem {
             is_alert: self.is_alert,
             alert_text: self.alert_text.clone(),
             alert_on: self.alert_on,
+            alert_countdown_secs: self.alert_countdown_secs,
             audio: self.audio.clone(),
             display_targets: self.display_targets.clone(),
             icon_ability_id: self.icon_ability_id,
@@ -153,6 +174,7 @@ impl EffectListItem {
             cooldown_ready_secs: self.cooldown_ready_secs,
             show_icon: self.show_icon,
             display_source: self.display_source,
+            modifiers: self.modifiers.clone(),
         }
     }
 

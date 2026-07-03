@@ -116,6 +116,97 @@ fn merge_effect_windows(mut windows: Vec<EffectWindow>) -> Vec<EffectWindow> {
     merged
 }
 
+/// Build the ECharts `markArea` object for effect-highlight lanes. Windows are
+/// grouped by effect (preserving selection order), merged, and stacked into
+/// vertical lanes scaled to `y_scale` (burst max for rate charts, 100 for HP%).
+/// Returns an object with an (possibly empty) `data` array — an empty array
+/// clears any previous highlights when merged into an existing series.
+fn build_mark_area_object(
+    effect_windows: &[(i64, EffectWindow, &str)],
+    y_scale: f64,
+) -> js_sys::Object {
+    let mark_area = js_sys::Object::new();
+    let mark_data = js_sys::Array::new();
+
+    let mut effect_order: Vec<i64> = Vec::new();
+    let mut grouped: std::collections::HashMap<i64, (Vec<EffectWindow>, &str)> =
+        std::collections::HashMap::new();
+    for (eid, window, win_color) in effect_windows.iter() {
+        if !effect_order.contains(eid) {
+            effect_order.push(*eid);
+        }
+        grouped
+            .entry(*eid)
+            .or_insert_with(|| (Vec::new(), *win_color))
+            .0
+            .push(window.clone());
+    }
+
+    let num_effects = effect_order.len();
+    for (lane_idx, eid) in effect_order.iter().enumerate() {
+        if let Some((windows, win_color)) = grouped.remove(eid) {
+            let merged = merge_effect_windows(windows);
+            let lane_height = y_scale / num_effects as f64;
+            let y_bottom = lane_idx as f64 * lane_height;
+            let y_top = (lane_idx + 1) as f64 * lane_height;
+
+            for window in merged {
+                let region = js_sys::Array::new();
+                let start = js_sys::Object::new();
+                js_set(&start, "xAxis", &JsValue::from_f64(window.start_secs as f64));
+                js_set(&start, "yAxis", &JsValue::from_f64(y_top));
+                let region_style = js_sys::Object::new();
+                js_set(&region_style, "color", &JsValue::from_str(win_color));
+                js_set(&start, "itemStyle", &region_style);
+                let end = js_sys::Object::new();
+                js_set(&end, "xAxis", &JsValue::from_f64(window.end_secs as f64));
+                js_set(&end, "yAxis", &JsValue::from_f64(y_bottom));
+                region.push(&start);
+                region.push(&end);
+                mark_data.push(&region);
+            }
+        }
+    }
+    js_set(&mark_area, "data", &mark_data);
+    mark_area
+}
+
+/// Get an already-initialized ECharts instance for `element_id`, or `None`.
+/// Unlike `init_chart`, this never creates a new instance.
+fn get_chart(element_id: &str) -> Option<JsValue> {
+    let element = web_sys::window()?.document()?.get_element_by_id(element_id)?;
+    let existing = echarts_get_instance(&element);
+    (!existing.is_null() && !existing.is_undefined()).then_some(existing)
+}
+
+/// Update ONLY the effect-highlight `markArea` on a chart's burst series (index 0)
+/// via a merging `setOption`, leaving the (expensive) series data untouched. This
+/// is what makes effect-selection changes cheap instead of a full chart rebuild.
+fn apply_effect_markareas(chart: &JsValue, effect_windows: &[(i64, EffectWindow, &str)], y_scale: f64) {
+    let mark_area = build_mark_area_object(effect_windows, y_scale);
+    let series0 = js_sys::Object::new();
+    js_set(&series0, "markArea", &mark_area);
+    let series_arr = js_sys::Array::new();
+    series_arr.push(&series0);
+    let opt = js_sys::Object::new();
+    js_set(&opt, "series", &series_arr);
+    set_chart_option(chart, &opt.into());
+}
+
+/// Await one animation frame — used in place of a fixed sleep to wait for the DOM
+/// to be laid out/painted before initializing charts.
+async fn next_animation_frame() {
+    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+        if let Some(win) = web_sys::window() {
+            let cb = wasm_bindgen::closure::Closure::once_into_js(move || {
+                let _ = resolve.call0(&JsValue::NULL);
+            });
+            let _ = win.request_animation_frame(cb.unchecked_ref());
+        }
+    });
+    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+}
+
 fn build_time_series_option(
     data: &[TimeSeriesPoint],
     secondary_data: Option<&[TimeSeriesPoint]>,
@@ -208,6 +299,34 @@ fn build_time_series_option(
     // Tooltip
     let tooltip = js_sys::Object::new();
     js_set(&tooltip, "trigger", &JsValue::from_str("axis"));
+    let tip_formatter = js_sys::Function::new_with_args(
+        "params",
+        concat!(
+            "if (!params || !params.length) return '';",
+            "var t = params[0].value[0];",
+            "var m = Math.floor(t / 60);",
+            "var s = Math.floor(t % 60);",
+            "var time = m + ':' + (s < 10 ? '0' : '') + s;",
+            "var r = '<div style=\"margin-bottom:4px\">' + time + '</div>';",
+            "for (var i = 0; i < params.length; i++) {",
+            "  var p = params[i];",
+            "  var val = Math.round(p.value[1]).toLocaleString();",
+            "  if (p.seriesName === 'Burst') {",
+            "    r += '<div>' + p.seriesName",
+            "      + '<span style=\"float:right;margin-left:20px;font-weight:bold\">'",
+            "      + val + '</span></div>';",
+            "  } else {",
+            "    r += '<div><span style=\"display:inline-block;width:10px;height:10px;",
+            "border-radius:50%;background:' + p.color + ';margin-right:5px\"></span>'",
+            "      + p.seriesName",
+            "      + '<span style=\"float:right;margin-left:20px;font-weight:bold\">'",
+            "      + val + '</span></div>';",
+            "  }",
+            "}",
+            "return r;",
+        ),
+    );
+    js_set(&tooltip, "formatter", &tip_formatter);
     js_set(&obj, "tooltip", &tooltip);
 
     // Build time spine: fill ALL seconds within the data range with values (0 if no data)
@@ -248,6 +367,7 @@ fn build_time_series_option(
     let series = js_sys::Object::new();
     js_set(&series, "type", &JsValue::from_str("line"));
     js_set(&series, "name", &JsValue::from_str("Burst"));
+    js_set(&series, "sampling", &JsValue::from_str("lttb")); // downsample to pixels
     js_set(&series, "smooth", &JsValue::FALSE); // No smoothing for raw data
     js_set(&series, "symbol", &JsValue::from_str("none"));
     // Use left Y-axis (index 0) for burst data
@@ -258,6 +378,9 @@ fn build_time_series_option(
     js_set(&line_style, "color", &JsValue::from_str(color));
     js_set(&line_style, "width", &JsValue::from_f64(1.0));
     js_set(&series, "lineStyle", &line_style);
+    let item_style = js_sys::Object::new();
+    js_set(&item_style, "color", &JsValue::from_str(color));
+    js_set(&series, "itemStyle", &item_style);
 
     // Area style with matching fill color (higher opacity)
     let area_style = js_sys::Object::new();
@@ -274,67 +397,11 @@ fn build_time_series_option(
     }
     js_set(&series, "data", &data_arr);
 
-    // Mark areas for effect windows (on raw data series) - vertically stacked per effect
-    // Always set markArea (even if empty) to ensure ECharts clears previous highlights
-    let mark_area = js_sys::Object::new();
-    let mark_data = js_sys::Array::new();
-
-    // Calculate max y value from burst data for bounding mark areas to chart grid
-    let max_y_value = dense_data
-        .iter()
-        .map(|(_, y)| *y)
-        .fold(0.0_f64, |a, b| a.max(b));
-
-    // Group windows by effect_id, preserving selection order for consistent lane assignment
-    let mut effect_order: Vec<i64> = Vec::new();
-    let mut grouped: std::collections::HashMap<i64, (Vec<EffectWindow>, &str)> =
-        std::collections::HashMap::new();
-    for (eid, window, win_color) in effect_windows.iter() {
-        if !effect_order.contains(eid) {
-            effect_order.push(*eid);
-        }
-        grouped
-            .entry(*eid)
-            .or_insert_with(|| (Vec::new(), *win_color))
-            .0
-            .push(window.clone());
-    }
-
-    let num_effects = effect_order.len();
-    for (lane_idx, eid) in effect_order.iter().enumerate() {
-        if let Some((windows, win_color)) = grouped.remove(eid) {
-            // Merge overlapping windows for this effect
-            let merged = merge_effect_windows(windows);
-
-            // Calculate vertical bounds using yAxis data values (bounded to chart area)
-            let lane_height = max_y_value / num_effects as f64;
-            let y_bottom = lane_idx as f64 * lane_height;
-            let y_top = (lane_idx + 1) as f64 * lane_height;
-
-            for window in merged {
-                let region = js_sys::Array::new();
-                let start = js_sys::Object::new();
-                js_set(
-                    &start,
-                    "xAxis",
-                    &JsValue::from_f64(window.start_secs as f64),
-                );
-                // Use yAxis values to bound within chart grid (index 0 = left/burst axis)
-                js_set(&start, "yAxis", &JsValue::from_f64(y_top));
-                // Set per-region itemStyle for individual colors
-                let region_style = js_sys::Object::new();
-                js_set(&region_style, "color", &JsValue::from_str(win_color));
-                js_set(&start, "itemStyle", &region_style);
-                let end = js_sys::Object::new();
-                js_set(&end, "xAxis", &JsValue::from_f64(window.end_secs as f64));
-                js_set(&end, "yAxis", &JsValue::from_f64(y_bottom));
-                region.push(&start);
-                region.push(&end);
-                mark_data.push(&region);
-            }
-        }
-    }
-    js_set(&mark_area, "data", &mark_data);
+    // Mark areas for effect windows (on raw data series), stacked per effect and
+    // bounded to the burst data's max so they sit inside the grid. Always set
+    // (even if empty) so ECharts clears previous highlights.
+    let max_y_value = dense_data.iter().map(|(_, y)| *y).fold(0.0_f64, f64::max);
+    let mark_area = build_mark_area_object(effect_windows, max_y_value);
     js_set(&series, "markArea", &mark_area);
 
     series_arr.push(&series);
@@ -343,6 +410,7 @@ fn build_time_series_option(
     let avg_series = js_sys::Object::new();
     js_set(&avg_series, "type", &JsValue::from_str("line"));
     js_set(&avg_series, "name", &JsValue::from_str("Average"));
+    js_set(&avg_series, "sampling", &JsValue::from_str("lttb"));
     js_set(&avg_series, "smooth", &JsValue::TRUE);
     js_set(&avg_series, "symbol", &JsValue::from_str("none"));
     // Use right Y-axis (index 1) for average/rate data
@@ -353,6 +421,9 @@ fn build_time_series_option(
     js_set(&avg_line_style, "color", &JsValue::from_str(color));
     js_set(&avg_line_style, "width", &JsValue::from_f64(2.5));
     js_set(&avg_series, "lineStyle", &avg_line_style);
+    let avg_item_style = js_sys::Object::new();
+    js_set(&avg_item_style, "color", &JsValue::from_str(color));
+    js_set(&avg_series, "itemStyle", &avg_item_style);
 
     // Average data points
     let avg_arr = js_sys::Array::new();
@@ -390,6 +461,7 @@ fn build_time_series_option(
         let sec_series = js_sys::Object::new();
         js_set(&sec_series, "type", &JsValue::from_str("line"));
         js_set(&sec_series, "name", &JsValue::from_str("Effective"));
+        js_set(&sec_series, "sampling", &JsValue::from_str("lttb"));
         js_set(&sec_series, "smooth", &JsValue::TRUE);
         js_set(&sec_series, "symbol", &JsValue::from_str("none"));
         js_set(&sec_series, "yAxisIndex", &JsValue::from_f64(1.0));
@@ -398,6 +470,9 @@ fn build_time_series_option(
         js_set(&sec_line_style, "color", &JsValue::from_str(sec_color));
         js_set(&sec_line_style, "width", &JsValue::from_f64(2.5));
         js_set(&sec_series, "lineStyle", &sec_line_style);
+        let sec_item_style = js_sys::Object::new();
+        js_set(&sec_item_style, "color", &JsValue::from_str(sec_color));
+        js_set(&sec_series, "itemStyle", &sec_item_style);
 
         let sec_arr = js_sys::Array::new();
         for (x, y) in sec_avg_data {
@@ -544,6 +619,7 @@ fn build_hp_chart_option(
     let series = js_sys::Object::new();
     js_set(&series, "type", &JsValue::from_str("line"));
     js_set(&series, "name", &JsValue::from_str("HP%"));
+    js_set(&series, "sampling", &JsValue::from_str("lttb"));
     js_set(&series, "smooth", &JsValue::TRUE);
     js_set(&series, "symbol", &JsValue::from_str("none"));
     // Use left Y-axis (index 0) for HP%
@@ -580,50 +656,8 @@ fn build_hp_chart_option(
     }
     js_set(&series, "data", &data_arr);
 
-    // Mark areas for effect windows
-    let mark_area = js_sys::Object::new();
-    let mark_data = js_sys::Array::new();
-
-    let mut effect_order: Vec<i64> = Vec::new();
-    let mut grouped: std::collections::HashMap<i64, (Vec<EffectWindow>, &str)> =
-        std::collections::HashMap::new();
-    for (eid, window, win_color) in effect_windows.iter() {
-        if !effect_order.contains(eid) {
-            effect_order.push(*eid);
-        }
-        grouped
-            .entry(*eid)
-            .or_insert_with(|| (Vec::new(), *win_color))
-            .0
-            .push(window.clone());
-    }
-
-    let num_effects = effect_order.len();
-    for (lane_idx, eid) in effect_order.iter().enumerate() {
-        if let Some((windows, win_color)) = grouped.remove(eid) {
-            let merged = merge_effect_windows(windows);
-            let lane_height = 100.0 / num_effects as f64;
-            let y_bottom = lane_idx as f64 * lane_height;
-            let y_top = (lane_idx + 1) as f64 * lane_height;
-
-            for window in merged {
-                let region = js_sys::Array::new();
-                let start = js_sys::Object::new();
-                js_set(&start, "xAxis", &JsValue::from_f64(window.start_secs as f64));
-                js_set(&start, "yAxis", &JsValue::from_f64(y_top));
-                let region_style = js_sys::Object::new();
-                js_set(&region_style, "color", &JsValue::from_str(win_color));
-                js_set(&start, "itemStyle", &region_style);
-                let end = js_sys::Object::new();
-                js_set(&end, "xAxis", &JsValue::from_f64(window.end_secs as f64));
-                js_set(&end, "yAxis", &JsValue::from_f64(y_bottom));
-                region.push(&start);
-                region.push(&end);
-                mark_data.push(&region);
-            }
-        }
-    }
-    js_set(&mark_area, "data", &mark_data);
+    // Mark areas for effect windows — HP% axis is fixed 0–100, so scale lanes to 100.
+    let mark_area = build_mark_area_object(effect_windows, 100.0);
     js_set(&series, "markArea", &mark_area);
 
     series_arr.push(&series);
@@ -651,6 +685,7 @@ fn build_hp_chart_option(
         let eht_series = js_sys::Object::new();
         js_set(&eht_series, "type", &JsValue::from_str("line"));
         js_set(&eht_series, "name", &JsValue::from_str("EHT"));
+        js_set(&eht_series, "sampling", &JsValue::from_str("lttb"));
         js_set(&eht_series, "smooth", &JsValue::FALSE);
         js_set(&eht_series, "symbol", &JsValue::from_str("none"));
         // Use right Y-axis (index 1) for EHT burst data
@@ -1047,7 +1082,10 @@ pub fn ChartsPanel(props: ChartsPanelProps) -> Element {
         let dtps = dtps_data.read().clone();
         let eht = eht_data.read().clone();
         let hp = hp_data.read().clone();
-        let windows = effect_windows.read().clone();
+        // peek (not read): effect-window changes are applied by a separate, cheap
+        // markArea-only effect below, so they must NOT re-trigger this full rebuild.
+        // Using current windows here keeps the build correct if they loaded first.
+        let windows = effect_windows.peek().clone();
 
         // Dispose hidden charts immediately to prevent overlap
         if !show_dps_val {
@@ -1107,9 +1145,11 @@ pub fn ChartsPanel(props: ChartsPanelProps) -> Element {
                 }
             }
         } else {
-            // Historical: delay to ensure DOM is ready, then init + brush + resize
+            // Historical: wait for the DOM to lay out/paint (two frames), then init
+            // + brush + resize. Two rAFs replace a fixed 150ms sleep.
             spawn(async move {
-                gloo_timers::future::TimeoutFuture::new(150).await;
+                next_animation_frame().await;
+                next_animation_frame().await;
 
                 if show_dps_val && !dps.is_empty() {
                     if let Some(chart) = init_chart("chart-dps") {
@@ -1160,6 +1200,45 @@ pub fn ChartsPanel(props: ChartsPanelProps) -> Element {
                 resize_all_charts();
             });
         }
+    });
+
+    // Effect-highlight updates run independently of the (expensive) data render:
+    // when the selected-effect windows change, merge ONLY the markArea into each
+    // already-rendered chart instead of rebuilding the whole option. This is what
+    // turns effect toggles — and the post-load window fetch — from a full 4-chart
+    // rebuild into a cheap partial update.
+    use_effect(move || {
+        let windows = effect_windows.read().clone(); // subscribe to window changes
+        let show_dps_val = *show_dps.read();
+        let show_hps_val = *show_hps.read();
+        let show_dtps_val = *show_dtps.read();
+        let show_hp_val = *show_hp.read();
+
+        spawn(async move {
+            // Wait two frames so charts created by the data effect (which also waits
+            // two frames) exist first; that effect is registered earlier, so its
+            // chart creation runs before this apply on the same frame.
+            next_animation_frame().await;
+            next_animation_frame().await;
+
+            // Rate charts: highlight lanes scale to the burst data's max. peek the
+            // data signals so this effect only depends on the windows.
+            let max_of =
+                |d: &[TimeSeriesPoint]| d.iter().map(|p| p.total_value).fold(0.0_f64, f64::max);
+            if show_dps_val && let Some(chart) = get_chart("chart-dps") {
+                apply_effect_markareas(&chart, &windows, max_of(&dps_data.peek()));
+            }
+            if show_hps_val && let Some(chart) = get_chart("chart-hps") {
+                apply_effect_markareas(&chart, &windows, max_of(&hps_data.peek()));
+            }
+            if show_dtps_val && let Some(chart) = get_chart("chart-dtps") {
+                apply_effect_markareas(&chart, &windows, max_of(&dtps_data.peek()));
+            }
+            // HP% axis is fixed 0–100.
+            if show_hp_val && let Some(chart) = get_chart("chart-hp") {
+                apply_effect_markareas(&chart, &windows, 100.0);
+            }
+        });
     });
 
     // Window resize listener - resize all ECharts instances

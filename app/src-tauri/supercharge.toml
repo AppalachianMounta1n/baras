@@ -1,0 +1,35 @@
+version = 1
+
+[[effect]]
+id = "supercharge"
+name = "Supercharge"
+refresh_abilities = [
+    "Recharge and Reload",
+    "Med Shot",
+    "Hammer Shot",
+    "Kolto Shot",
+]
+is_refreshed_on_modify = true
+duration_secs = 60.0
+color = [
+    80,
+    200,
+    80,
+    255,
+]
+display_targets = ["effects_a"]
+disciplines = [
+    "CombatMedic",
+    "Gunnery",
+    "AssaultSpecialist",
+    "InnovativeOrdnance",
+    "Arsenal",
+    "Bodyguard",
+]
+refresh_scope = "source"
+
+[effect.trigger]
+type = "effect_applied"
+effects = ["Supercharge"]
+source = "local_player"
+target = "any"

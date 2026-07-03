@@ -305,6 +305,7 @@ fn convert_audio(xml: &XmlConfigTimer) -> AudioConfig {
         countdown_start: xml.countdown_count.unwrap_or(0),
         countdown_voice: xml.countdown_voice.clone(),
         alert_text: None,
+        at_gcd_remaining: None,
     }
 }
 
@@ -337,6 +338,7 @@ fn convert_to_boss_timer(xml: &XmlConfigTimer) -> BossTimerDefinition {
         is_alert,
         alert_on: if is_alert { AlertTrigger::OnApply } else { Default::default() },
         alert_text: if is_alert { Some(name.to_string()) } else { None },
+        alert_countdown_secs: None,
         color,
         icon_ability_id: None,
         conditions: Vec::new(),
@@ -361,6 +363,8 @@ fn convert_to_boss_timer(xml: &XmlConfigTimer) -> BossTimerDefinition {
         queue_priority: 0,
         queue_remove_trigger: None,
         queue_blocking_timers: Vec::new(),
+        queue_blocking_condition: None,
+        queue_next_audio: None,
         queue_countdown_bar: false,
         queue_hide_from_next: false,
     }
@@ -389,6 +393,7 @@ fn convert_to_effect(xml: &XmlConfigTimer) -> EffectDefinition {
         ignore_effect_removed: false,
         refresh_abilities: Vec::new(),
         is_aoe_refresh: false,
+        aoe_refresh_immediate: false,
         is_refreshed_on_modify: false,
         default_charges: None,
         duration_secs: xml.interval.filter(|&v| v > 0.0),
@@ -401,6 +406,8 @@ fn convert_to_effect(xml: &XmlConfigTimer) -> EffectDefinition {
         show_icon: true,
         display_source: false,
         disciplines: vec![],
+        ignore_refreshes: false,
+        refresh_scope: Default::default(),
         persist_past_death: false,
         track_outside_combat: true,
         on_apply_trigger_timer: None,
@@ -408,7 +415,9 @@ fn convert_to_effect(xml: &XmlConfigTimer) -> EffectDefinition {
         is_alert,
         alert_text: if is_alert { Some(name.to_string()) } else { None },
         alert_on: if is_alert { AlertTrigger::OnApply } else { Default::default() },
+        alert_countdown_secs: None,
         audio: convert_audio(xml),
+        modifiers: Vec::new(),
     }
 }
 

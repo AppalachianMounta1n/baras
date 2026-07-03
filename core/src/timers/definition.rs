@@ -121,6 +121,10 @@ pub struct TimerDefinition {
     /// Custom alert text (None = use timer name)
     pub alert_text: Option<String>,
 
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown.
+    pub alert_countdown_secs: Option<f32>,
+
     // ─── Audio ───────────────────────────────────────────────────────────────
     /// Audio configuration (alerts, countdown, custom sounds)
     #[serde(default)]
@@ -202,11 +206,27 @@ pub struct TimerDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_remove_trigger: Option<Trigger>,
 
-    /// Names of other timers in the same encounter that block this ability
-    /// from appearing as "next to cast" when any of them is currently active.
-    /// OR semantics — any one active blocker marks this timer as blocked.
+    /// Definition IDs of other timers in the same encounter that block this
+    /// ability from appearing as "next to cast" when any of them is currently
+    /// active. OR semantics — any one active blocker marks this timer as
+    /// blocked. Names are not used because they aren't guaranteed unique.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queue_blocking_timers: Vec<String>,
+
+    /// Audio cue to play once when this timer becomes the unique highest-
+    /// priority "next cast" in the ability queue. Suppressed during
+    /// priority ties, and rate-limited per definition_id (see service-
+    /// side dedup window). None disables.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_next_audio: Option<crate::dsl::AudioConfig>,
+
+    /// State condition that, when satisfied, blocks this entry in the ability
+    /// queue (dimmed, excluded from "next cast"). Logically OR'd with
+    /// `queue_blocking_timers` — either signal blocks the entry. Compose
+    /// multi-clause logic via the `all_of` / `any_of` / `not` Condition
+    /// variants rather than introducing a Vec here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_blocking_condition: Option<Condition>,
 
     /// When true, render this timer's ability-queue row as a trickling-down
     /// bar (full → empty as the cooldown elapses) instead of the default

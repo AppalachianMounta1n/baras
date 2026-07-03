@@ -12,7 +12,7 @@ use crate::game_data::Discipline;
 // Re-export from shared modules
 pub use crate::dsl::EntityFilter;
 pub use crate::dsl::{AbilitySelector, EffectSelector};
-pub use baras_types::{AlertTrigger, RefreshAbility, RefreshTrigger};
+pub use baras_types::{AlertTrigger, RefreshAbility, RefreshScope, RefreshTrigger};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Effect Definitions
@@ -100,6 +100,13 @@ pub struct EffectDefinition {
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
     pub is_aoe_refresh: bool,
 
+    /// When true, AoE refresh uses immediate mode: any damage from the ability
+    /// after activation refreshes the target without anchor/window scoping.
+    /// When false (default), uses strict DOT mode: anchors on primary target
+    /// then collects hits within ±10ms to prevent dot ticks from false-refreshing.
+    #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
+    pub aoe_refresh_immediate: bool,
+
     /// Whether or not the effect will refresh on ModifyCharges events
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
     pub is_refreshed_on_modify: bool,
@@ -172,6 +179,20 @@ pub struct EffectDefinition {
     pub disciplines: Vec<Discipline>,
 
     // ─── Behavior ───────────────────────────────────────────────────────────
+    /// If true, retriggering the effect while it is already active is ignored
+    /// (the existing duration is preserved instead of being refreshed). Useful
+    /// for triggers like DamageTaken/HealingTaken where reapplication shouldn't
+    /// reset the timer. Refresh abilities still operate normally.
+    #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
+    pub ignore_refreshes: bool,
+
+    /// Scoping for refresh/dedup logic. Controls which axis of the
+    /// (source, target) pair is used to identify "the same effect instance".
+    /// Default (`Both`) preserves the existing per-(source, target) behavior.
+    /// `Source` collapses across targets; `Target` collapses across sources.
+    #[serde(default, skip_serializing_if = "crate::serde_defaults::is_default_refresh_scope")]
+    pub refresh_scope: RefreshScope,
+
     /// Should this effect persist after target dies?
     #[serde(default, skip_serializing_if = "crate::serde_defaults::is_false")]
     pub persist_past_death: bool,
@@ -209,10 +230,21 @@ pub struct EffectDefinition {
     )]
     pub alert_on: AlertTrigger,
 
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alert_countdown_secs: Option<f32>,
+
     // ─── Audio ─────────────────────────────────────────────────────────────────
     /// Audio configuration (alerts, custom sounds)
     #[serde(default, skip_serializing_if = "AudioConfig::is_default")]
     pub audio: AudioConfig,
+
+    // ─── Modifiers ────────────────────────────────────────────────────────────
+    /// Reactive modifiers that adjust this effect when triggers fire.
+    /// Evaluated against incoming signals while the effect is active.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modifiers: Vec<baras_types::EffectModifier>,
 }
 
 /// Deserialize `display_targets` accepting either a single bare value

@@ -58,6 +58,9 @@ pub struct TimerData {
 /// - Active countdown entries: both flags false → tier-3 progress bar
 #[derive(Debug, Clone)]
 pub struct AbilityQueueEntry {
+    /// Stable identifier from the source `TimerDefinition`. Use this for any
+    /// downstream lookups — names are display strings and not guaranteed unique.
+    pub definition_id: String,
     pub name: String,
     pub remaining_secs: f32,
     pub total_secs: f32,
@@ -104,7 +107,7 @@ const BASE_HEIGHT: f32 = 150.0;
 
 /// Base layout values (at BASE_WIDTH x BASE_HEIGHT)
 const BASE_BAR_HEIGHT: f32 = 18.0;
-const BASE_ENTRY_SPACING: f32 = 4.0;
+const BASE_ENTRY_SPACING: f32 = 2.0;
 const BASE_PADDING: f32 = 6.0;
 const BASE_FONT_SIZE: f32 = 11.0;
 
@@ -176,7 +179,7 @@ impl TimerOverlay {
         self.frame.begin_frame();
 
         let content_width = width - padding * 2.0;
-        let bar_radius = 3.0 * self.frame.scale_factor();
+        let bar_radius = 2.0 * self.frame.scale_factor();
 
         let previews = [
             ("Mechanic A", "12.3", 0.75_f32),
@@ -184,7 +187,14 @@ impl TimerOverlay {
             ("Mechanic C", "1:30", 0.10_f32),
         ];
 
-        let mut y = padding;
+        let n = previews.len() as f32;
+        let total_bars_height = n * bar_height + (n - 1.0) * entry_spacing;
+        let window_height = self.frame.height() as f32;
+        let mut y = if self.config.stack_from_bottom {
+            (window_height - padding - total_bars_height).max(padding)
+        } else {
+            padding
+        };
 
         for (name, time_text, progress) in &previews {
             ProgressBar::new(*name, *progress)
@@ -203,6 +213,18 @@ impl TimerOverlay {
                     font_size,
                     bar_radius,
                 );
+
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    0.8 * self.frame.scale_factor(),
+                    color_from_rgba(self.config.border_color),
+                );
+            }
 
             y += bar_height + entry_spacing;
         }
@@ -227,7 +249,8 @@ impl TimerOverlay {
 
         let font_color = color_from_rgba(self.config.font_color);
 
-        // Sort entries in place if needed
+        // Sort entries soonest-first so max_display retains the most urgent
+        // timers; rendering order is reversed below when stacking from bottom.
         if self.config.sort_by_remaining {
             self.data
                 .entries
@@ -237,17 +260,35 @@ impl TimerOverlay {
         // Compute content height for dynamic background
         let max_display = self.config.max_display as usize;
         let num_entries = self.data.entries.iter().take(max_display).count();
+        let total_bars_height = if num_entries > 0 {
+            num_entries as f32 * bar_height + (num_entries - 1).max(0) as f32 * entry_spacing
+        } else {
+            0.0
+        };
         let content_height = if num_entries > 0 {
-            padding * 2.0
-                + num_entries as f32 * bar_height
-                + (num_entries - 1).max(0) as f32 * entry_spacing
+            padding * 2.0 + total_bars_height
         } else {
             0.0
         };
 
+        // Compute starting y based on stack direction (before begin_frame so we
+        // can position the dynamic background)
+        let window_height = self.frame.height() as f32;
+        let bars_start_y = if self.config.stack_from_bottom {
+            (window_height - padding - total_bars_height).max(padding)
+        } else {
+            padding
+        };
+
         // Begin frame (clear, background, border)
         if self.config.dynamic_background {
-            self.frame.begin_frame_with_content_height(content_height);
+            if self.config.stack_from_bottom {
+                let content_y = (bars_start_y - padding).max(0.0);
+                self.frame
+                    .begin_frame_with_content_rect(content_y, content_height);
+            } else {
+                self.frame.begin_frame_with_content_height(content_height);
+            }
         } else {
             self.frame.begin_frame();
         }
@@ -259,16 +300,24 @@ impl TimerOverlay {
         }
 
         let content_width = width - padding * 2.0;
-        let bar_radius = 3.0 * self.frame.scale_factor();
+        let bar_radius = 2.0 * self.frame.scale_factor();
 
         // Icon rendering setup (scale with bar, not text)
         let icon_size = bar_height - 4.0 * self.frame.scale_factor(); // Slightly smaller than bar
         let icon_padding = 2.0 * self.frame.scale_factor();
         let icon_size_u32 = icon_size.round() as u32;
 
-        let mut y = padding;
+        let mut y = bars_start_y;
 
-        for entry in self.data.entries.iter().take(max_display) {
+        // When stacking from bottom, render the visible window in reverse so
+        // the soonest-to-expire entry sits at the bottom (closest to the eye).
+        let visible: Vec<&TimerEntry> = if self.config.stack_from_bottom {
+            self.data.entries.iter().take(max_display).rev().collect()
+        } else {
+            self.data.entries.iter().take(max_display).collect()
+        };
+
+        for entry in visible {
             let bar_color = color_from_rgba(entry.color);
             let time_text = entry.format_time(self.european_number_format);
 
@@ -282,6 +331,7 @@ impl TimerOverlay {
                 .with_text_color(font_color)
                 .with_right_text(time_text)
                 .with_bold_text()
+                .with_gradient(self.config.bar_gradient)
                 .with_text_glow();
 
             // Add label offset to make room for icon
@@ -298,6 +348,19 @@ impl TimerOverlay {
                 font_size,
                 bar_radius,
             );
+
+            // Per-entry border outline (user-configurable colour, toggleable).
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    0.8 * self.frame.scale_factor(),
+                    color_from_rgba(self.config.border_color),
+                );
+            }
 
             // Draw icon on top of bar if available
             if has_icon {

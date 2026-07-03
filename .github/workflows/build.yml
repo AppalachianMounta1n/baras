@@ -55,7 +55,7 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install Dioxus and Tauri CLIs
-        run: cargo binstall dioxus-cli tauri-cli --no-confirm --force
+        run: cargo binstall dioxus-cli tauri-cli --no-confirm --force --locked
 
       - name: Setup linuxdeploy
         run: |
@@ -109,7 +109,7 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install Dioxus and Tauri CLIs
-        run: cargo binstall dioxus-cli tauri-cli --no-confirm --force
+        run: cargo binstall dioxus-cli tauri-cli --no-confirm --force --locked
 
       - name: Build parse-worker sidecar
         run: |
@@ -154,13 +154,16 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install Dioxus and Tauri CLIs
-        run: cargo binstall dioxus-cli tauri-cli --no-confirm --force
+        run: cargo binstall dioxus-cli tauri-cli --no-confirm --force --locked
+
+      - name: Add aarch64 target
+        run: rustup target add aarch64-apple-darwin
 
       - name: Build parse-worker sidecar
         run: |
-          cargo build --release --package baras-parse-worker
+          cargo build --release --target aarch64-apple-darwin --package baras-parse-worker
           mkdir -p app/src-tauri/binaries
-          cp target/release/baras-parse-worker app/src-tauri/binaries/baras-parse-worker-aarch64-apple-darwin
+          cp target/aarch64-apple-darwin/release/baras-parse-worker app/src-tauri/binaries/baras-parse-worker-aarch64-apple-darwin
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -171,22 +174,21 @@ jobs:
         with:
           projectPath: app
           tauriScript: cargo tauri
+          args: --target aarch64-apple-darwin
 
       - name: Debug - List bundle output
         run: |
-          echo "=== target/release/bundle ==="
-          find target/release/bundle -type f -name "*.dmg" 2>/dev/null || echo "No .dmg files found"
-          find target/release/bundle -type d -name "*.app" 2>/dev/null || echo "No .app directories found"
+          echo "=== target/aarch64-apple-darwin/release/bundle ==="
+          find target/aarch64-apple-darwin/release/bundle -type f -name "*.dmg" 2>/dev/null || echo "No .dmg files found"
+          find target/aarch64-apple-darwin/release/bundle -type d -name "*.app" 2>/dev/null || echo "No .app directories found"
           echo "=== Full bundle tree ==="
-          ls -laR target/release/bundle/ 2>/dev/null || echo "Bundle directory not found"
-          echo "=== Check app/target ==="
-          ls -laR app/target/release/bundle/ 2>/dev/null || echo "app/target not found"
+          ls -laR target/aarch64-apple-darwin/release/bundle/ 2>/dev/null || echo "Bundle directory not found"
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-artifacts
           path: |
-            target/release/bundle/dmg/*.dmg
-            target/release/bundle/macos/*.app
+            target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            target/aarch64-apple-darwin/release/bundle/macos/*.app
           retention-days: 30

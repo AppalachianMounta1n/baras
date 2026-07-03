@@ -150,6 +150,10 @@ where
                         overlay.update_config(config);
                         needs_render = true;
                     }
+                    OverlayCommand::SetFontFamily(family) => {
+                        overlay.frame_mut().set_font_family(&family);
+                        needs_render = true;
+                    }
                     OverlayCommand::SetPosition(x, y) => {
                         overlay.frame_mut().window_mut().set_position(x, y);
                         needs_render = true;
@@ -318,6 +322,13 @@ where
                         });
                         needs_render = true;
                     }
+                    OverlayCommand::SetFontFamily(family) => {
+                        dispatch::Queue::main().exec_sync(move || {
+                            let overlay = unsafe { &mut *overlay_ptr.get() };
+                            overlay.frame_mut().set_font_family(&family);
+                        });
+                        needs_render = true;
+                    }
                     OverlayCommand::SetPosition(x, y) => {
                         dispatch::Queue::main().exec_sync(move || {
                             let overlay = unsafe { &mut *overlay_ptr.get() };
@@ -477,6 +488,7 @@ pub fn create_metric_overlay(
     font_scale: f32,
     dynamic_background: bool,
     show_background_bar: bool,
+    gradient_intensity: f32,
 ) -> Result<OverlayHandle, String> {
     // Position is already relative to the monitor - pass directly
     // On Wayland: used as layer-shell margins
@@ -508,6 +520,7 @@ pub fn create_metric_overlay(
             font_scale,
             dynamic_background,
             show_background_bar,
+            gradient_intensity,
         )
         .map_err(|e| format!("Failed to create {} overlay: {}", title, e))
     };
@@ -807,6 +820,10 @@ pub fn create_effects_a_overlay(
         header_title: "Effects A".to_string(),
         font_scale: effects_config.font_scale,
         dynamic_background: effects_config.dynamic_background,
+        stack_from_bottom: effects_config.stack_from_bottom,
+        show_border: effects_config.show_border,
+        border_color: effects_config.border_color,
+        bar_gradient: effects_config.bar_gradient,
     };
 
     let factory = move || {
@@ -862,6 +879,10 @@ pub fn create_effects_b_overlay(
         header_title: "Effects B".to_string(),
         font_scale: effects_config.font_scale,
         dynamic_background: effects_config.dynamic_background,
+        stack_from_bottom: effects_config.stack_from_bottom,
+        show_border: effects_config.show_border,
+        border_color: effects_config.border_color,
+        bar_gradient: effects_config.bar_gradient,
     };
 
     let factory = move || {
@@ -909,6 +930,10 @@ pub fn create_cooldowns_overlay(
         font_scale: cooldowns_config.font_scale,
         dynamic_background: cooldowns_config.dynamic_background,
         layout_bar: cooldowns_config.layout_bar,
+        stack_from_bottom: cooldowns_config.stack_from_bottom,
+        show_border: cooldowns_config.show_border,
+        border_color: cooldowns_config.border_color,
+        bar_gradient: cooldowns_config.bar_gradient,
     };
 
     let factory = move || {
@@ -955,6 +980,7 @@ pub fn create_dot_tracker_overlay(
         show_countdown: dot_config.show_countdown,
         font_scale: dot_config.font_scale,
         dynamic_background: dot_config.dynamic_background,
+        stack_from_bottom: dot_config.stack_from_bottom,
     };
 
     let factory = move || {

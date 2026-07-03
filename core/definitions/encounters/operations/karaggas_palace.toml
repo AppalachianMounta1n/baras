@@ -86,17 +86,6 @@ ids = [2760371186171904, 2747344550363136, 2760375481139200, 2748401112317952]
 is_boss = true
 is_kill_target = true
 
-[[boss.timer]]
-id = "g4b3_stun_droids"
-name = "Stun Droids"
-difficulties = ["veteran"]
-duration_secs = 20.0
-trigger = { type = "damage_taken", abilities = [
-  2778611912278016,
-], target = { selector = [
-  "G4-B3 Heavy Fabricator",
-] } }
-can_be_refreshed = true
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Boss 5: Karagga the Unyielding

@@ -4,53 +4,7 @@ use super::*;
 use crate::game_data::{effect_id, effect_type_id};
 use baras_types::{CombatLogSortColumn, SortDirection};
 
-/// Build search clause supporting case-insensitive search with OR and NOT logic.
-/// Search terms separated by " OR " are combined with OR logic.
-/// Terms prefixed with "NOT " are excluded (combined with AND NOT).
-fn build_search_clause(search: &str) -> String {
-    let terms: Vec<&str> = search.split(" OR ").map(|s| s.trim()).collect();
-
-    let mut positive_clauses = Vec::new();
-    let mut negative_clauses = Vec::new();
-
-    for term in &terms {
-        if term.is_empty() {
-            continue;
-        }
-        let (negated, clean_term) = if let Some(stripped) = term.strip_prefix("NOT ") {
-            (true, stripped.trim())
-        } else {
-            (false, *term)
-        };
-        if clean_term.is_empty() {
-            continue;
-        }
-        let escaped = sql_escape(clean_term).to_lowercase();
-        let clause = format!(
-            "(LOWER(source_name) LIKE '%{0}%' OR LOWER(target_name) LIKE '%{0}%' OR LOWER(ability_name) LIKE '%{0}%' OR LOWER(effect_name) LIKE '%{0}%' OR CAST(ability_id AS VARCHAR) LIKE '%{0}%' OR CAST(effect_id AS VARCHAR) LIKE '%{0}%')",
-            escaped
-        );
-        if negated {
-            negative_clauses.push(format!("NOT {}", clause));
-        } else {
-            positive_clauses.push(clause);
-        }
-    }
-
-    let mut parts = Vec::new();
-    if !positive_clauses.is_empty() {
-        parts.push(format!("({})", positive_clauses.join(" OR ")));
-    }
-    for neg in &negative_clauses {
-        parts.push(neg.clone());
-    }
-
-    if parts.is_empty() {
-        "1=1".to_string()
-    } else {
-        format!("({})", parts.join(" AND "))
-    }
-}
+use super::search_parser::build_search_clause;
 
 /// Build event type filter clause based on CombatLogFilters.
 fn build_event_filter_clause(filters: &CombatLogFilters) -> Option<String> {
@@ -405,6 +359,7 @@ impl EncounterQuery<'_> {
         find_text: &str,
         source_filter: Option<&str>,
         target_filter: Option<&str>,
+        search_filter: Option<&str>,
         time_range: Option<&TimeRange>,
         event_filters: Option<&CombatLogFilters>,
         sort_column: CombatLogSortColumn,
@@ -451,6 +406,11 @@ impl EncounterQuery<'_> {
                 }
             }
         }
+        if let Some(search) = search_filter {
+            if !search.is_empty() {
+                where_clauses.push(build_search_clause(search));
+            }
+        }
         if let Some(tr) = time_range {
             where_clauses.push(tr.sql_filter());
         }
@@ -465,7 +425,7 @@ impl EncounterQuery<'_> {
         // Find text filter - use COALESCE to handle NULLs
         let find_lower = sql_escape(find_text).to_lowercase();
         let find_filter = format!(
-            "(LOWER(COALESCE(src, '')) LIKE '%{0}%' OR LOWER(COALESCE(tgt, '')) LIKE '%{0}%' OR LOWER(COALESCE(abl, '')) LIKE '%{0}%' OR LOWER(COALESCE(eff, '')) LIKE '%{0}%' OR CAST(abl_id AS VARCHAR) LIKE '%{0}%' OR CAST(eff_id AS VARCHAR) LIKE '%{0}%')",
+            "(LOWER(COALESCE(src, '')) LIKE '%{0}%' OR LOWER(COALESCE(tgt, '')) LIKE '%{0}%' OR LOWER(COALESCE(abl, '')) LIKE '%{0}%' OR LOWER(COALESCE(eff, '')) LIKE '%{0}%' OR CAST(abl_id AS VARCHAR) LIKE '%{0}%' OR CAST(eff_id AS VARCHAR) LIKE '%{0}%' OR CAST(src_id AS VARCHAR) LIKE '%{0}%' OR CAST(tgt_id AS VARCHAR) LIKE '%{0}%' OR CAST(src_cls_id AS VARCHAR) LIKE '%{0}%' OR CAST(tgt_cls_id AS VARCHAR) LIKE '%{0}%')",
             find_lower
         );
 
@@ -486,7 +446,11 @@ impl EncounterQuery<'_> {
                         ability_name as abl,
                         effect_name as eff,
                         ability_id as abl_id,
-                        effect_id as eff_id
+                        effect_id as eff_id,
+                        source_id as src_id,
+                        target_id as tgt_id,
+                        source_class_id as src_cls_id,
+                        target_class_id as tgt_cls_id
                     FROM events
                     WHERE {base_where}
                 )

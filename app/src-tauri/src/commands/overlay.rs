@@ -161,6 +161,22 @@ pub async fn toggle_raid_rearrange(
     OverlayManager::toggle_rearrange(&state, &service).await
 }
 
+/// List the font family names available on this system (for the font picker).
+#[tauri::command]
+pub async fn list_system_fonts() -> Result<Vec<String>, String> {
+    Ok(baras_overlay::available_font_families())
+}
+
+/// Set the global overlay font family: persists it and applies to all overlays.
+#[tauri::command]
+pub async fn set_overlay_font_family(
+    family: String,
+    state: State<'_, SharedOverlayState>,
+    service: State<'_, ServiceHandle>,
+) -> Result<(), String> {
+    OverlayManager::set_font_family(&state, &service, family).await
+}
+
 #[tauri::command]
 pub async fn get_overlay_status(
     state: State<'_, SharedOverlayState>,

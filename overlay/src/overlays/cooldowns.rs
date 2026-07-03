@@ -89,6 +89,14 @@ pub struct CooldownConfig {
     pub dynamic_background: bool,
     /// Render cooldowns as stacked progress bars instead of icons
     pub layout_bar: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    pub stack_from_bottom: bool,
+    /// When true (and in bar layout), draw an outline around each entry
+    pub show_border: bool,
+    /// Color of the per-entry border outline (bar layout only)
+    pub border_color: [u8; 4],
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    pub bar_gradient: bool,
 }
 
 impl Default for CooldownConfig {
@@ -104,6 +112,10 @@ impl Default for CooldownConfig {
             font_scale: 1.0,
             dynamic_background: true,
             layout_bar: false,
+            stack_from_bottom: false,
+            show_border: true,
+            border_color: [128, 128, 128, 255],
+            bar_gradient: false,
         }
     }
 }
@@ -128,10 +140,10 @@ pub struct CooldownOverlay {
     config: CooldownConfig,
     background_alpha: u8,
     data: CooldownData,
-    /// Last rendered state for dirty checking (icon mode): (ability_id, time_string, charges)
-    last_rendered: Vec<(u64, String, u8)>,
-    /// Last rendered state for dirty checking (bar mode): (ability_id, time_string, charges, is_ready_state)
-    last_rendered_bar: Vec<(u64, String, u8, bool)>,
+    /// Last rendered state for dirty checking (icon mode): (ability_id, time_string, charges, progress_q)
+    last_rendered: Vec<(u64, String, u8, u16)>,
+    /// Last rendered state for dirty checking (bar mode): (ability_id, time_string, charges, is_ready_state, progress_q)
+    last_rendered_bar: Vec<(u64, String, u8, bool, u16)>,
     european_number_format: bool,
 }
 
@@ -217,8 +229,10 @@ impl CooldownOverlay {
 
         let max_display = self.config.max_display as usize;
 
-        // Build current visible state for dirty check
-        let current_state: Vec<(u64, String, u8)> = self
+        // Build current visible state for dirty check.
+        // Include a quantized progress value so the clock-wipe overlay updates smoothly
+        // even when the displayed time string is stable (e.g. whole seconds when >= 10s).
+        let current_state: Vec<(u64, String, u8, u16)> = self
             .data
             .entries
             .iter()
@@ -228,6 +242,7 @@ impl CooldownOverlay {
                     e.ability_id,
                     e.format_time(self.european_number_format),
                     e.charges,
+                    (e.progress() * 200.0) as u16,
                 )
             })
             .collect();
@@ -266,9 +281,30 @@ impl CooldownOverlay {
             0.0
         };
 
+        // Compute starting y based on stack direction
+        let window_height = self.frame.height() as f32;
+        let total_rows_height = num_entries as f32 * row_height;
+        let rows_start_y = if self.config.stack_from_bottom && num_entries > 0 {
+            (window_height - padding - total_rows_height + row_spacing)
+                .max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom && num_entries > 0 {
+            (rows_start_y - header_space).max(padding)
+        } else {
+            padding
+        };
+
         // Begin frame (clear, background, border)
         if self.config.dynamic_background {
-            self.frame.begin_frame_with_content_height(content_height);
+            if self.config.stack_from_bottom && num_entries > 0 {
+                let content_y = (header_y - padding).max(0.0);
+                self.frame
+                    .begin_frame_with_content_rect(content_y, content_height);
+            } else {
+                self.frame.begin_frame_with_content_height(content_height);
+            }
         } else {
             self.frame.begin_frame();
         }
@@ -279,7 +315,7 @@ impl CooldownOverlay {
             Header::new("Cooldowns").with_color(colors::white()).render(
                 &mut self.frame,
                 padding,
-                padding,
+                header_y,
                 content_width,
                 header_font_size,
                 row_spacing,
@@ -291,7 +327,7 @@ impl CooldownOverlay {
             return;
         }
 
-        let mut y = padding + header_space;
+        let mut y = rows_start_y;
 
         let icon_size_u32 = icon_size as u32;
 
@@ -472,27 +508,42 @@ impl CooldownOverlay {
 
         self.frame.begin_frame();
 
-        // Render header if enabled
-        if self.config.show_header {
-            let content_width = self.frame.width() as f32 - 2.0 * padding;
-            Header::new("Cooldowns").with_color(colors::white()).render(
-                &mut self.frame,
-                padding,
-                padding,
-                content_width,
-                header_font_size,
-                row_spacing,
-            );
-        }
-
-        let mut y = padding + header_space;
-
         // Sample preview data
         let previews = [
             ("Ability", "12.3s", 2u8),
             ("Ability", "45.0s", 1u8),
             ("Ability", "1:30", 0u8),
         ];
+
+        let window_height = self.frame.height() as f32;
+        let n = previews.len() as f32;
+        let total_rows_height = n * row_height;
+        let rows_start_y = if self.config.stack_from_bottom {
+            (window_height - padding - total_rows_height + row_spacing)
+                .max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom {
+            (rows_start_y - header_space).max(padding)
+        } else {
+            padding
+        };
+
+        // Render header if enabled
+        if self.config.show_header {
+            let content_width = self.frame.width() as f32 - 2.0 * padding;
+            Header::new("Cooldowns").with_color(colors::white()).render(
+                &mut self.frame,
+                padding,
+                header_y,
+                content_width,
+                header_font_size,
+                row_spacing,
+            );
+        }
+
+        let mut y = rows_start_y;
 
         for (name, time_text, charges) in &previews {
             let x = padding;
@@ -574,8 +625,10 @@ impl CooldownOverlay {
     fn render_bar_mode(&mut self) {
         let max_display = self.config.max_display as usize;
 
-        // Dirty check: include ready state so border changes are caught
-        let current_state: Vec<(u64, String, u8, bool)> = self
+        // Dirty check: include ready state so border changes are caught.
+        // Include a quantized progress value (0-200) so the bar fill updates smoothly
+        // even when the displayed time string is stable (e.g. whole seconds when >= 10s).
+        let current_state: Vec<(u64, String, u8, bool, u16)> = self
             .data
             .entries
             .iter()
@@ -586,6 +639,7 @@ impl CooldownOverlay {
                     e.format_time(self.european_number_format),
                     e.charges,
                     e.is_in_ready_state,
+                    (e.progress() * 200.0) as u16,
                 )
             })
             .collect();
@@ -615,17 +669,37 @@ impl CooldownOverlay {
         };
 
         let n = self.data.entries.iter().take(max_display).count();
+        let total_bars_height = if n > 0 {
+            n as f32 * bar_height + (n - 1) as f32 * entry_spacing
+        } else {
+            0.0
+        };
         let content_height = if n == 0 {
             0.0
         } else {
-            padding * 2.0
-                + header_space
-                + n as f32 * bar_height
-                + (n - 1) as f32 * entry_spacing
+            padding * 2.0 + header_space + total_bars_height
+        };
+
+        let window_height = self.frame.height() as f32;
+        let bars_start_y = if self.config.stack_from_bottom && n > 0 {
+            (window_height - padding - total_bars_height).max(padding + header_space)
+        } else {
+            padding + header_space
+        };
+        let header_y = if self.config.stack_from_bottom && n > 0 {
+            (bars_start_y - header_space).max(padding)
+        } else {
+            padding
         };
 
         if self.config.dynamic_background {
-            self.frame.begin_frame_with_content_height(content_height);
+            if self.config.stack_from_bottom && n > 0 {
+                let content_y = (header_y - padding).max(0.0);
+                self.frame
+                    .begin_frame_with_content_rect(content_y, content_height);
+            } else {
+                self.frame.begin_frame_with_content_height(content_height);
+            }
         } else {
             self.frame.begin_frame();
         }
@@ -635,7 +709,7 @@ impl CooldownOverlay {
             Header::new("Cooldowns").with_color(colors::white()).render(
                 &mut self.frame,
                 padding,
-                padding,
+                header_y,
                 content_width_h,
                 header_font_size,
                 entry_spacing,
@@ -648,7 +722,7 @@ impl CooldownOverlay {
         }
 
         let font_color = tiny_skia::Color::WHITE;
-        let mut y = padding + header_space;
+        let mut y = bars_start_y;
 
         for entry in self.data.entries.iter().take(max_display) {
             // Label: optional charges prefix + name + optional source
@@ -673,6 +747,7 @@ impl CooldownOverlay {
                 .with_text_color(font_color)
                 .with_right_text(&right_text)
                 .with_bold_text()
+                .with_gradient(self.config.bar_gradient)
                 .with_text_glow();
 
             if has_icon {
@@ -680,6 +755,20 @@ impl CooldownOverlay {
             }
 
             bar.render(&mut self.frame, padding, y, content_width, bar_height, font_size, bar_radius);
+
+            // Per-entry border outline (user-configurable colour, toggleable).
+            // Drawn before the ready-state border so the ready highlight wins.
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    0.8 * scale,
+                    color_from_rgba(self.config.border_color),
+                );
+            }
 
             // Light-blue border for ready state
             if entry.is_in_ready_state {
@@ -747,13 +836,20 @@ impl CooldownOverlay {
 
         self.frame.begin_frame();
 
-        let mut y = padding;
-
         let previews = [
             ("Ability A", "Ready", true),
             ("Ability B", "12.3s", false),
             ("Ability C", "1:30", false),
         ];
+
+        let window_height = self.frame.height() as f32;
+        let n = previews.len() as f32;
+        let total_bars_height = n * bar_height + (n - 1.0) * entry_spacing;
+        let mut y = if self.config.stack_from_bottom {
+            (window_height - padding - total_bars_height).max(padding)
+        } else {
+            padding
+        };
 
         for (name, time_text, is_ready) in previews {
             ProgressBar::new(name, if is_ready { 1.0 } else { 0.4 })
@@ -764,6 +860,18 @@ impl CooldownOverlay {
                 .with_bold_text()
                 .with_text_glow()
                 .render(&mut self.frame, padding, y, content_width, bar_height, font_size, bar_radius);
+
+            if self.config.show_border {
+                self.frame.stroke_rounded_rect(
+                    padding,
+                    y,
+                    content_width,
+                    bar_height,
+                    bar_radius,
+                    0.8 * self.frame.scale_factor(),
+                    color_from_rgba(self.config.border_color),
+                );
+            }
 
             if is_ready {
                 let c = tiny_skia::Color::from_rgba(

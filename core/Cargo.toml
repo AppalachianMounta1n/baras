@@ -6,6 +6,13 @@ edition = "2024"
 [lints]
 workspace = true
 
+[features]
+# `query` pulls in the DataFusion stack (used only by `core::query`). Default-on
+# so the app/validate get the Data Explorer; the parse-worker opts out via
+# `default-features = false` to keep the sidecar binary DataFusion-free.
+default = ["query"]
+query = ["dep:datafusion", "dep:datafusion-functions-table"]
+
 [dependencies]
 baras-types = { path = "../types" }
 confy = { version = "2.0.0", features = ["toml_conf"] }
@@ -24,18 +31,19 @@ phf = { version = "0.13.1", features = ["macros"] }
 dirs = "6.0.0"
 encoding_rs = "0.8"
 toml = "0.9"
-arrow = { version = "57", default-features = false, features = ["ipc"] }
-parquet = { version = "57", default-features = false, features = [
+arrow = { version = "58", default-features = false, features = ["ipc"] }
+parquet = { version = "58", default-features = false, features = [
   "arrow",
+  "lz4",
   "snap",
   "zstd",
 ] }
-datafusion = { version = "51", default-features = false, features = [
+datafusion = { version = "54", default-features = false, optional = true, features = [
   "parquet",
   "sql",
   "nested_expressions",
 ] }
-datafusion-functions-table = { version = "51.0", default-features = false }
+datafusion-functions-table = { version = "54.0", default-features = false, optional = true }
 tracing = { workspace = true }
 
 [build-dependencies]

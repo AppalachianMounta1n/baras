@@ -8,7 +8,7 @@ use wasm_bindgen_futures::spawn_local;
 use crate::api::{self, BossNotesInfo};
 use crate::components::{
     DataExplorerPanel, EffectEditorPanel, EncounterEditorPanel,
-    HotkeyInput, ParselyUploadModal, SettingsPanel, ToastFrame, ToastSeverity, use_parsely_upload,
+    HotkeyInput, ParselyUploadModal, SettingsPanel, Slider, ToastFrame, ToastSeverity, use_parsely_upload,
     use_parsely_upload_provider, use_toast, use_toast_provider,
 };
 use crate::components::class_icons::{get_class_icon, get_role_icon};
@@ -92,6 +92,8 @@ pub fn App() -> Element {
 
     // Other UI state (not part of session persistence)
     let mut settings_open = use_signal(|| false);
+    let mut settings_pos = use_signal(|| None::<(f64, f64)>);
+    let mut settings_drag = use_signal(|| None::<(f64, f64)>);
     let mut general_settings_open = use_signal(|| false);
     let mut overlay_settings = use_signal(OverlaySettings::default);
     let selected_overlay_tab = use_signal(|| "dps".to_string());
@@ -521,6 +523,27 @@ pub fn App() -> Element {
         }
     });
 
+    // Document-level mousemove/mouseup for settings panel drag (registered once)
+    {
+        let mut pos = settings_pos;
+        let mut drag = settings_drag;
+        use_future(move || async move {
+            let doc = web_sys::window().unwrap().document().unwrap();
+            let move_cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |e: web_sys::MouseEvent| {
+                if let Some((ox, oy)) = drag() {
+                    pos.set(Some((e.client_x() as f64 - ox, e.client_y() as f64 - oy)));
+                }
+            });
+            let up_cb = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |_: web_sys::MouseEvent| {
+                drag.set(None);
+            });
+            let _ = doc.add_event_listener_with_callback("mousemove", move_cb.as_ref().unchecked_ref());
+            let _ = doc.add_event_listener_with_callback("mouseup", up_cb.as_ref().unchecked_ref());
+            move_cb.forget();
+            up_cb.forget();
+        });
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Computed Values
     // ─────────────────────────────────────────────────────────────────────────
@@ -844,7 +867,14 @@ pub fn App() -> Element {
                         button {
                             class: "btn btn-header-overlay btn-header-customize",
                             title: "Customize overlay appearance",
-                            onclick: move |_| settings_open.set(!settings_open()),
+                            onclick: move |_| {
+                                let opening = !settings_open();
+                                settings_open.set(opening);
+                                if !opening {
+                                    settings_pos.set(None);
+                                    settings_drag.set(None);
+                                }
+                            },
                             i { class: "fa-solid fa-screwdriver-wrench" }
                         }
                     }
@@ -1675,26 +1705,49 @@ pub fn App() -> Element {
                 }
             }
 
-            // Overlay settings modal (accessible from any tab via header customize button)
+            // Overlay settings floating panel (accessible from any tab via header customize button)
             if settings_open() {
-                div {
-                    class: "modal-backdrop",
-                    onclick: move |_| settings_open.set(false),
-                    div {
-                        onclick: move |e| e.stop_propagation(),
-                        SettingsPanel {
-                            settings: overlay_settings,
-                            selected_tab: selected_overlay_tab,
-                            profile_names: profile_names,
-                            active_profile: active_profile,
-                            metric_overlays_enabled: metric_overlays_enabled,
-                            personal_enabled: personal_enabled,
-                            raid_enabled: raid_enabled,
-                            overlays_visible: overlays_visible,
-                            profile_dirty: profile_dirty,
-                            on_close: move |_| settings_open.set(false),
-                            on_header_mousedown: move |_| {},
-                            on_settings_saved: move |_| {},
+                {
+                    let has_pos = settings_pos().is_some();
+                    let style = if let Some((sx, sy)) = settings_pos() {
+                        format!("left: {sx}px; top: {sy}px;")
+                    } else {
+                        String::new()
+                    };
+                    rsx! {
+                        div {
+                            class: if has_pos { "settings-floating-wrap positioned" } else { "settings-floating-wrap" },
+                            style: "{style}",
+                            SettingsPanel {
+                                settings: overlay_settings,
+                                selected_tab: selected_overlay_tab,
+                                profile_names: profile_names,
+                                active_profile: active_profile,
+                                metric_overlays_enabled: metric_overlays_enabled,
+                                personal_enabled: personal_enabled,
+                                raid_enabled: raid_enabled,
+                                overlays_visible: overlays_visible,
+                                profile_dirty: profile_dirty,
+                                on_close: move |_| {
+                                    settings_open.set(false);
+                                    settings_pos.set(None);
+                                    settings_drag.set(None);
+                                },
+                                on_header_mousedown: move |e: MouseEvent| {
+                                    let coords = e.client_coordinates();
+                                    let (px, py) = settings_pos().unwrap_or_else(|| {
+                                        let doc = web_sys::window().unwrap().document().unwrap();
+                                        let vw = doc.document_element().unwrap().client_width() as f64;
+                                        let vh = doc.document_element().unwrap().client_height() as f64;
+                                        ((vw - 900.0_f64.min(vw * 0.9)) / 2.0, (vh * 0.075))
+                                    });
+                                    settings_drag.set(Some((coords.x - px, coords.y - py)));
+                                    if !has_pos {
+                                        settings_pos.set(Some((px, py)));
+                                    }
+                                },
+                                on_settings_saved: move |_| {},
+                            }
                         }
                     }
                 }
@@ -2014,7 +2067,6 @@ pub fn App() -> Element {
 
                             div { class: "settings-section",
                                 h4 { "Audio" }
-                                p { class: "hint", "TTS audio for timer countdowns and alerts." }
 
                                 div { class: "setting-row",
                                     label { "Enable Audio" }
@@ -2037,30 +2089,26 @@ pub fn App() -> Element {
                                     }
                                 }
 
-                                div { class: "setting-row",
-                                    label { "Volume" }
-                                    input {
-                                        r#type: "range",
-                                        min: "0",
-                                        max: "100",
-                                        value: "{audio_volume()}",
-                                        disabled: !audio_enabled(),
-                                        oninput: move |e| {
-                                            if let Ok(val) = e.value().parse::<u8>() {
-                                                audio_volume.set(val);
-                                                let mut toast = use_toast();
-                                                spawn(async move {
-                                                    if let Some(mut cfg) = api::get_config().await {
-                                                        cfg.audio.volume = val;
-                                                        if let Err(err) = api::update_config(&cfg).await {
-                                                            toast.show(format!("Failed to save settings: {}", err), ToastSeverity::Normal);
-                                                        }
-                                                    }
-                                                });
+                                Slider {
+                                    label: "Volume",
+                                    value: audio_volume() as f64,
+                                    min: 0.0,
+                                    max: 100.0,
+                                    suffix: "%",
+                                    disabled: !audio_enabled(),
+                                    on_change: move |v: f64| {
+                                        let val = v.round() as u8;
+                                        audio_volume.set(val);
+                                        let mut toast = use_toast();
+                                        spawn(async move {
+                                            if let Some(mut cfg) = api::get_config().await {
+                                                cfg.audio.volume = val;
+                                                if let Err(err) = api::update_config(&cfg).await {
+                                                    toast.show(format!("Failed to save settings: {}", err), ToastSeverity::Normal);
+                                                }
                                             }
-                                        }
-                                    }
-                                    span { class: "value", "{audio_volume()}%" }
+                                        });
+                                    },
                                 }
 
                                 div { class: "setting-row",
@@ -2107,7 +2155,6 @@ pub fn App() -> Element {
                                     }
                                 }
 
-                                p { class: "hint hint-subtle", "Countdowns speak timer name + seconds (e.g., \"Shield 3... 2... 1...\")" }
                             }
 
                             div { class: "settings-section",
@@ -2148,16 +2195,24 @@ pub fn App() -> Element {
                                                                     class: "chip-remove",
                                                                     title: "Remove guild",
                                                                     onclick: move |_| {
-                                                                        let mut list = parsely_guilds.write();
-                                                                        list.retain(|g| g != &name);
-                                                                        let still_has_selected = parsely_selected_guild
-                                                                            .read()
-                                                                            .as_deref()
-                                                                            .map(|s| list.iter().any(|g| g == s))
-                                                                            .unwrap_or(false);
-                                                                        if !still_has_selected {
-                                                                            parsely_selected_guild.set(list.first().cloned());
-                                                                        }
+                                                                        let (guilds_snapshot, selected_snapshot) = {
+                                                                            let mut list = parsely_guilds.write();
+                                                                            list.retain(|g| g != &name);
+                                                                            let still_has_selected = parsely_selected_guild
+                                                                                .read()
+                                                                                .as_deref()
+                                                                                .map(|s| list.iter().any(|g| g == s))
+                                                                                .unwrap_or(false);
+                                                                            if !still_has_selected {
+                                                                                parsely_selected_guild.set(list.first().cloned());
+                                                                            }
+                                                                            (list.clone(), parsely_selected_guild.read().clone())
+                                                                        };
+                                                                        save_parsely_guild_fields(
+                                                                            guilds_snapshot,
+                                                                            selected_snapshot,
+                                                                            parsely_save_status,
+                                                                        );
                                                                     },
                                                                     "×"
                                                                 }
@@ -2175,32 +2230,24 @@ pub fn App() -> Element {
                                                 oninput: move |e| parsely_guild_input.set(e.value()),
                                                 onkeydown: move |e| {
                                                     if e.key() == Key::Enter {
-                                                        let trimmed = parsely_guild_input.read().trim().to_string();
-                                                        if !trimmed.is_empty()
-                                                            && !parsely_guilds.read().iter().any(|g| g == &trimmed)
-                                                        {
-                                                            parsely_guilds.write().push(trimmed.clone());
-                                                            if parsely_selected_guild.read().is_none() {
-                                                                parsely_selected_guild.set(Some(trimmed));
-                                                            }
-                                                            parsely_guild_input.set(String::new());
-                                                        }
+                                                        add_parsely_guild(
+                                                            parsely_guild_input,
+                                                            parsely_guilds,
+                                                            parsely_selected_guild,
+                                                            parsely_save_status,
+                                                        );
                                                     }
                                                 }
                                             }
                                             button {
                                                 class: "btn btn-secondary btn-sm",
                                                 onclick: move |_| {
-                                                    let trimmed = parsely_guild_input.read().trim().to_string();
-                                                    if !trimmed.is_empty()
-                                                        && !parsely_guilds.read().iter().any(|g| g == &trimmed)
-                                                    {
-                                                        parsely_guilds.write().push(trimmed.clone());
-                                                        if parsely_selected_guild.read().is_none() {
-                                                            parsely_selected_guild.set(Some(trimmed));
-                                                        }
-                                                        parsely_guild_input.set(String::new());
-                                                    }
+                                                    add_parsely_guild(
+                                                        parsely_guild_input,
+                                                        parsely_guilds,
+                                                        parsely_selected_guild,
+                                                        parsely_save_status,
+                                                    );
                                                 },
                                                 "Add"
                                             }
@@ -2254,43 +2301,45 @@ pub fn App() -> Element {
                         onclick: move |e| e.stop_propagation(),
 
                         div { class: "file-browser-header",
-                            h3 {
-                                i { class: "fa-solid fa-folder-open" }
-                                " Log Files"
+                            div { class: "file-browser-header-top",
+                                h3 {
+                                    i { class: "fa-solid fa-folder-open" }
+                                    " Log Files"
+                                }
+                                label {
+                                    class: "file-browser-filter-toggle",
+                                    title: "Hide files smaller than 1MB",
+                                    input {
+                                        r#type: "checkbox",
+                                        checked: hide_small_log_files(),
+                                        onchange: move |e| {
+                                            let checked = e.checked();
+                                            hide_small_log_files.set(checked);
+                                            let mut toast = use_toast();
+                                            spawn(async move {
+                                                if let Some(mut cfg) = api::get_config().await {
+                                                    cfg.hide_small_log_files = checked;
+                                                    if let Err(err) = api::update_config(&cfg).await {
+                                                        toast.show(format!("Failed to save settings: {}", err), ToastSeverity::Normal);
+                                                    }
+                                                }
+                                            });
+                                        },
+                                    }
+                                    " Hide <1MB"
+                                }
+                                button {
+                                    class: "btn btn-close",
+                                    onclick: move |_| file_browser_open.set(false),
+                                    "X"
+                                }
                             }
                             input {
                                 class: "file-browser-search",
                                 r#type: "text",
-                                placeholder: "Filter by name, date, day, or operation...",
+                                placeholder: "Filter by name, date, day, or operation (comma = AND, e.g. \"ToonName,Dxun\")...",
                                 value: "{file_browser_filter}",
                                 oninput: move |e| file_browser_filter.set(e.value()),
-                            }
-                            label {
-                                class: "file-browser-filter-toggle",
-                                title: "Hide files smaller than 1MB",
-                                input {
-                                    r#type: "checkbox",
-                                    checked: hide_small_log_files(),
-                                    onchange: move |e| {
-                                        let checked = e.checked();
-                                        hide_small_log_files.set(checked);
-                                        let mut toast = use_toast();
-                                        spawn(async move {
-                                            if let Some(mut cfg) = api::get_config().await {
-                                                cfg.hide_small_log_files = checked;
-                                                if let Err(err) = api::update_config(&cfg).await {
-                                                    toast.show(format!("Failed to save settings: {}", err), ToastSeverity::Normal);
-                                                }
-                                            }
-                                        });
-                                    },
-                                }
-                                " Hide <1MB"
-                            }
-                            button {
-                                class: "btn btn-close",
-                                onclick: move |_| file_browser_open.set(false),
-                                "X"
                             }
                         }
 
@@ -2309,21 +2358,29 @@ pub fn App() -> Element {
                                         if hide_small && f.file_size < 1024 * 1024 {
                                             return false;
                                         }
-                                        // Text filter
-                                        if filter.is_empty() {
+                                        // Text filter: comma-separated terms are ANDed
+                                        // together (e.g. "X,Y" matches files with both X and Y).
+                                        let terms: Vec<&str> = filter
+                                            .split(',')
+                                            .map(|t| t.trim())
+                                            .filter(|t| !t.is_empty())
+                                            .collect();
+                                        if terms.is_empty() {
                                             return true;
                                         }
                                         let name = f.character_name.as_deref().unwrap_or("").to_lowercase();
                                         let date = f.date.to_lowercase();
                                         let day = f.day_of_week.to_lowercase();
-                                        // Also check area names for operation search
-                                        let areas_match = f.areas.as_ref().map_or(false, |areas| {
-                                            areas.iter().any(|a| {
-                                                a.display.to_lowercase().contains(&filter)
-                                                    || a.area_name.to_lowercase().contains(&filter)
-                                            })
-                                        });
-                                        name.contains(&filter) || date.contains(&filter) || day.contains(&filter) || areas_match
+                                        terms.iter().all(|term| {
+                                            // Also check area names for operation search
+                                            let areas_match = f.areas.as_ref().map_or(false, |areas| {
+                                                areas.iter().any(|a| {
+                                                    a.display.to_lowercase().contains(term)
+                                                        || a.area_name.to_lowercase().contains(term)
+                                                })
+                                            });
+                                            name.contains(term) || date.contains(term) || day.contains(term) || areas_match
+                                        })
                                     }).cloned().collect();
                                     rsx! {
                                         for file in filtered.iter() {
@@ -2544,6 +2601,59 @@ pub fn App() -> Element {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Parsely Guild Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Persist guild fields (`guilds` + `selected_guild`) to the config without
+/// touching unrelated parsely settings. Used by add/remove handlers so the
+/// chip list stays in sync with what the upload modal sees.
+fn save_parsely_guild_fields(
+    guilds: Vec<String>,
+    selected: Option<String>,
+    mut save_status: Signal<String>,
+) {
+    let mut toast = use_toast();
+    spawn(async move {
+        if let Some(mut cfg) = api::get_config().await {
+            cfg.parsely.guilds = guilds;
+            cfg.parsely.selected_guild = selected;
+            match api::update_config(&cfg).await {
+                Ok(_) => save_status.set("Saved!".to_string()),
+                Err(err) => toast.show(
+                    format!("Failed to save guilds: {}", err),
+                    ToastSeverity::Normal,
+                ),
+            }
+        }
+    });
+}
+
+/// Add the trimmed guild input to the list and persist guild fields to config.
+/// No-op if the input is empty or already present.
+fn add_parsely_guild(
+    mut input: Signal<String>,
+    mut guilds: Signal<Vec<String>>,
+    mut selected: Signal<Option<String>>,
+    save_status: Signal<String>,
+) {
+    let trimmed = input.read().trim().to_string();
+    if trimmed.is_empty() || guilds.read().iter().any(|g| g == &trimmed) {
+        return;
+    }
+    guilds.write().push(trimmed.clone());
+    if selected.read().is_none() {
+        selected.set(Some(trimmed));
+    }
+    input.set(String::new());
+
+    save_parsely_guild_fields(
+        guilds.read().clone(),
+        selected.read().clone(),
+        save_status,
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Player Stats Bar
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -2592,7 +2702,7 @@ fn PlayerStatsBar() -> Element {
                 input {
                     r#type: "text",
                     title: "Your alacrity percentage for GCD calculations",
-                    value: "{alacrity():.1}",
+                    value: "{alacrity():.2}",
                     onchange: move |e| {
                         if let Ok(val) = e.value().parse::<f32>() {
                             alacrity.set(val.clamp(0.0, 30.0));

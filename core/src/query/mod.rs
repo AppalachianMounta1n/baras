@@ -7,6 +7,7 @@
 mod breakdown;
 mod column_helpers;
 mod combat_log;
+mod search_parser;
 mod effects;
 pub mod error;
 mod overview;

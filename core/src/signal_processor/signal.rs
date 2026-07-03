@@ -15,6 +15,9 @@ pub enum GameSignal {
     CombatEnded {
         timestamp: NaiveDateTime,
         encounter_id: u64,
+        /// True if the encounter was a kill (kill targets dead or victory trigger fired).
+        /// False for wipes, timeouts, and area-exit terminations.
+        success: bool,
     },
 
     // Entity state changes
@@ -138,6 +141,8 @@ pub enum GameSignal {
         absorbed: i32,
         /// Defense result ID (0 = normal hit). Maps to `game_data::defense_type` constants.
         defense_type_id: i64,
+        /// Whether this was a critical hit
+        is_crit: bool,
     },
 
     /// Healing done (for effect refresh on heal completion)

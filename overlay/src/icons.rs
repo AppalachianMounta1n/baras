@@ -126,7 +126,7 @@ for i in 0..archive.len() {
     }
 }
 
-fn read_and_decode(zip_file: &mut zip::read::ZipFile<'_>) -> Option<IconData> {
+fn read_and_decode<R: Read>(zip_file: &mut zip::read::ZipFile<'_, R>) -> Option<IconData> {
     let mut png_data = Vec::new();
     zip_file.read_to_end(&mut png_data).ok()?;
     decode_png(&png_data)

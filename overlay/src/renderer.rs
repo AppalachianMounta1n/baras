@@ -11,8 +11,8 @@ use cosmic_text::{
     SwashCache, Weight,
 };
 use tiny_skia::{
-    Color, FillRule, LineCap, LineJoin, Paint, PathBuilder, PixmapMut, Rect, Stroke, StrokeDash,
-    Transform,
+    Color, FillRule, GradientStop, LineCap, LineJoin, LinearGradient, Paint, PathBuilder, PixmapMut,
+    Point, Rect, SpreadMode, Stroke, StrokeDash, Transform,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,6 +31,9 @@ const INTER_REGULAR: &[u8] = include_bytes!("../assets/fonts/Inter-Regular.ttf")
 const INTER_BOLD: &[u8] = include_bytes!("../assets/fonts/Inter-Bold.ttf");
 const INTER_ITALIC: &[u8] = include_bytes!("../assets/fonts/Inter-Italic.ttf");
 
+/// Default overlay font family. Bundled, so always present as a fallback.
+pub const DEFAULT_FONT_FAMILY: &str = "Inter";
+
 /// Get a clone of the shared font database.
 /// First call initializes by scanning system fonts and registering the
 /// bundled Inter faces; subsequent calls are cheap clones.
@@ -43,6 +46,44 @@ fn get_shared_font_db() -> fontdb::Database {
             db.load_font_data(INTER_BOLD.to_vec());
             db.load_font_data(INTER_ITALIC.to_vec());
             db
+        })
+        .clone()
+}
+
+/// Cached list of Latin-capable font families (computed once — scanning every
+/// face's glyph coverage touches font files, so we don't want to repeat it).
+static LATIN_FONT_FAMILIES: OnceLock<Vec<String>> = OnceLock::new();
+
+/// Representative Latin letters a usable Roman-text font must cover. Fonts that
+/// can't map these (Hebrew/Arabic/CJK-only, symbol/icon fonts) are filtered out.
+const LATIN_PROBE: [char; 6] = ['A', 'a', 'g', 'R', 'z', 'e'];
+
+/// Whether a face has cmap glyphs for the Latin probe characters.
+fn face_supports_latin(db: &fontdb::Database, id: fontdb::ID) -> bool {
+    db.with_face_data(id, |data, index| {
+        match ttf_parser::Face::parse(data, index) {
+            Ok(face) => LATIN_PROBE.iter().all(|&c| face.glyph_index(c).is_some()),
+            Err(_) => false,
+        }
+    })
+    .unwrap_or(false)
+}
+
+/// Enumerate the distinct font family names available on this system that can
+/// render Roman/Latin text (plus the bundled Inter), sorted alphabetically.
+/// Used to populate the font picker. Computed once and cached.
+pub fn available_font_families() -> Vec<String> {
+    LATIN_FONT_FAMILIES
+        .get_or_init(|| {
+            let db = get_shared_font_db();
+            let mut families: Vec<String> = db
+                .faces()
+                .filter(|face| face_supports_latin(&db, face.id))
+                .filter_map(|face| face.families.first().map(|(name, _)| name.clone()))
+                .collect();
+            families.sort_unstable();
+            families.dedup();
+            families
         })
         .clone()
 }
@@ -71,6 +112,34 @@ pub struct Renderer {
     text_cache: HashMap<TextCacheKey, CachedText>,
     /// Counter for LRU tracking
     cache_access_counter: u64,
+    /// Active font family name (resolved from the shared DB at shaping time).
+    /// Global setting; changing it clears the text cache.
+    font_family: String,
+    /// Whether the active family actually has a bold / italic face. When it
+    /// doesn't, we avoid requesting that weight/style so the text stays in the
+    /// selected family instead of falling back to a different font (e.g. the
+    /// bundled Inter Bold).
+    font_has_bold: bool,
+    font_has_italic: bool,
+}
+
+/// Inspect the shared DB for whether `family` provides a bold face and an
+/// italic face. Returns `(has_bold, has_italic)`.
+fn family_face_support(db: &fontdb::Database, family: &str) -> (bool, bool) {
+    let mut has_bold = false;
+    let mut has_italic = false;
+    for face in db.faces() {
+        if face.families.iter().any(|(n, _)| n == family) {
+            // Weight 600+ (semibold/bold) counts as a usable bold face.
+            if face.weight.0 >= 600 {
+                has_bold = true;
+            }
+            if face.style != fontdb::Style::Normal {
+                has_italic = true;
+            }
+        }
+    }
+    (has_bold, has_italic)
 }
 
 impl Renderer {
@@ -88,6 +157,28 @@ impl Renderer {
             swash_cache: SwashCache::new(),
             text_cache: HashMap::with_capacity(256),
             cache_access_counter: 0,
+            font_family: DEFAULT_FONT_FAMILY.to_string(),
+            // Bundled Inter ships Regular + Bold + Italic.
+            font_has_bold: true,
+            font_has_italic: true,
+        }
+    }
+
+    /// Set the font family used for all text. A blank name resets to the
+    /// bundled default. Clears the shaped-text cache so the change takes effect.
+    pub fn set_font_family(&mut self, family: &str) {
+        let family = if family.is_empty() {
+            DEFAULT_FONT_FAMILY
+        } else {
+            family
+        };
+        if self.font_family != family {
+            self.font_family = family.to_string();
+            let (has_bold, has_italic) =
+                family_face_support(self.font_system.db(), &self.font_family);
+            self.font_has_bold = has_bold;
+            self.font_has_italic = has_italic;
+            self.text_cache.clear();
         }
     }
 
@@ -159,14 +250,20 @@ impl Renderer {
         let metrics = Metrics::new(font_size, font_size * 1.2);
         let mut text_buffer = Buffer::new(&mut self.font_system, metrics);
 
-        let mut attrs = Attrs::new().family(Family::Name("Inter"));
-        if bold {
+        // Clone the family name so the immutable borrow of `self.font_family`
+        // doesn't conflict with the mutable `self.font_system` borrow below.
+        let family = self.font_family.clone();
+        // Only request bold/italic when the active family actually provides that
+        // face. Otherwise the shaper would fall back to a *different* family that
+        // does (e.g. bundled Inter Bold), breaking the chosen-font consistency.
+        let mut attrs = Attrs::new().family(Family::Name(&family));
+        if bold && self.font_has_bold {
             attrs = attrs.weight(Weight::BOLD);
         }
-        if italic {
+        if italic && self.font_has_italic {
             attrs = attrs.style(Style::Italic);
         }
-        text_buffer.set_text(&mut self.font_system, text, &attrs, Shaping::Advanced, None);
+        text_buffer.set_text(text, &attrs, Shaping::Advanced, None);
         text_buffer.shape_until_scroll(&mut self.font_system, false);
 
         // Extract glyph data for caching
@@ -295,6 +392,65 @@ impl Renderer {
         );
     }
 
+    /// Draw a rounded rectangle filled with a horizontal linear gradient.
+    /// The gradient runs left-to-right fading `start_color` (at `grad_x0`) to
+    /// `end_color` (at `grad_x1`). The gradient span is given independently of
+    /// the rect so a segment can show its own fade even when it is overdrawn
+    /// by another segment (e.g. split healing/shield bars). Regions outside
+    /// `[grad_x0, grad_x1]` are padded with the nearest stop color. Falls back
+    /// to a solid `start_color` fill if the gradient shader cannot be built.
+    pub fn fill_rounded_rect_gradient(
+        &self,
+        buffer: &mut [u8],
+        width: u32,
+        height: u32,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        grad_x0: f32,
+        grad_x1: f32,
+        start_color: Color,
+        end_color: Color,
+    ) {
+        if w <= 0.0 || h <= 0.0 {
+            return;
+        }
+
+        let Some(mut pixmap) = PixmapMut::from_bytes(buffer, width, height) else {
+            return;
+        };
+
+        let Some(path) = create_rounded_rect_path(x, y, w, h, radius) else {
+            return;
+        };
+
+        let mut paint = Paint::default();
+        paint.anti_alias = true;
+        match LinearGradient::new(
+            Point::from_xy(grad_x0, y),
+            Point::from_xy(grad_x1, y),
+            vec![
+                GradientStop::new(0.0, start_color),
+                GradientStop::new(1.0, end_color),
+            ],
+            SpreadMode::Pad,
+            Transform::identity(),
+        ) {
+            Some(shader) => paint.shader = shader,
+            None => paint.set_color(start_color),
+        }
+
+        pixmap.fill_path(
+            &path,
+            &paint,
+            FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
+    }
+
     /// Draw a rounded rectangle outline
     pub fn stroke_rounded_rect(
         &self,
@@ -327,6 +483,56 @@ impl Renderer {
         let stroke = Stroke {
             width: stroke_width,
             line_cap: LineCap::Round,
+            line_join: LineJoin::Round,
+            ..Default::default()
+        };
+
+        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+    }
+
+    /// Stroke an open "folder tab" outline: up the left side, around the rounded
+    /// top corners, across the top, and down the right side — leaving the bottom
+    /// edge open so the tab visually flows into whatever sits below it.
+    pub fn stroke_tab_outline(
+        &self,
+        buffer: &mut [u8],
+        width: u32,
+        height: u32,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        stroke_width: f32,
+        color: Color,
+    ) {
+        if w <= 0.0 || h <= 0.0 {
+            return;
+        }
+
+        let Some(mut pixmap) = PixmapMut::from_bytes(buffer, width, height) else {
+            return;
+        };
+
+        let r = radius.min(w / 2.0).min(h);
+        let mut pb = PathBuilder::new();
+        // Open path (not closed): bottom-left → up → top-left corner → top edge
+        // → top-right corner → down → bottom-right. No bottom edge.
+        pb.move_to(x, y + h);
+        pb.line_to(x, y + r);
+        pb.quad_to(x, y, x + r, y);
+        pb.line_to(x + w - r, y);
+        pb.quad_to(x + w, y, x + w, y + r);
+        pb.line_to(x + w, y + h);
+        let Some(path) = pb.finish() else { return };
+
+        let mut paint = Paint::default();
+        paint.set_color(color);
+        paint.anti_alias = true;
+
+        let stroke = Stroke {
+            width: stroke_width,
+            line_cap: LineCap::Butt,
             line_join: LineJoin::Round,
             ..Default::default()
         };

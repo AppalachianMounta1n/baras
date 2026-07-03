@@ -172,7 +172,7 @@ pub fn check_signal_trigger(
         }),
 
         // ─── Damage/Healing (signal-based with source/target filters) ──────
-        Trigger::DamageTaken { .. } => signals.iter().any(|s| {
+        Trigger::DamageTaken { .. } | Trigger::DamageDealt { .. } => signals.iter().any(|s| {
             if let GameSignal::DamageTaken {
                 ability_id,
                 ability_name,
@@ -348,11 +348,15 @@ pub fn check_signal_trigger(
         | Trigger::TimerCanceled { .. } => false,
 
         // ─── Event-based triggers (handled by check_event_trigger, not signals)
-        Trigger::EffectApplied { .. } | Trigger::EffectRemoved { .. } => false,
+        Trigger::EffectApplied { .. }
+        | Trigger::EffectRemoved { .. }
+        | Trigger::TargetSet { .. } => false,
+
+        // ─── Modifier-only triggers (handled by EffectTracker) ────────────
+        Trigger::ChargesChanged { .. } | Trigger::SelfChargesChanged { .. } => false,
 
         // ─── Not signal-based ──────────────────────────────────────────────
         Trigger::TimeElapsed { .. }
-        | Trigger::TargetSet { .. }
         | Trigger::Manual
         | Trigger::Never => false,
 
@@ -441,6 +445,14 @@ pub fn check_event_trigger(
         {
             return true;
         }
+    }
+
+    // Check TargetSet triggers (player/NPC targeting an entity)
+    if event.effect.effect_id == crate::game_data::effect_id::TARGETSET
+        && matches!(trigger, Trigger::TargetSet { .. })
+        && check_event_filters(trigger, event, filter_ctx)
+    {
+        return true;
     }
 
     // Check EffectRemoved triggers

@@ -18,6 +18,27 @@ fn lighten_color(color: Color, amount: f32) -> Color {
     .unwrap_or(color)
 }
 
+/// Darken a color by blending it toward black, used as the trailing edge of a
+/// single-color gradient. `amount` is 0.0 (no change) to 1.0 (full black).
+fn darken_color(color: Color, amount: f32) -> Color {
+    let factor = 1.0 - amount.clamp(0.0, 1.0);
+    Color::from_rgba(
+        color.red() * factor,
+        color.green() * factor,
+        color.blue() * factor,
+        color.alpha(),
+    )
+    .unwrap_or(color)
+}
+
+/// How much the trailing edge of a gradient fill is darkened relative to the base
+/// color, used as the default when no explicit intensity is set.
+pub const GRADIENT_DARKEN: f32 = 0.32;
+/// Shallower darkening for the secondary (overdrawn) segment of a split bar, so
+/// the boss/adds boundary is a gentle step rather than a hard shadow where the
+/// primary's bright edge meets the secondary's dark edge.
+const SEAM_DARKEN: f32 = 0.25;
+
 /// A horizontal progress bar with label and optional center/right text
 ///
 /// Layout options:
@@ -48,6 +69,12 @@ pub struct ProgressBar {
     pub bold_text: bool,
     /// Whether to render text with full surrounding glow instead of drop shadow (default: false)
     pub text_glow: bool,
+    /// Fade the fill from `fill_color` (left) to a darkened version (right),
+    /// spanning the filled portion. Details-style single-color gradient.
+    pub gradient: bool,
+    /// How strongly the gradient darkens the leading edge (0.0 = flat).
+    /// Defaults to `GRADIENT_DARKEN`.
+    pub gradient_intensity: f32,
 }
 
 impl ProgressBar {
@@ -65,7 +92,21 @@ impl ProgressBar {
             label_offset: 0.0,
             bold_text: false,
             text_glow: false,
+            gradient: false,
+            gradient_intensity: GRADIENT_DARKEN,
         }
+    }
+
+    /// Enable a single-color gradient fill (base color fading to a darker shade)
+    pub fn with_gradient(mut self, gradient: bool) -> Self {
+        self.gradient = gradient;
+        self
+    }
+
+    /// Override how strongly the gradient darkens the leading edge (0.0 = flat).
+    pub fn with_gradient_intensity(mut self, intensity: f32) -> Self {
+        self.gradient_intensity = intensity.clamp(0.0, 1.0);
+        self
     }
 
     /// Set offset for label text (to make room for icon)
@@ -176,6 +217,55 @@ impl ProgressBar {
         }
     }
 
+    /// Draw a fill segment, applying the single-color gradient when enabled.
+    /// The gradient spans the rect's own width.
+    fn draw_fill(
+        &self,
+        frame: &mut OverlayFrame,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        color: Color,
+    ) {
+        self.draw_fill_span(frame, x, y, w, h, radius, color, x, x + w, self.gradient_intensity);
+    }
+
+    /// Draw a fill segment whose gradient spans `[grad_x0, grad_x1]` rather than
+    /// the rect itself, darkening the leading edge by `darken`. Used for the
+    /// secondary (overdrawn) portion of a split bar so its visible slice shows
+    /// its own dark→light fade with a softened seam.
+    fn draw_fill_span(
+        &self,
+        frame: &mut OverlayFrame,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        color: Color,
+        grad_x0: f32,
+        grad_x1: f32,
+        darken: f32,
+    ) {
+        if self.gradient {
+            frame.fill_rounded_rect_gradient(
+                x,
+                y,
+                w,
+                h,
+                radius,
+                grad_x0,
+                grad_x1,
+                darken_color(color, darken),
+                color,
+            );
+        } else {
+            frame.fill_rounded_rect(x, y, w, h, radius, color);
+        }
+    }
+
     /// Render the progress bar to an OverlayFrame
     pub fn render(
         &self,
@@ -198,16 +288,32 @@ impl ProgressBar {
                 let secondary_color = self
                     .split_color
                     .unwrap_or_else(|| lighten_color(self.fill_color, 0.4));
-                frame.fill_rounded_rect(x, y, fill_width, height, radius, secondary_color);
-
-                // Draw primary segment on top (covers left portion)
                 let primary_width = fill_width * primary_fraction;
+
+                // Secondary fills the full width (so outer corners stay rounded),
+                // but its gradient spans only the visible right segment so the
+                // secondary (e.g. blue shield) shows its own dark→light fade
+                // instead of just the light tail of a full-width gradient.
+                self.draw_fill_span(
+                    frame,
+                    x,
+                    y,
+                    fill_width,
+                    height,
+                    radius,
+                    secondary_color,
+                    x + primary_width,
+                    x + fill_width,
+                    SEAM_DARKEN,
+                );
+
+                // Draw primary segment on top (covers the secondary's left/padded region)
                 if primary_width > 0.0 {
-                    frame.fill_rounded_rect(x, y, primary_width, height, radius, self.fill_color);
+                    self.draw_fill(frame, x, y, primary_width, height, radius, self.fill_color);
                 }
             } else {
                 // Normal single-color fill
-                frame.fill_rounded_rect(x, y, fill_width, height, radius, self.fill_color);
+                self.draw_fill(frame, x, y, fill_width, height, radius, self.fill_color);
             }
         }
 
@@ -285,7 +391,7 @@ impl ProgressBar {
         // Draw right text (rightmost position)
         if let Some(ref right) = self.right_text {
             let (text_width, _) = frame.measure_text(right, effective_font_size);
-            let right_x = x + width - text_width - text_padding;
+            let right_x = x + width - text_width - 8.0 * frame.scale_factor();
             draw_bar_text(frame, right, right_x, text_y);
         }
 

@@ -28,6 +28,8 @@ pub use baras_types::{
     DataExplorerState,
     DataTab,
     DotTrackerConfig,
+    ChargeDirection,
+    EffectModifier,
     EffectSelector,
     EffectStackConfig,
     EffectsAConfig,
@@ -45,8 +47,11 @@ pub use baras_types::{
     PersonalStat,
     RaidOverlaySettings,
     RefreshAbility,
+    RefreshScope,
+    RefreshTrigger,
     SortColumn,
     SortDirection,
+    SoundCategory,
     StackAggregation,
     TimerOverlayConfig,
     // Trigger type (shared across timers, phases, counters)
@@ -206,6 +211,7 @@ pub enum MetricType {
     Htps,
     Dtps,
     Tps,
+    Apm,
 }
 
 impl MetricType {
@@ -220,6 +226,7 @@ impl MetricType {
             MetricType::Tps => "Threat",
             MetricType::Dtps => "Damage Taken",
             MetricType::Htps => "Healing Taken",
+            MetricType::Apm => "APM",
         }
     }
 
@@ -234,6 +241,7 @@ impl MetricType {
             MetricType::Htps => "fa-solid fa-kit-medical",
             MetricType::Dtps => "fa-solid fa-shield",
             MetricType::Tps => "fa-solid fa-triangle-exclamation",
+            MetricType::Apm => "fa-solid fa-gauge-high",
         }
     }
 
@@ -248,6 +256,7 @@ impl MetricType {
             MetricType::Tps => "tps",
             MetricType::Dtps => "dtps",
             MetricType::Htps => "abs",
+            MetricType::Apm => "apm",
         }
     }
 
@@ -262,6 +271,7 @@ impl MetricType {
             MetricType::Htps,
             MetricType::Dtps,
             MetricType::Tps,
+            MetricType::Apm,
         ]
     }
 }
@@ -318,6 +328,11 @@ pub struct AudioConfig {
     /// Voice pack for countdown (None = default)
     #[serde(default)]
     pub countdown_voice: Option<String>,
+
+    /// Defer the "becomes next cast" cue until GCD remaining ≤ this value.
+    /// Only meaningful when used as a timer's `queue_next_audio`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_gcd_remaining: Option<f32>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -498,6 +513,10 @@ pub struct BossTimerDefinition {
     pub alert_on: AlertTrigger,
     #[serde(default)]
     pub alert_text: Option<String>,
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown.
+    #[serde(default)]
+    pub alert_countdown_secs: Option<f32>,
     #[serde(default = "default_timer_color")]
     pub color: [u8; 4],
     #[serde(default)]
@@ -560,10 +579,19 @@ pub struct BossTimerDefinition {
     /// Trigger that clears a queued/ready entry from the ability queue.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_remove_trigger: Option<Trigger>,
-    /// Names of other timers in the same encounter that block this ability
-    /// from appearing as "next cast" while any of them is active. OR semantics.
+    /// Definition IDs of other timers in the same encounter that block this
+    /// ability from appearing as "next cast" while any of them is active.
+    /// OR semantics. Use IDs, not names — names are display-only.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queue_blocking_timers: Vec<String>,
+    /// State condition that, when satisfied, blocks this entry in the ability
+    /// queue. OR'd with `queue_blocking_timers`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_blocking_condition: Option<Condition>,
+    /// Audio cue played once when this timer becomes the unique highest-
+    /// priority "next cast" in the ability queue. Silent on ties.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_next_audio: Option<AudioConfig>,
     /// When true, render this timer's ability-queue row as a trickling-down
     /// bar instead of the default filling-up progress bar. Only applies when
     /// `display_target = AbilityQueue`.
@@ -810,6 +838,7 @@ pub fn effect_alert_label(trigger: &AlertTrigger) -> &'static str {
         AlertTrigger::None => "None",
         AlertTrigger::OnApply => "Effect Start",
         AlertTrigger::OnExpire => "Effect End",
+        AlertTrigger::Countdown => "Countdown",
     }
 }
 
@@ -819,6 +848,7 @@ pub fn timer_alert_label(trigger: &AlertTrigger) -> &'static str {
         AlertTrigger::None => "None",
         AlertTrigger::OnApply => "Timer Start",
         AlertTrigger::OnExpire => "Timer End",
+        AlertTrigger::Countdown => "Countdown",
     }
 }
 
@@ -852,6 +882,8 @@ pub struct EffectListItem {
     // AoE refresh - use damage correlation for multi-target refresh detection
     #[serde(default)]
     pub is_aoe_refresh: bool,
+    #[serde(default)]
+    pub aoe_refresh_immediate: bool,
 
     // Duration
     pub duration_secs: Option<f32>,
@@ -887,6 +919,10 @@ pub struct EffectListItem {
 
     // Behavior
     #[serde(default)]
+    pub ignore_refreshes: bool,
+    #[serde(default)]
+    pub refresh_scope: RefreshScope,
+    #[serde(default)]
     pub persist_past_death: bool,
     #[serde(default)]
     pub track_outside_combat: bool,
@@ -902,10 +938,18 @@ pub struct EffectListItem {
     pub alert_text: Option<String>,
     #[serde(default)]
     pub alert_on: AlertTrigger,
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown.
+    #[serde(default)]
+    pub alert_countdown_secs: Option<f32>,
 
     // Audio
     #[serde(default)]
     pub audio: AudioConfig,
+
+    // Modifiers
+    #[serde(default)]
+    pub modifiers: Vec<EffectModifier>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

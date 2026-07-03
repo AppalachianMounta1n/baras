@@ -59,6 +59,7 @@ impl OverlayManager {
                     settings.metric_font_scale,
                     settings.metric_dynamic_background,
                     settings.metric_show_background_bar,
+                    settings.metric_gradient_intensity,
                 )?
             }
             OverlayType::Personal => {
@@ -132,6 +133,15 @@ impl OverlayManager {
                 create_ability_queue_overlay(position, aq_config, settings.ability_queue_opacity)?
             }
         };
+
+        // Apply the global font family to the freshly-spawned overlay so it
+        // matches the others (and survives restarts) before any runtime change.
+        // Buffered into the command channel; processed once the loop starts.
+        let _ = handle
+            .tx
+            .try_send(OverlayCommand::SetFontFamily(
+                settings.overlay_font_family.clone(),
+            ));
 
         Ok(SpawnResult {
             handle,
@@ -341,6 +351,7 @@ impl OverlayManager {
                     eu,
                     settings.metric_show_background_bar,
                     settings.class_colors.clone(),
+                    settings.metric_gradient_intensity,
                 )
             }
             OverlayType::Personal => {
@@ -396,6 +407,10 @@ impl OverlayManager {
                     header_title: "Effects A".to_string(),
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
+                    stack_from_bottom: cfg.stack_from_bottom,
+                    show_border: cfg.show_border,
+                    border_color: cfg.border_color,
+                    bar_gradient: cfg.bar_gradient,
                 };
                 OverlayConfigUpdate::EffectsA(buffs_config, settings.effects_a_opacity, eu)
             }
@@ -419,6 +434,10 @@ impl OverlayManager {
                     header_title: "Effects B".to_string(),
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
+                    stack_from_bottom: cfg.stack_from_bottom,
+                    show_border: cfg.show_border,
+                    border_color: cfg.border_color,
+                    bar_gradient: cfg.bar_gradient,
                 };
                 OverlayConfigUpdate::EffectsB(debuffs_config, settings.effects_b_opacity, eu)
             }
@@ -435,6 +454,10 @@ impl OverlayManager {
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
                     layout_bar: cfg.layout_bar,
+                    stack_from_bottom: cfg.stack_from_bottom,
+                    show_border: cfg.show_border,
+                    border_color: cfg.border_color,
+                    bar_gradient: cfg.bar_gradient,
                 };
                 OverlayConfigUpdate::Cooldowns(cooldowns_config, settings.cooldown_tracker_opacity, eu)
             }
@@ -450,6 +473,7 @@ impl OverlayManager {
                     show_countdown: cfg.show_countdown,
                     font_scale: cfg.font_scale,
                     dynamic_background: cfg.dynamic_background,
+                    stack_from_bottom: cfg.stack_from_bottom,
                 };
                 OverlayConfigUpdate::DotTracker(dot_config, settings.dot_tracker_opacity, eu)
             }
@@ -935,6 +959,30 @@ impl OverlayManager {
         service.emit_overlay_status_changed();
 
         Ok(new_mode)
+    }
+
+    /// Set the global overlay font family: persist it to config and broadcast
+    /// to all running overlays so the change applies immediately to every one.
+    pub async fn set_font_family(
+        state: &SharedOverlayState,
+        service: &ServiceHandle,
+        family: String,
+    ) -> Result<(), String> {
+        // Persist the choice
+        let mut config = service.config().await;
+        config.overlay_settings.overlay_font_family = family.clone();
+        service.update_config(config).await?;
+
+        // Broadcast to every running overlay
+        let txs: Vec<_> = {
+            let s = state.lock().map_err(|e| e.to_string())?;
+            s.all_txs().into_iter().cloned().collect()
+        };
+        for tx in &txs {
+            let _ = tx.send(OverlayCommand::SetFontFamily(family.clone())).await;
+        }
+
+        Ok(())
     }
 
     /// Toggle raid rearrange mode.

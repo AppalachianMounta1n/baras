@@ -2019,19 +2019,26 @@ button:active {
   z-index: 1000;
 }
 
-/* Non-blocking floating panel container */
-.floating-panel-container {
+/* Floating settings panel wrapper — no backdrop, clicks pass through */
+.settings-floating-wrap {
   position: fixed;
+  inset: 0;
   z-index: 1000;
   pointer-events: none;
-  /* Allow clicks to pass through to elements below */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Settings panel (modal dialog) */
+.settings-floating-wrap.positioned {
+  display: block;
+}
+
+
+/* Settings panel */
 .settings-panel {
   position: relative;
-  width: 90%;
-  max-width: 900px;
+  width: min(900px, 90vw);
   max-height: 85vh;
   background: var(--gradient-panel);
   border-radius: var(--radius-xl);
@@ -2043,6 +2050,7 @@ button:active {
   border: 1px solid var(--blue-alpha-20);
   display: flex;
   flex-direction: column;
+  pointer-events: auto;
 }
 
 /* Scrollable content area within settings panel */
@@ -2050,15 +2058,6 @@ button:active {
   flex: 1;
   overflow-y: auto;
   min-height: 0; /* Required for flex overflow */
-}
-
-/* Floating version of settings panel */
-.settings-panel.floating {
-  position: fixed;
-  width: 800px;
-  pointer-events: auto;
-  /* Re-enable clicks on the panel itself */
-  border: 1px solid var(--blue-alpha-25);
 }
 
 /* Draggable header */
@@ -2279,6 +2278,98 @@ details[open] .collapsible-summary::before {
   width: 60px;
   text-align: center;
   padding: 0.3em;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Shared Slider component: editable value box + custom steppers + unit
+   Native number spinners are hidden and replaced with themed buttons so the
+   control looks identical across WebKitGTK / WebView2 / WKWebView.
+   ───────────────────────────────────────────────────────────────────────── */
+.slider-number {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.setting-row input.slider-value-input {
+  width: 42px;
+  text-align: center;
+  padding: 0.3em 0.3em;
+  border: 1px solid var(--border-medium);
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  background-color: var(--bg-input);
+  box-shadow: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.setting-row input.slider-value-input:focus {
+  border-color: #6a8aba;
+}
+
+/* Hide native spinners (WebKit/Chromium); Firefox handled via appearance above */
+.slider-value-input::-webkit-inner-spin-button,
+.slider-value-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.slider-steppers {
+  display: flex;
+  flex-direction: column;
+  width: 16px;
+}
+
+.slider-step {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--border-medium);
+  border-radius: 0;
+  background-color: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  line-height: 1;
+  box-shadow: none;
+  transition: color var(--transition-normal), background-color var(--transition-normal);
+}
+
+.slider-step:first-child {
+  border-top-right-radius: var(--radius-md);
+  border-bottom-width: 0;
+}
+
+.slider-step:last-child {
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.slider-step:hover {
+  color: var(--swtor-blue);
+  background-color: var(--bg-light);
+  border-color: var(--border-medium);
+}
+
+.slider-step:active {
+  background-color: var(--blue-alpha-15);
+  border-color: var(--border-medium);
+}
+
+.slider-step:disabled {
+  color: var(--text-disabled);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.slider-unit {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  min-width: 1.4em;
   flex-shrink: 0;
 }
 
@@ -3034,10 +3125,17 @@ details[open] .collapsible-summary::before {
 
 .file-browser-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.75em;
   padding: 1em 1.25em;
   border-bottom: 1px solid var(--blue-alpha-15);
+}
+
+.file-browser-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1em;
 }
 
 .file-browser-header h3 {
@@ -3054,9 +3152,8 @@ details[open] .collapsible-summary::before {
 }
 
 .file-browser-search {
-  flex: 1;
-  max-width: 300px;
-  margin: 0 1em;
+  width: 100%;
+  box-sizing: border-box;
   padding: 0.4em 0.75em;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-subtle);
@@ -3077,6 +3174,7 @@ details[open] .collapsible-summary::before {
 .file-browser-filter-toggle {
   display: flex;
   align-items: center;
+  margin-left: auto;
   gap: 0.35em;
   font-size: 0.8em;
   color: var(--text-secondary);
@@ -6790,6 +6888,7 @@ details[open] .collapsible-summary::before {
   color: var(--color-success, #2ecc71);
 }
 
+
 .tag-muted {
   background: var(--bg-dark);
   color: var(--text-muted);
@@ -7816,6 +7915,14 @@ details[open] .collapsible-summary::before {
 }
 .ability-table.damage-tab .group-stat.col-avg {
   color: hsl(30, 60%, 60%);
+}
+
+/* Effective healing columns - lighter spearmint green to distinguish from raw heals */
+.ability-table.healing-tab .col-eff {
+  color: hsl(158, 52%, 64%);
+}
+.ability-table.healing-tab .group-stat.col-eff {
+  color: hsl(158, 46%, 58%);
 }
 
 /* (Bar column merged into % column - see .pct-bar-fill above) */

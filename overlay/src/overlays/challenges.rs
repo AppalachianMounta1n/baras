@@ -104,7 +104,6 @@ const BASE_HEIGHT: f32 = 400.0;
 const BASE_PADDING: f32 = 6.0;
 const BASE_CARD_SPACING: f32 = 8.0;
 const BASE_BAR_HEIGHT: f32 = 18.0;
-const BASE_BAR_SPACING: f32 = 3.0;
 const BASE_FONT_SIZE: f32 = 13.0;
 const BASE_HEADER_FONT_SIZE: f32 = 12.0;
 const BASE_DURATION_FONT_SIZE: f32 = 10.0; // Smaller than header
@@ -172,7 +171,11 @@ impl ChallengeOverlay {
         let padding = self.frame.scaled(BASE_PADDING);
         let card_spacing = self.frame.scaled(BASE_CARD_SPACING);
         let mut bar_height = self.frame.scaled(BASE_BAR_HEIGHT);
-        let mut bar_spacing = self.frame.scaled(BASE_BAR_SPACING);
+        // Gap between player bars is proportional to bar height so it stays
+        // consistent across scales/resolutions. 0.0 = connected. The 0.2 default
+        // closely matches the legacy fixed 3px gap at the 18px base bar height.
+        let spacing_ratio = self.config.bar_spacing_ratio.clamp(0.0, 0.6);
+        let mut bar_spacing = bar_height * spacing_ratio;
         let font_scale = self.config.font_scale.clamp(1.0, 2.0);
         let mut font_size = self.frame.scaled(BASE_FONT_SIZE * font_scale);
         let mut header_font_size = self.frame.scaled(BASE_HEADER_FONT_SIZE * font_scale);
@@ -642,6 +645,7 @@ impl ChallengeOverlay {
                 .with_fill_color(bar_color)
                 .with_bg_color(bg_color)
                 .with_text_color(font_color)
+                .with_gradient(self.config.bar_gradient)
                 .with_text_glow();
 
             if player.is_local {

@@ -6,6 +6,7 @@ pub mod effects;
 pub mod encounter;
 pub mod game_data;
 pub mod icons;
+#[cfg(feature = "query")]
 pub mod query;
 pub mod serde_defaults;
 pub mod signal_processor;
@@ -36,6 +37,7 @@ pub use encounter::summary::{EncounterHistory, EncounterSummary};
 pub use encounter::{ActiveBoss, CombatEncounter, OverlayHealthEntry, PhaseType, ProcessingMode};
 pub use game_data::*;
 pub use icons::{IconRegistry, TICK_BIAS_SECS, calculate_effect_duration};
+#[cfg(feature = "query")]
 pub use query::{AbilityBreakdown, EncounterQuery, EntityBreakdown, TimeSeriesPoint};
 pub use signal_processor::{EventProcessor, GameSignal, SignalHandler};
 pub use state::SessionCache;

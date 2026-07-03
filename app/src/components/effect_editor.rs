@@ -10,13 +10,14 @@ use wasm_bindgen_futures::spawn_local as spawn;
 
 use super::encounter_editor::InlineNameCreator;
 use super::encounter_editor::triggers::{
-    AbilitySelectorEditor, EffectSelectorEditor, EntityFilterDropdown,
+    EffectSelectorEditor, EntityFilterDropdown,
 };
 use crate::api;
+use super::sound_picker::SoundPicker;
 use crate::types::{
     AbilitySelector, AlertTrigger, AudioConfig, DisplayTarget, EffectImportPreview,
-    EffectListItem, EffectSelector, EntityFilter, RefreshAbility, Trigger, UiSessionState,
-    effect_alert_label,
+    EffectListItem, EffectSelector, EntityFilter, RefreshAbility, RefreshScope, RefreshTrigger,
+    Trigger, UiSessionState, effect_alert_label,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -208,6 +209,7 @@ fn default_effect(name: String) -> EffectListItem {
         refresh_abilities: vec![],
         duration_secs: Some(15.0),
         is_aoe_refresh: false,
+        aoe_refresh_immediate: false,
         is_refreshed_on_modify: false,
         color: Some([80, 200, 80, 255]),
         show_at_secs: 0.0,
@@ -218,6 +220,8 @@ fn default_effect(name: String) -> EffectListItem {
         is_affected_by_alacrity: false,
         cooldown_ready_secs: 0.0,
         disciplines: vec![],
+        ignore_refreshes: false,
+        refresh_scope: Default::default(),
         persist_past_death: false,
         track_outside_combat: true,
         on_apply_trigger_timer: None,
@@ -225,7 +229,9 @@ fn default_effect(name: String) -> EffectListItem {
         is_alert: false,
         alert_text: None,
         alert_on: AlertTrigger::None,
+        alert_countdown_secs: None,
         audio: AudioConfig::default(),
+        modifiers: vec![],
     }
 }
 use crate::utils::parse_hex_color;
@@ -294,12 +300,12 @@ pub fn EffectEditorPanel(mut props: EffectEditorProps) -> Element {
     // Import state
     let mut import_preview = use_signal(|| None::<EffectImportPreview>);
     let mut import_toml_content = use_signal(|| None::<String>);
-    
+
     // Extract persisted state fields
     let mut search_query = use_signal(|| props.state.read().effects_editor.search_query.clone());
     let mut expanded_effect = use_signal(|| props.state.read().effects_editor.expanded_effect.clone());
     let mut hide_disabled_effects = use_signal(|| props.state.read().effects_editor.hide_disabled_effects);
-    
+
     // Sync persisted state back to unified state
     use_effect(move || {
         let mut state = props.state.write();
@@ -315,7 +321,7 @@ pub fn EffectEditorPanel(mut props: EffectEditorProps) -> Element {
         }
         loading.set(false);
     });
-    
+
     // Scroll to expanded effect when effects finish loading
     use_effect(move || {
         if !loading() {
@@ -352,7 +358,10 @@ pub fn EffectEditorPanel(mut props: EffectEditorProps) -> Element {
                         || e.id.to_lowercase().contains(&query)
                         || e.display_targets
                             .iter()
-                            .any(|t| t.label().to_lowercase().contains(&query));
+                            .any(|t| t.label().to_lowercase().contains(&query))
+                        || e.disciplines
+                            .iter()
+                            .any(|d| d.to_lowercase().contains(&query));
                 }
                 true
             })
@@ -615,7 +624,7 @@ pub fn EffectEditorPanel(mut props: EffectEditorProps) -> Element {
             div { class: "effect-search-bar",
                 input {
                     r#type: "text",
-                    placeholder: "Search by name, ID, or display overlay...",
+                    placeholder: "Search by name, ID, overlay, or discipline...",
                     value: "{search_query}",
                     class: "effect-search-input",
                     oninput: move |e| search_query.set(e.value())
@@ -1017,12 +1026,6 @@ fn EffectEditForm(
     let mut confirm_delete = use_signal(|| false);
     let mut trigger_type = use_signal(|| EffectTriggerType::from_effect(&effect_for_trigger));
     let mut icon_preview_url = use_signal(|| None::<String>);
-
-    // Load available sound files once
-    let mut sound_files = use_signal(Vec::<String>::new);
-    use_future(move || async move {
-        sound_files.set(api::list_sound_files().await);
-    });
 
     // Track if form was just saved (resets dirty state)
     let mut just_saved = use_signal(|| false);
@@ -1449,13 +1452,57 @@ fn EffectEditForm(
                                 if !draft().is_alert {
                                     // Refresh Abilities
                                     div { class: "form-row-hz", style: "align-items: flex-start;",
-                                        AbilitySelectorEditor {
-                                            label: "Refresh Abilities",
-                                            selectors: draft().refresh_abilities.iter().map(|r| r.ability().clone()).collect(),
-                                            on_change: move |ids: Vec<AbilitySelector>| {
+                                        RefreshAbilitiesEditor {
+                                            abilities: draft().refresh_abilities.clone(),
+                                            on_change: move |abilities: Vec<RefreshAbility>| {
                                                 let mut d = draft();
-                                                d.refresh_abilities = ids.into_iter().map(RefreshAbility::Simple).collect();
+                                                d.refresh_abilities = abilities;
                                                 draft.set(d);
+                                            }
+                                        }
+                                    }
+
+                                    label {
+                                        class: "flex items-center gap-xs text-sm",
+                                        span { class: "flex items-center",
+                                            "Refresh Scope"
+                                            span {
+                                                class: "help-icon",
+                                                title: "Which (source, target) axis identifies the same effect for refresh / Ignore Refreshes. Both = per (source, target) (default). Source = collapse across targets (e.g. one HealingTaken timer regardless of who was healed). Target = collapse across sources (e.g. one debuff entry regardless of which player applied it).",
+                                                "?"
+                                            }
+                                        }
+                                        select {
+                                            class: "select-inline",
+                                            value: match draft().refresh_scope {
+                                                RefreshScope::Both => "Both",
+                                                RefreshScope::Source => "Source",
+                                                RefreshScope::Target => "Target",
+                                            },
+                                            onchange: move |e| {
+                                                let mut d = draft();
+                                                d.refresh_scope = match e.value().as_str() {
+                                                    "Source" => RefreshScope::Source,
+                                                    "Target" => RefreshScope::Target,
+                                                    _ => RefreshScope::Both,
+                                                };
+                                                draft.set(d);
+                                            },
+                                            for scope in RefreshScope::all() {
+                                                {
+                                                    let label = match scope {
+                                                        RefreshScope::Both => "Both",
+                                                        RefreshScope::Source => "Source",
+                                                        RefreshScope::Target => "Target",
+                                                    };
+                                                    rsx! {
+                                                        option {
+                                                            value: "{label}",
+                                                            selected: *scope == draft().refresh_scope,
+                                                            "{label}"
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -1471,6 +1518,9 @@ fn EffectEditForm(
                                             onchange: move |e| {
                                                 let mut d = draft();
                                                 d.is_aoe_refresh = e.checked();
+                                                if !e.checked() {
+                                                    d.aoe_refresh_immediate = false;
+                                                }
                                                 draft.set(d);
                                             }
                                         }
@@ -1478,8 +1528,32 @@ fn EffectEditForm(
                                             "AoE Refresh"
                                             span {
                                                 class: "help-icon",
-                                                title: "Use damage correlation to detect multi-target refreshes (for abilities like Corrosive Grenade)",
+                                                title: "Use damage correlation to detect multi-target refreshes instead of requiring individual ApplyEffect signals per target",
                                                 "?"
+                                            }
+                                        }
+                                    }
+
+                                    if draft().is_aoe_refresh {
+                                        label {
+                                            class: "flex items-center gap-xs text-sm",
+                                            style: "padding-left: 20px;",
+                                            input {
+                                                r#type: "checkbox",
+                                                checked: draft().aoe_refresh_immediate,
+                                                onchange: move |e| {
+                                                    let mut d = draft();
+                                                    d.aoe_refresh_immediate = e.checked();
+                                                    draft.set(d);
+                                                }
+                                            }
+                                            span { class: "flex items-center",
+                                                "Immediate"
+                                                span {
+                                                    class: "help-icon",
+                                                    title: "Off: only refreshes targets hit at the same time as the primary target (use for DOTs like Corrosive Grenade where ongoing ticks would cause false refreshes). On: any damage hit from the ability refreshes that target.",
+                                                    "?"
+                                                }
                                             }
                                         }
                                     }
@@ -1500,6 +1574,27 @@ fn EffectEditForm(
                                             span {
                                                 class: "help-icon",
                                                 title: "Reset timer when effect stacks change",
+                                                "?"
+                                            }
+                                        }
+                                    }
+
+                                    label {
+                                        class: "flex items-center gap-xs text-sm",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked: draft().ignore_refreshes,
+                                            onchange: move |e| {
+                                                let mut d = draft();
+                                                d.ignore_refreshes = e.checked();
+                                                draft.set(d);
+                                            }
+                                        }
+                                        span { class: "flex items-center",
+                                            "Ignore Refreshes"
+                                            span {
+                                                class: "help-icon",
+                                                title: "When the effect is already active, do not reset its duration if the trigger fires again.",
                                                 "?"
                                             }
                                         }
@@ -1776,8 +1871,15 @@ fn EffectEditForm(
                                                 d.alert_on = match e.value().as_str() {
                                                     "Effect Start" => AlertTrigger::OnApply,
                                                     "Effect End" => AlertTrigger::OnExpire,
+                                                    "Countdown" => AlertTrigger::Countdown,
                                                     _ => AlertTrigger::None,
                                                 };
+                                                // Seed a sensible default the first time Countdown is selected.
+                                                if d.alert_on == AlertTrigger::Countdown
+                                                    && d.alert_countdown_secs.is_none()
+                                                {
+                                                    d.alert_countdown_secs = Some(3.0);
+                                                }
                                                 draft.set(d);
                                             },
                                             for trigger in AlertTrigger::all() {
@@ -1789,6 +1891,33 @@ fn EffectEditForm(
                                                             selected: *trigger == draft().alert_on,
                                                             "{label}"
                                                         }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if draft().alert_on == AlertTrigger::Countdown {
+                                        div { class: "form-row-hz",
+                                            label { class: "flex items-center",
+                                                "Countdown Window (s)"
+                                                span {
+                                                    class: "help-icon",
+                                                    title: "Show a live-updating alert during the last N seconds before the effect expires (0-10). Alert text shows remaining time to one decimal.",
+                                                    "?"
+                                                }
+                                            }
+                                            input {
+                                                r#type: "number",
+                                                min: "0",
+                                                max: "10",
+                                                step: "0.5",
+                                                class: "input-inline",
+                                                value: "{draft().alert_countdown_secs.unwrap_or(3.0)}",
+                                                oninput: move |e| {
+                                                    if let Ok(v) = e.value().parse::<f32>() {
+                                                        let mut d = draft();
+                                                        d.alert_countdown_secs = Some(v.clamp(0.0, 10.0));
+                                                        draft.set(d);
                                                     }
                                                 }
                                             }
@@ -1819,68 +1948,13 @@ fn EffectEditForm(
                                 }
 
                                 if draft().audio.enabled {
-                                    div { class: "form-row-hz mt-sm",
-                                        label { "Sound" }
-                                        div { class: "flex items-center gap-xs", style: "flex: 1; min-width: 0;",
-                                            select {
-                                                class: "select-inline",
-                                                style: "flex: 1; min-width: 0;",
-                                                value: "{draft().audio.file.clone().unwrap_or_default()}",
-                                                onchange: move |e| {
-                                                    let mut d = draft();
-                                                    d.audio.file = if e.value().is_empty() { None } else { Some(e.value()) };
-                                                    draft.set(d);
-                                                },
-                                                option { value: "", selected: draft().audio.file.is_none(), "(none)" }
-                                                for name in sound_files().iter() {
-                                                    {
-                                                        let is_selected = draft().audio.file.as_deref() == Some(name.as_str());
-                                                        rsx! {
-                                                            option { key: "{name}", value: "{name}", selected: is_selected, "{name}" }
-                                                        }
-                                                    }
-                                                }
-                                                // Show custom path if set and not in the bundled list
-                                                if let Some(ref path) = draft().audio.file {
-                                                    if !path.is_empty() && !sound_files().contains(path) {
-                                                        option { value: "{path}", selected: true, "{path} (custom)" }
-                                                    }
-                                                }
-                                            }
-                                            button {
-                                                class: "btn btn-sm",
-                                                r#type: "button",
-                                                onclick: move |_| {
-                                                    spawn(async move {
-                                                        if let Some(path) = api::pick_audio_file().await {
-                                                            let lower = path.to_lowercase();
-                                                            if lower.ends_with(".mp3") || lower.ends_with(".wav") {
-                                                                let mut d = draft();
-                                                                d.audio.file = Some(path);
-                                                                draft.set(d);
-                                                            }
-                                                        }
-                                                    });
-                                                },
-                                                "Browse"
-                                            }
-                                            if draft().audio.file.is_some() {
-                                                button {
-                                                    class: "btn btn-sm",
-                                                    r#type: "button",
-                                                    title: "Preview sound",
-                                                    onclick: move |_| {
-                                                        if let Some(ref file) = draft().audio.file {
-                                                            let file = file.clone();
-                                                            spawn(async move {
-                                                                api::preview_sound(&file).await;
-                                                            });
-                                                        }
-                                                    },
-                                                    "Play"
-                                                }
-                                            }
-                                        }
+                                    SoundPicker {
+                                        value: draft().audio.file.clone(),
+                                        on_change: move |v| {
+                                            let mut d = draft();
+                                            d.audio.file = v;
+                                            draft.set(d);
+                                        },
                                     }
 
                                     if !draft().is_alert {
@@ -1940,8 +2014,15 @@ fn EffectEditForm(
                                                         }
                                                     },
                                                     option { value: "0", "Off" }
+                                                    option { value: "1", "1s" }
+                                                    option { value: "2", "2s" }
                                                     option { value: "3", "3s" }
+                                                    option { value: "4", "4s" }
                                                     option { value: "5", "5s" }
+                                                    option { value: "6", "6s" }
+                                                    option { value: "7", "7s" }
+                                                    option { value: "8", "8s" }
+                                                    option { value: "9", "9s" }
                                                     option { value: "10", "10s" }
                                                 }
                                                 select {
@@ -1962,6 +2043,15 @@ fn EffectEditForm(
                                         }
                                     }
                                 }
+                            }
+                        }
+                        // ─── Modifiers Card ──────────────────────────────────────
+                        super::modifier_editor::ModifierListEditor {
+                            modifiers: draft().modifiers.clone(),
+                            on_change: move |new_mods: Vec<baras_types::EffectModifier>| {
+                                let mut d = draft();
+                                d.modifiers = new_mods;
+                                draft.set(d);
                             }
                         }
                     }
@@ -2256,6 +2346,238 @@ fn TriggerAbilitiesEditor(
                             if !new_abs.iter().any(|s| s.display() == selector.display()) {
                                 new_abs.push(selector);
                                 on_change.call(new_abs);
+                            }
+                            new_input.set(String::new());
+                        }
+                    },
+                    "Add"
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Refresh Abilities Editor (per-ability min_stacks + trigger)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Build a `RefreshAbility`, collapsing to the simple form when no conditions
+/// are set so unmodified definitions keep serializing as a bare selector.
+fn make_refresh_ability(
+    ability: AbilitySelector,
+    min_stacks: Option<u8>,
+    trigger: RefreshTrigger,
+    ignore_immune_resist: bool,
+    on_first_damage: Option<bool>,
+) -> RefreshAbility {
+    if min_stacks.is_none()
+        && trigger == RefreshTrigger::Activation
+        && !ignore_immune_resist
+        && on_first_damage.is_none()
+    {
+        RefreshAbility::Simple(ability)
+    } else {
+        RefreshAbility::Conditional {
+            ability,
+            min_stacks,
+            trigger,
+            ignore_immune_resist,
+            on_first_damage,
+        }
+    }
+}
+
+#[component]
+fn RefreshAbilitiesEditor(
+    abilities: Vec<RefreshAbility>,
+    on_change: EventHandler<Vec<RefreshAbility>>,
+) -> Element {
+    let mut new_input = use_signal(String::new);
+
+    let abilities_for_keydown = abilities.clone();
+    let abilities_for_click = abilities.clone();
+
+    rsx! {
+        div { class: "flex-col gap-xs items-start",
+            span { class: "flex items-center text-sm text-secondary text-left",
+                "Refresh Abilities:"
+                span {
+                    class: "help-icon",
+                    title: "Abilities that refresh this effect's duration. Per ability: 'Min Stacks' only refreshes when the effect has at least that many stacks. Trigger 'On Cast' refreshes the moment the ability is used; 'On Heal' waits for a cast-time heal to land; 'On Damage' refreshes on any damage dealt by the ability. For 'On Cast', the 'Refresh on' control chooses Cast vs First Damage timing — 'Default' defers DoT-tracker effects to the ability's first damaging hit and refreshes everything else immediately.",
+                    "?"
+                }
+            }
+
+            // One row per refresh ability
+            for (idx, ra) in abilities.iter().enumerate() {
+                {
+                    let display = ra.ability().display();
+                    let min_stacks = ra.min_stacks();
+                    let trigger = ra.trigger();
+                    let ignore_immune = ra.ignore_immune_resist();
+                    let on_first_damage = ra.on_first_damage();
+                    let abilities_rm = abilities.clone();
+                    let abilities_ms = abilities.clone();
+                    let abilities_tr = abilities.clone();
+                    let abilities_ir = abilities.clone();
+                    let abilities_fd = abilities.clone();
+                    rsx! {
+                        div { class: "flex gap-xs items-center", style: "flex-wrap: wrap;",
+                            span { class: "chip",
+                                "{display}"
+                                button {
+                                    class: "chip-remove",
+                                    onclick: move |_| {
+                                        let mut next = abilities_rm.clone();
+                                        next.remove(idx);
+                                        on_change.call(next);
+                                    },
+                                    "×"
+                                }
+                            }
+                            select {
+                                class: "select-inline",
+                                onchange: move |e| {
+                                    let trig = match e.value().as_str() {
+                                        "heal" => RefreshTrigger::Heal,
+                                        "damage" => RefreshTrigger::Damage,
+                                        _ => RefreshTrigger::Activation,
+                                    };
+                                    let mut next = abilities_tr.clone();
+                                    let ability = next[idx].ability().clone();
+                                    next[idx] = make_refresh_ability(ability, min_stacks, trig, ignore_immune, on_first_damage);
+                                    on_change.call(next);
+                                },
+                                option {
+                                    value: "activation",
+                                    selected: trigger == RefreshTrigger::Activation,
+                                    "On Cast"
+                                }
+                                option {
+                                    value: "heal",
+                                    selected: trigger == RefreshTrigger::Heal,
+                                    "On Heal"
+                                }
+                                option {
+                                    value: "damage",
+                                    selected: trigger == RefreshTrigger::Damage,
+                                    "On Damage"
+                                }
+                            }
+                            label { class: "flex items-center gap-xs text-sm text-secondary",
+                                "Min Stacks"
+                                input {
+                                    r#type: "number",
+                                    class: "input-inline",
+                                    style: "width: 4rem;",
+                                    min: "0",
+                                    placeholder: "any",
+                                    value: min_stacks.map(|m| m.to_string()).unwrap_or_default(),
+                                    onchange: move |e| {
+                                        let parsed = e.value().trim().parse::<u8>().ok().filter(|n| *n > 0);
+                                        let mut next = abilities_ms.clone();
+                                        let ability = next[idx].ability().clone();
+                                        next[idx] = make_refresh_ability(ability, parsed, trigger, ignore_immune, on_first_damage);
+                                        on_change.call(next);
+                                    }
+                                }
+                            }
+                            if trigger == RefreshTrigger::Activation {
+                                label { class: "flex items-center gap-xs text-sm text-secondary",
+                                    "Refresh on"
+                                    select {
+                                        class: "select-inline",
+                                        onchange: move |e| {
+                                            let fd = match e.value().as_str() {
+                                                "cast" => Some(false),
+                                                "first_damage" => Some(true),
+                                                _ => None,
+                                            };
+                                            let mut next = abilities_fd.clone();
+                                            let ability = next[idx].ability().clone();
+                                            next[idx] = make_refresh_ability(ability, min_stacks, trigger, ignore_immune, fd);
+                                            on_change.call(next);
+                                        },
+                                        option {
+                                            value: "default",
+                                            selected: on_first_damage.is_none(),
+                                            "Default"
+                                        }
+                                        option {
+                                            value: "cast",
+                                            selected: on_first_damage == Some(false),
+                                            "Cast"
+                                        }
+                                        option {
+                                            value: "first_damage",
+                                            selected: on_first_damage == Some(true),
+                                            "First Damage"
+                                        }
+                                    }
+                                    span {
+                                        class: "help-icon",
+                                        title: "When the refresh fires for an On Cast ability. 'Default' uses the effect's display type — DoT-tracker effects wait for the ability's damage to land, all others refresh the instant the ability is cast. 'Cast' forces an immediate refresh; 'First Damage' waits for the ability's first damaging hit (so an interrupted cast won't refresh).",
+                                        "?"
+                                    }
+                                }
+                            }
+                            if trigger == RefreshTrigger::Damage {
+                                label { class: "flex items-center gap-xs text-sm text-secondary",
+                                    input {
+                                        r#type: "checkbox",
+                                        checked: ignore_immune,
+                                        onchange: move |e| {
+                                            let mut next = abilities_ir.clone();
+                                            let ability = next[idx].ability().clone();
+                                            next[idx] = make_refresh_ability(ability, min_stacks, trigger, e.checked(), on_first_damage);
+                                            on_change.call(next);
+                                        }
+                                    }
+                                    span { class: "flex items-center",
+                                        "Ignore Immune/Resist"
+                                        span {
+                                            class: "help-icon",
+                                            title: "When refreshing on damage, skip damage events that were immune or resisted — they won't refresh the effect.",
+                                            "?"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Add new ability (defaults to On Cast, any stacks)
+            div { class: "flex gap-xs",
+                input {
+                    r#type: "text",
+                    class: "input-inline",
+                    style: "flex: 1; min-width: 0;",
+                    placeholder: "Ability ID or Name (Enter)",
+                    value: "{new_input}",
+                    oninput: move |e| new_input.set(e.value()),
+                    onkeydown: move |e| {
+                        if e.key() == Key::Enter && !new_input().trim().is_empty() {
+                            let selector = AbilitySelector::from_input(&new_input());
+                            let mut next = abilities_for_keydown.clone();
+                            if !next.iter().any(|r| r.ability().display() == selector.display()) {
+                                next.push(RefreshAbility::Simple(selector));
+                                on_change.call(next);
+                            }
+                            new_input.set(String::new());
+                        }
+                    }
+                }
+                button {
+                    class: "btn btn-sm",
+                    onclick: move |_| {
+                        if !new_input().trim().is_empty() {
+                            let selector = AbilitySelector::from_input(&new_input());
+                            let mut next = abilities_for_click.clone();
+                            if !next.iter().any(|r| r.ability().display() == selector.display()) {
+                                next.push(RefreshAbility::Simple(selector));
+                                on_change.call(next);
                             }
                             new_input.set(String::new());
                         }

@@ -50,6 +50,9 @@ pub struct NpcInfo {
     pub current_hp: i32,
     pub max_hp: i32,
     pub current_target_id: i64,
+    /// Once this NPC has qualified for the boss HP overlay (took damage or
+    /// gained a shield), keep showing it even if it heals back to full HP.
+    pub is_displayed: bool,
 }
 
 impl Default for NpcInfo {
@@ -67,6 +70,7 @@ impl Default for NpcInfo {
             current_hp: 0,
             max_hp: 0,
             current_target_id: 0,
+            is_displayed: false,
         }
     }
 }

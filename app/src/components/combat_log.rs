@@ -487,6 +487,12 @@ pub fn CombatLog(props: CombatLogProps) -> Element {
         let tr = time_range_signal.read().clone();
         let source = source_filter.read().clone();
         let target = target_filter.read().clone();
+        let search = search_debounce.read().clone();
+        let search_opt = if search.is_empty() {
+            None
+        } else {
+            Some(search)
+        };
         let event_filters = build_event_filters();
         let sort_col = *log_sort_column.read();
         let sort_dir = *log_sort_direction.read();
@@ -510,6 +516,7 @@ pub fn CombatLog(props: CombatLogProps) -> Element {
                 &find,
                 source.as_deref(),
                 target.as_deref(),
+                search_opt.as_deref(),
                 tr_opt,
                 event_filters.as_ref(),
                 sort_col,
@@ -839,7 +846,7 @@ pub fn CombatLog(props: CombatLogProps) -> Element {
                 input {
                     class: "log-search",
                     r#type: "text",
-                    placeholder: "Filter... (use OR, NOT)",
+                    placeholder: "Filter... (AND, OR, NOT, parens)",
                     value: "{search_text}",
                     oninput: move |e| search_text.set(e.value()),
                 }

@@ -494,6 +494,12 @@ pub struct BossTimerDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alert_text: Option<String>,
 
+    /// When `alert_on == Countdown`, the trailing window (in seconds, 0..10)
+    /// during which the live-updating alert is shown. None disables Countdown
+    /// even if alert_on is set to it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alert_countdown_secs: Option<f32>,
+
     /// Display color [R, G, B, A]
     #[serde(
         default = "crate::serde_defaults::default_timer_color",
@@ -621,11 +627,24 @@ pub struct BossTimerDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_remove_trigger: Option<crate::timers::TimerTrigger>,
 
-    /// Names of other timers in the same encounter that block this ability
-    /// queue entry from appearing as "next to cast" when any of them is
-    /// currently active (OR semantics).
+    /// Definition IDs of other timers in the same encounter that block this
+    /// ability queue entry from appearing as "next to cast" when any of them
+    /// is currently active (OR semantics). Use definition IDs, not names —
+    /// names are display strings and not guaranteed unique.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queue_blocking_timers: Vec<String>,
+
+    /// State condition that, when satisfied, blocks this entry in the ability
+    /// queue. OR'd with `queue_blocking_timers`. Compose multi-clause logic
+    /// via `all_of` / `any_of` / `not` Condition variants.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_blocking_condition: Option<Condition>,
+
+    /// Audio cue played once when this timer becomes the unique highest-
+    /// priority "next cast" in the ability queue. Silent during ties,
+    /// rate-limited per definition_id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_next_audio: Option<crate::dsl::AudioConfig>,
 
     /// When true, render this timer's ability-queue row as a trickling-down
     /// bar (full → empty as cooldown elapses). Only applies when
@@ -671,6 +690,7 @@ impl BossTimerDefinition {
             alert_on: self.alert_on,
             alert_at_secs: self.alert_at_secs,
             alert_text: self.alert_text.clone(),
+            alert_countdown_secs: self.alert_countdown_secs,
             audio: self.audio.clone(),
             triggers_timer: self.chains_to.clone(),
             cancel_trigger: self.cancel_trigger.clone(),
@@ -698,6 +718,8 @@ impl BossTimerDefinition {
             queue_priority: self.queue_priority,
             queue_remove_trigger: self.queue_remove_trigger.clone(),
             queue_blocking_timers: self.queue_blocking_timers.clone(),
+            queue_blocking_condition: self.queue_blocking_condition.clone(),
+            queue_next_audio: self.queue_next_audio.clone(),
             queue_countdown_bar: self.queue_countdown_bar,
             queue_hide_from_next: self.queue_hide_from_next,
         }

@@ -394,14 +394,17 @@ impl CombatSignalHandler {
         overlay_tx: mpsc::Sender<OverlayUpdate>,
         cmd_tx: mpsc::Sender<ServiceCommand>,
     ) -> Self {
+        let last_id = shared.last_player_id.load(Ordering::SeqCst);
+        let local_player_id = if last_id != 0 { Some(last_id) } else { None };
+        let current_role = Role::from_u8(shared.last_player_role.load(Ordering::SeqCst));
         Self {
             shared,
             trigger_tx,
             session_event_tx,
             overlay_tx,
             cmd_tx,
-            local_player_id: None,
-            current_role: None,
+            local_player_id,
+            current_role,
             monitor_requested: false,
             current_boss_is_final: false,
             current_area_kind: AreaKind::Other,
@@ -427,6 +430,15 @@ impl SignalHandler for CombatSignalHandler {
                 self.shared.in_combat.store(true, Ordering::SeqCst);
                 let _ = self.trigger_tx.try_send(MetricsTrigger::CombatStarted);
                 let _ = self.session_event_tx.send(SessionEvent::CombatStarted);
+                // Always wipe a stale boss HP bar at the start of a new encounter.
+                // With `clear_after_combat` disabled the bar persists post-combat, but
+                // it must not linger into the next fight (e.g. trash after a boss).
+                let _ = self
+                    .overlay_tx
+                    .try_send(OverlayUpdate::BossHealthUpdated(BossHealthData {
+                        force_clear: true,
+                        ..Default::default()
+                    }));
                 // If overlays were auto-hidden for not-live, restore them — combat means live
                 if self.shared.auto_hide.is_not_live_active() {
                     let _ = self
@@ -434,32 +446,24 @@ impl SignalHandler for CombatSignalHandler {
                         .try_send(OverlayUpdate::NotLiveStateChanged { is_live: true });
                 }
             }
-            GameSignal::CombatEnded { timestamp, .. } => {
+            GameSignal::CombatEnded { timestamp, success, .. } => {
                 self.shared.in_combat.store(false, Ordering::SeqCst);
                 let _ = self.trigger_tx.try_send(MetricsTrigger::CombatEnded);
                 let _ = self.session_event_tx.send(SessionEvent::CombatEnded);
                 // Clear boss health and timer overlays
                 let _ = self.overlay_tx.try_send(OverlayUpdate::CombatEnded);
 
-                // Auto-stop operation timer when the final boss is killed.
+                // Auto-stop operation timer when the final boss is KILLED (not wiped).
+                // `success` comes from the signal and is set by determine_success() at the
+                // emit site; `current_boss_is_final` was snapshotted at BossEncounterDetected
+                // because `_encounter` here is the new empty encounter (push_new_encounter()
+                // already ran).
                 //
-                // NOTE: `_encounter` at this point is the brand-new empty encounter
-                // (push_new_encounter() already ran before signal dispatch), so we
-                // cannot call enc.active_boss_definition() here — it would return None.
-                // Instead we use `current_boss_is_final`, which was snapshotted in the
-                // preceding BossEncounterDetected signal.
-                //
-                // We use `_encounter` (the new encounter's predecessor in history) only
-                // to determine success — but since the encounter has already been moved to
-                // history by the time we get here, we rely on the fact that if is_final_boss
-                // is set and we were in an operation, combat ending == a successful clear.
-                // (Wipes also fire CombatEnded, so we additionally check determine_success
-                // on the encounter that was passed — but since _encounter is now the new
-                // one, we check the area type alone for ops and trust that a wipe restarts
-                // the fight without hitting is_final_boss again.)
-                //
-                // Only in live mode - historical replays should not drive the timer.
-                if self.shared.is_live_tailing.load(Ordering::SeqCst) && self.current_boss_is_final {
+                // Only in live mode — historical replays should not drive the timer.
+                if self.shared.is_live_tailing.load(Ordering::SeqCst)
+                    && self.current_boss_is_final
+                    && *success
+                {
                     let area_kind = self.current_area_kind;
                     if matches!(area_kind, AreaKind::Operation | AreaKind::Flashpoint) {
                         let mut timer = self.shared.operation_timer.lock().unwrap();
@@ -472,8 +476,12 @@ impl SignalHandler for CombatSignalHandler {
                         let _ = self.cmd_tx.try_send(ServiceCommand::EmitOperationTimerTick);
                     }
                 }
-                // Reset the flag — next boss may or may not be final
-                self.current_boss_is_final = false;
+                // Only reset the final-boss flag on a successful kill. On a wipe the
+                // group will retry the same boss, so we must keep the flag set so the
+                // next CombatEnded (the actual kill) can stop the timer.
+                if *success {
+                    self.current_boss_is_final = false;
+                }
             }
             GameSignal::DisciplineChanged {
                 entity_id,
@@ -481,9 +489,11 @@ impl SignalHandler for CombatSignalHandler {
                 discipline_id,
                 ..
             } => {
-                // First DisciplineChanged is always the local player
+                // First DisciplineChanged is always the local player (only when
+                // no player ID was restored from a previous handler via SharedState)
                 if self.local_player_id.is_none() {
                     self.local_player_id = Some(*entity_id);
+                    self.shared.last_player_id.store(*entity_id, Ordering::SeqCst);
                 }
                 // Update raid registry with discipline info for role icons
                 let mut registry = self.shared.raid_registry.lock().unwrap_or_else(|p| p.into_inner());
@@ -503,6 +513,7 @@ impl SignalHandler for CombatSignalHandler {
                         let new_role = discipline.role();
                         let role_changed = self.current_role.map_or(true, |r| r != new_role);
                         self.current_role = Some(new_role);
+                        self.shared.last_player_role.store(new_role.to_u8(), Ordering::SeqCst);
                         if role_changed {
                             let role_name = format!("{:?}", new_role);
                             let _ = self.cmd_tx.try_send(ServiceCommand::AutoSwitchProfile { role_name });
@@ -747,21 +758,7 @@ impl CombatService {
         let user_sounds_dir = dirs::config_dir()
             .map(|p| p.join("baras").join("sounds"))
             .unwrap_or_else(|| PathBuf::from("."));
-        // In release: bundled resources. In dev: fall back to source directory
-        let bundled_sounds_dir = app_handle
-            .path()
-            .resolve("definitions/sounds", tauri::path::BaseDirectory::Resource)
-            .ok()
-            .filter(|p| p.exists())
-            .unwrap_or_else(|| {
-                // Dev fallback: relative to project root
-                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .ancestors()
-                    .nth(2)
-                    .map(|p| p.to_path_buf())
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join("core/definitions/sounds")
-            });
+        let bundled_definitions_dir = crate::audio::resolve_bundled_definitions_dir(&app_handle);
         let audio_settings = Arc::new(tokio::sync::RwLock::new(
             shared.config.blocking_read().audio.clone(),
         ));
@@ -769,7 +766,7 @@ impl CombatService {
             audio_rx,
             audio_settings,
             user_sounds_dir,
-            bundled_sounds_dir,
+            bundled_definitions_dir,
         );
         tauri::async_runtime::spawn(audio_service.run());
 
@@ -1173,21 +1170,20 @@ impl CombatService {
         };
 
         let Ok(config) = toml::from_str::<DefinitionConfig>(&contents) else {
-            error!(path = ?path, "Failed to parse user effects file");
-            // Delete invalid file
-            let _ = std::fs::remove_file(path);
+            error!(path = ?path, "Failed to parse user effects file, backing up");
+            let _ = std::fs::rename(path, path.with_extension("toml.bak"));
             return;
         };
 
-        // Version check - delete file if version mismatch
+        // Version check - backup file if version mismatch
         if config.version != EFFECTS_DSL_VERSION {
             warn!(
                 file_version = config.version,
                 expected_version = EFFECTS_DSL_VERSION,
                 path = ?path,
-                "User effects version mismatch, deleting file"
+                "User effects version mismatch, backing up file"
             );
-            let _ = std::fs::remove_file(path);
+            let _ = std::fs::rename(path, path.with_extension("toml.bak"));
             return;
         }
 
@@ -1380,6 +1376,12 @@ impl CombatService {
                             self.emit_operation_timer_tick();
                         }
                         ServiceCommand::AutoSwitchProfile { role_name } => {
+                            // Only auto-switch profiles during live tailing — historical
+                            // file playback should never change the user's active profile.
+                            if !self.shared.is_live_tailing.load(Ordering::SeqCst) {
+                                debug!("Ignoring auto-switch profile for role {} (not live tailing)", role_name);
+                                continue;
+                            }
                             let config = self.shared.config.read().await;
                             if let Some(profile_name) = config.default_profile_per_role.get(&role_name) {
                                 // Skip if this profile is already active
@@ -2072,13 +2074,18 @@ impl CombatService {
                             }
                         }
 
-                        // Sync player context to effect tracker so discipline-scoped
-                        // effects work immediately (tracker missed historical signals)
+                        // Sync player context to effect tracker and shared state so
+                        // discipline-scoped effects and profile auto-switching work
+                        // immediately (handler missed historical signals from subprocess)
                         if let Some((player_id, discipline_id)) = player_context {
                             if let Some(tracker) = session_guard.effect_tracker() {
                                 if let Ok(mut tracker) = tracker.lock() {
                                     tracker.set_player_context(player_id, discipline_id);
                                 }
+                            }
+                            self.shared.last_player_id.store(player_id, Ordering::SeqCst);
+                            if let Some(discipline) = Discipline::from_guid(discipline_id) {
+                                self.shared.last_player_role.store(discipline.role().to_u8(), Ordering::SeqCst);
                             }
                         }
 
@@ -2964,29 +2971,51 @@ async fn calculate_combat_data(shared: &Arc<SharedState>) -> Option<CombatData> 
         let difficulty = summary.difficulty.clone();
         let metrics = summary.player_metrics.clone();
 
+        // Lookup map for class/discipline icons from the persisted player
+        // metrics — same as the live path — so historical loads render icons
+        // and bold the local player too.
+        use baras_core::game_data::Role as GameRole;
+        use baras_overlay::Role as OverlayRole;
+        let player_lookup: std::collections::HashMap<i64, (Option<String>, Option<String>, Option<OverlayRole>)> =
+            metrics
+                .iter()
+                .map(|m| {
+                    let class_icon = m.class_icon.clone();
+                    let discipline_icon = m.discipline.map(|d| d.icon_name().to_string());
+                    let role = m.discipline.map(|d| match d.role() {
+                        GameRole::Tank => OverlayRole::Tank,
+                        GameRole::Healer => OverlayRole::Healer,
+                        GameRole::Dps => OverlayRole::Damage,
+                    });
+                    (m.entity_id, (class_icon, discipline_icon, role))
+                })
+                .collect();
+
         // Build ChallengeData from historical summary if challenges exist
         let challenges = if !summary.challenges.is_empty() {
             let entries: Vec<ChallengeEntry> = summary
                 .challenges
                 .iter()
                 .map(|cs| {
-                    // Historical fallback: class info isn't persisted in the
-                    // summary, so icons + local-bold are skipped. Live path
-                    // populates these fields; this is the degraded read for
-                    // initial-hydration only.
                     let by_player: Vec<PlayerContribution> = cs
                         .by_player
                         .iter()
-                        .map(|p| PlayerContribution {
-                            entity_id: p.entity_id,
-                            name: p.name.clone(),
-                            value: p.value,
-                            percent: p.percent,
-                            per_second: p.per_second,
-                            is_local: false,
-                            class_icon: None,
-                            discipline_icon: None,
-                            role: None,
+                        .map(|p| {
+                            let (class_icon, discipline_icon, role) = player_lookup
+                                .get(&p.entity_id)
+                                .cloned()
+                                .unwrap_or((None, None, None));
+                            PlayerContribution {
+                                entity_id: p.entity_id,
+                                name: p.name.clone(),
+                                value: p.value,
+                                percent: p.percent,
+                                per_second: p.per_second,
+                                is_local: p.entity_id == player_entity_id,
+                                class_icon,
+                                discipline_icon,
+                                role,
+                            }
                         })
                         .collect();
                     ChallengeEntry {
@@ -3176,15 +3205,16 @@ async fn build_boss_health_data(
 
     let entries = cache.get_boss_health();
 
-    // Collect BossHealth-targeted effects grouped by target name
-    let boss_icons: HashMap<String, Vec<BossEffectIcon>> =
+    // Collect BossHealth-targeted effects grouped by target entity id (so two
+    // NPCs sharing a display name don't share icons).
+    let boss_icons: HashMap<i64, Vec<BossEffectIcon>> =
         if let Some(effect_tracker) = session.effect_tracker() {
             let tracker = effect_tracker.lock().unwrap_or_else(|p| p.into_inner());
             let interp_time = tracker.interpolated_game_time();
             tracker
-                .boss_health_effects_by_name()
+                .boss_health_effects_by_target_id()
                 .into_iter()
-                .filter_map(|(name, effects)| {
+                .filter_map(|(entity_id, effects)| {
                     let icons: Vec<BossEffectIcon> = effects
                         .into_iter()
                         .filter_map(|effect| {
@@ -3210,14 +3240,18 @@ async fn build_boss_health_data(
                             })
                         })
                         .collect();
-                    if icons.is_empty() { None } else { Some((name, icons)) }
+                    if icons.is_empty() { None } else { Some((entity_id, icons)) }
                 })
                 .collect()
         } else {
             HashMap::new()
         };
 
-    Some(BossHealthData { entries, boss_icons })
+    Some(BossHealthData {
+        entries,
+        boss_icons,
+        force_clear: false,
+    })
 }
 
 /// Named bundle returned by `build_timer_data_with_audio`.
@@ -3286,11 +3320,11 @@ async fn build_timer_data_with_audio(
     let mut aq_entries: Vec<AbilityQueueEntry> = Vec::new();
 
     // Pre-collect remaining-seconds of all currently-active (non-queued) timers
-    // keyed by name so we can mark ability queue entries as blocked only when a
-    // blocker will still be running when the current GCD resolves — a blocker
-    // that expires before the GCD should not stop the ability from being the
-    // next cast. Duplicate names (e.g. same timer on multiple targets) collapse
-    // to the longest remaining, which is the pessimistic blocker.
+    // keyed by definition_id so we can mark ability queue entries as blocked
+    // only when a blocker will still be running when the current GCD resolves.
+    // Multi-target instances of the same definition collapse to the longest
+    // remaining (pessimistic blocker). Names are intentionally not used here
+    // because they're display-only and not guaranteed unique.
     let blocker_remaining: std::collections::HashMap<&str, f32> = {
         let mut map: std::collections::HashMap<&str, f32> =
             std::collections::HashMap::new();
@@ -3299,7 +3333,7 @@ async fn build_timer_data_with_audio(
                 continue;
             }
             let rem = interp_time.map(|ti| t.remaining_secs(ti)).unwrap_or(0.0);
-            map.entry(t.name.as_str())
+            map.entry(t.definition_id.as_str())
                 .and_modify(|cur| *cur = cur.max(rem))
                 .or_insert(rem);
         }
@@ -3322,6 +3356,7 @@ async fn build_timer_data_with_audio(
             .max(0) as f32
             / 1000.0;
         aq_entries.push(AbilityQueueEntry {
+            definition_id: String::new(),
             name: String::new(),
             remaining_secs: remaining,
             total_secs: total,
@@ -3398,12 +3433,22 @@ async fn build_timer_data_with_audio(
         if timer.displays_on(TimerDisplayTarget::AbilityQueue)
             && (display_is_queued || remaining > 0.0)
         {
-            let is_blocked = timer.queue_blocking_timers.iter().any(|name| {
+            let blocked_by_timer = timer.queue_blocking_timers.iter().any(|id| {
                 blocker_remaining
-                    .get(name.as_str())
+                    .get(id.as_str())
                     .is_some_and(|&rem| rem > gcd_remaining)
             });
+            let current_encounter = session
+                .session_cache
+                .as_ref()
+                .and_then(|c| c.current_encounter());
+            let blocked_by_condition = match (&timer.queue_blocking_condition, current_encounter) {
+                (Some(c), Some(enc)) => enc.evaluate_condition(c),
+                _ => false,
+            };
+            let is_blocked = blocked_by_timer || blocked_by_condition;
             aq_entries.push(AbilityQueueEntry {
+                definition_id: timer.definition_id.clone(),
                 name: timer.name.clone(),
                 remaining_secs: remaining,
                 total_secs,
@@ -3416,6 +3461,81 @@ async fn build_timer_data_with_audio(
                 hide_from_next: timer.queue_hide_from_next,
                 icon_ability_id: timer.icon_ability_id,
                 icon,
+            });
+        }
+    }
+
+    // ─── Ability Queue: unique-next audio cue ────────────────────────────────
+    // Determine the timer that solo-occupies the highest-priority eligible
+    // slot, then ask TimerManager whether that's a fresh transition (with a
+    // 500ms dedup window to absorb frame-boundary jitter near the GCD edge).
+    let unique_next_id: Option<String> = {
+        let max_prio = aq_entries
+            .iter()
+            .filter(|e| {
+                !e.is_pinned
+                    && !e.is_blocked
+                    && !e.hide_from_next
+                    && (e.is_queued || e.remaining_secs <= gcd_remaining)
+            })
+            .map(|e| e.queue_priority)
+            .max();
+        max_prio.and_then(|p| {
+            let mut winners = aq_entries.iter().filter(|e| {
+                !e.is_pinned
+                    && !e.is_blocked
+                    && !e.hide_from_next
+                    && (e.is_queued || e.remaining_secs <= gcd_remaining)
+                    && e.queue_priority == p
+            });
+            let first = winners.next()?;
+            if winners.next().is_some() {
+                None
+            } else {
+                Some(first.definition_id.clone())
+            }
+        })
+    };
+    if let Some(now) = interp_time {
+        // Pull the candidate's at_gcd_remaining threshold (if any) before the
+        // mutable call below — borrow checker won't let active_timers() and
+        // update_uniquely_next() overlap.
+        let threshold_met = unique_next_id
+            .as_deref()
+            .map(|id| {
+                let threshold = timer_mgr
+                    .active_timers()
+                    .into_iter()
+                    .find(|t| t.definition_id == id)
+                    .and_then(|t| t.queue_next_audio.as_ref())
+                    .and_then(|a| a.at_gcd_remaining);
+                threshold.is_none_or(|t| gcd_remaining <= t)
+            })
+            .unwrap_or(true);
+        let fire = timer_mgr.update_uniquely_next(
+            unique_next_id.as_deref(),
+            threshold_met,
+            now,
+            chrono::Duration::milliseconds(500),
+        );
+        if let Some(fire_id) = fire
+            && let Some(timer) = timer_mgr
+                .active_timers()
+                .into_iter()
+                .find(|t| t.definition_id == fire_id)
+            && let Some(audio) = timer.queue_next_audio.as_ref().filter(|a| a.enabled)
+        {
+            alerts.push(baras_core::timers::FiredAlert {
+                id: timer.definition_id.clone(),
+                name: timer.name.clone(),
+                text: timer.name.clone(),
+                color: Some(timer.color),
+                timestamp: now,
+                alert_text_enabled: false,
+                audio_enabled: true,
+                audio_file: audio.file.clone(),
+                icon_ability_id: timer.icon_ability_id,
+                remaining_secs: None,
             });
         }
     }
@@ -3617,6 +3737,13 @@ async fn build_effects_a_data(
                     .map(|data| StdArc::new((data.width, data.height, data.rgba)))
             });
 
+            let max_total_secs = effect.max_expires_at.map(|max_exp| {
+                (max_exp - effect.applied_at).num_milliseconds() as f32 / 1000.0
+            });
+            let max_remaining_secs = effect.max_expires_at.and_then(|max_exp| {
+                interp_time.map(|t| (max_exp - t).num_milliseconds() as f32 / 1000.0)
+            });
+
             Some(EffectABEntry {
                 effect_id: effect.game_effect_id,
                 icon_ability_id: effect.icon_ability_id,
@@ -3631,6 +3758,8 @@ async fn build_effects_a_data(
                 icon,
                 show_icon: effect.show_icon,
                 display_source: effect.display_source,
+                max_total_secs,
+                max_remaining_secs,
             })
         })
         .collect();
@@ -3681,6 +3810,13 @@ async fn build_effects_b_data(
                     .map(|data| StdArc::new((data.width, data.height, data.rgba)))
             });
 
+            let max_total_secs = effect.max_expires_at.map(|max_exp| {
+                (max_exp - effect.applied_at).num_milliseconds() as f32 / 1000.0
+            });
+            let max_remaining_secs = effect.max_expires_at.and_then(|max_exp| {
+                interp_time.map(|t| (max_exp - t).num_milliseconds() as f32 / 1000.0)
+            });
+
             Some(EffectABEntry {
                 effect_id: effect.game_effect_id,
                 icon_ability_id: effect.icon_ability_id,
@@ -3695,6 +3831,8 @@ async fn build_effects_b_data(
                 icon,
                 show_icon: effect.show_icon,
                 display_source: effect.display_source,
+                max_total_secs,
+                max_remaining_secs,
             })
         })
         .collect();

@@ -1,52 +1,24 @@
-# v2026.4.27
+# v2026.6.22
 
-## v2026.4.28 Hotfix
+## Overlay Formatting
 
-- Fixed edge case where huntmaster classification could be wrong
-- Readded Master Blaster Victory trigger
+- **Gradients** - Gradient bars have been added and enabled by default on metrics overlays. This option can be toggled on/off in the overlay customization menu.
+  It is also present on bar mode effects overlays, timers, and boss HP, but not as a default.
+- **Bar Spacing** - Spacing between bars on metrics overlays can now be adjusted in the overlay customization menu.
+- **Overlay Font Selection** - Users can now select any of their available system fonts as the font face for the overlays.
 
-## macOS Support
+Enjoy customizing.
 
-All features should now be working on macOS
+## Other
 
-- Overlays now show over the game window
-- Application icon now shows in system tray
-- Installing the application now displays a message saying it's unsigned, rather than damaged
-
-## Linux Support
-
-- Updated monitor ID on Linux Wayland to always include connector port
-
-## Overlays
-
-- Switched over overlay font to bundled `Inter` font
-- All text is now rendered with text glow for enhanced readability
-- Improved formatting of discipline icons on metrics overlays
-- Updated Text/icon formatting of challenges overlay to match regular metrics overlays
-- Reduced the amount of spacing between text and HP bar on HP overlay
-- Major improvements to boss ability queue overlay, though feature is still in beta
-- Entities with shields will always appear on HP overlay, even if HP bar is full
-- Added option to display timers on multiple overlays simultaneously
-
-## Encounters
-
-- Definition files have been added for all remaining flashpoints (thanks Sinrai)
-- Dxun II and III are now detected immediately on encounter start
-- NAHUT is now detected when a player picks up the candle
-- Olok encounter is now detected on Wealthy Buyer
-- Added EV Pylons encounter (lol)
-- Corruptor Zero gravity timer should now be accurate
-- Operator IX phase timers should now be accurate without requiring the player to direct cast on the hologram
-- Added Styrak timers
-- Added Master and Blaster Timers
-- Various updates to TFB and DF timers
-
-## Parsely
-
-- Parsely upload now supports multiple guilds
+- Refresh on immune toggle option added for effects tracking
+- Shielding and SPS columns have been condensed into to the HPS/EHPS columns in the data explorer. Blue-text coloring is used to distinguish between shielding from healing.
+- Various additions to HP markers, alert text rewording in encounter timers
+- Added entry for tracking group revive cooldowns
+- Log file search now supports compound terms using the comma (e.g. `Player Name, Dxun` will find all Dxuns for `Player Name`)
 
 ## Bugfixes
 
-- Operation timer is no longer reset upon re-entering an operation area
-- When multiple shields of the same name are active, the application now checks for the proper entity before removing them
-- Various rendering performance fixes and optimizations
+- Fixed issue causing duration modifiers that add time to improperly render total duration in the overlay
+- Removed Sustaining Aura/Fueled Corruption from tracked effects
+- Challenges overlay will now display class/discipline icons when parsed from a historical file

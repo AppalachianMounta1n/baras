@@ -6,6 +6,7 @@
 use dioxus::prelude::*;
 
 use crate::api;
+use crate::components::SoundPicker;
 use crate::types::{
     AlertTrigger, AudioConfig, BossTimerDefinition, BossWithPath, Condition, EncounterItem,
     TimerDisplayTarget, Trigger, timer_alert_label,
@@ -33,6 +34,7 @@ fn default_timer(name: String) -> BossTimerDefinition {
         is_alert: false,
         alert_on: AlertTrigger::default(),
         alert_text: None,
+        alert_countdown_secs: None,
         color: [255, 128, 0, 255], // Orange
         icon_ability_id: None,
         conditions: vec![],
@@ -60,6 +62,8 @@ fn default_timer(name: String) -> BossTimerDefinition {
         queue_priority: 0,
         queue_remove_trigger: None,
         queue_blocking_timers: Vec::new(),
+        queue_blocking_condition: None,
+        queue_next_audio: None,
         queue_countdown_bar: false,
         queue_hide_from_next: false,
     }
@@ -495,12 +499,6 @@ fn TimerEditForm(
     let mut draft = use_signal(|| timer_for_draft);
     let mut confirm_delete = use_signal(|| false);
     let mut just_saved = use_signal(|| false);
-
-    // Load available sound files once
-    let mut sound_files = use_signal(Vec::<String>::new);
-    use_future(move || async move {
-        sound_files.set(api::list_sound_files().await);
-    });
 
     // Reset just_saved when user makes new changes after saving
     let timer_original_for_effect = timer_original.clone();
@@ -1247,8 +1245,16 @@ fn TimerEditForm(
                                             d.alert_on = match e.value().as_str() {
                                                 "Timer Start" => AlertTrigger::OnApply,
                                                 "Timer End" => AlertTrigger::OnExpire,
+                                                "Countdown" => AlertTrigger::Countdown,
                                                 _ => AlertTrigger::None,
                                             };
+                                            // Provide a sensible default countdown window
+                                            // the first time Countdown is selected.
+                                            if d.alert_on == AlertTrigger::Countdown
+                                                && d.alert_countdown_secs.is_none()
+                                            {
+                                                d.alert_countdown_secs = Some(3.0);
+                                            }
                                             draft.set(d);
                                         },
                                         for trigger in AlertTrigger::all() {
@@ -1260,6 +1266,33 @@ fn TimerEditForm(
                                                         selected: *trigger == draft().alert_on,
                                                         "{label}"
                                                     }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if draft().alert_on == AlertTrigger::Countdown {
+                                    div { class: "form-row-hz",
+                                        label { class: "flex items-center",
+                                            "Countdown Window (s)"
+                                            span {
+                                                class: "help-icon",
+                                                title: "Show a live-updating alert during the last N seconds of the timer (0-10). Alert text shows remaining time to one decimal.",
+                                                "?"
+                                            }
+                                        }
+                                        input {
+                                            r#type: "number",
+                                            min: "0",
+                                            max: "10",
+                                            step: "0.5",
+                                            class: "input-inline",
+                                            value: "{draft().alert_countdown_secs.unwrap_or(3.0)}",
+                                            oninput: move |e| {
+                                                if let Ok(v) = e.value().parse::<f32>() {
+                                                    let mut d = draft();
+                                                    d.alert_countdown_secs = Some(v.clamp(0.0, 10.0));
+                                                    draft.set(d);
                                                 }
                                             }
                                         }
@@ -1290,67 +1323,13 @@ fn TimerEditForm(
                             }
 
                             if draft().audio.enabled {
-                                div { class: "form-row-hz mt-sm",
-                                    label { "Sound" }
-                                    div { class: "flex items-center gap-xs", style: "flex: 1; min-width: 0;",
-                                        select {
-                                            class: "select-inline",
-                                            style: "flex: 1; min-width: 0;",
-                                            value: "{draft().audio.file.clone().unwrap_or_default()}",
-                                            onchange: move |e| {
-                                                let mut d = draft();
-                                                d.audio.file = if e.value().is_empty() { None } else { Some(e.value()) };
-                                                draft.set(d);
-                                            },
-                                            option { value: "", selected: draft().audio.file.is_none(), "(none)" }
-                                            for name in sound_files().iter() {
-                                                {
-                                                    let is_selected = draft().audio.file.as_deref() == Some(name.as_str());
-                                                    rsx! {
-                                                        option { key: "{name}", value: "{name}", selected: is_selected, "{name}" }
-                                                    }
-                                                }
-                                            }
-                                            if let Some(ref path) = draft().audio.file {
-                                                if !path.is_empty() && !sound_files().contains(path) {
-                                                    option { value: "{path}", selected: true, "{path} (custom)" }
-                                                }
-                                            }
-                                        }
-                                        button {
-                                            class: "btn btn-sm",
-                                            r#type: "button",
-                                            onclick: move |_| {
-                                                spawn(async move {
-                                                    if let Some(path) = api::pick_audio_file().await {
-                                                        let lower = path.to_lowercase();
-                                                        if lower.ends_with(".mp3") || lower.ends_with(".wav") {
-                                                            let mut d = draft();
-                                                            d.audio.file = Some(path);
-                                                            draft.set(d);
-                                                        }
-                                                    }
-                                                });
-                                            },
-                                            "Browse"
-                                        }
-                                        if draft().audio.file.is_some() {
-                                            button {
-                                                class: "btn btn-sm",
-                                                r#type: "button",
-                                                title: "Preview sound",
-                                                onclick: move |_| {
-                                                    if let Some(ref file) = draft().audio.file {
-                                                        let file = file.clone();
-                                                        spawn(async move {
-                                                            api::preview_sound(&file).await;
-                                                        });
-                                                    }
-                                                },
-                                                "Play"
-                                            }
-                                        }
-                                    }
+                                SoundPicker {
+                                    value: draft().audio.file.clone(),
+                                    on_change: move |v| {
+                                        let mut d = draft();
+                                        d.audio.file = v;
+                                        draft.set(d);
+                                    },
                                 }
 
                                 // Audio timing options (only for countdown timers)
@@ -1411,8 +1390,15 @@ fn TimerEditForm(
                                                     }
                                                 },
                                                 option { value: "0", "Off" }
+                                                option { value: "1", "1s" }
+                                                option { value: "2", "2s" }
                                                 option { value: "3", "3s" }
+                                                option { value: "4", "4s" }
                                                 option { value: "5", "5s" }
+                                                option { value: "6", "6s" }
+                                                option { value: "7", "7s" }
+                                                option { value: "8", "8s" }
+                                                option { value: "9", "9s" }
                                                 option { value: "10", "10s" }
                                             }
                                             select {
@@ -1568,14 +1554,23 @@ fn TimerEditForm(
                                         span { class: "help-icon", title: "Timers from this encounter that prevent this entry from appearing as 'next cast' while they're active. OR semantics — any one active blocker blocks the entry.", "?" }
                                     }
                                     div { class: "flex-col gap-xs",
-                                        // Current blockers as removable chips
+                                        // Current blockers as removable chips. Stored as
+                                        // definition IDs; the chip label resolves to the
+                                        // human-readable name via `all_timers` (falling
+                                        // back to the raw ID if the lookup fails — e.g.
+                                        // a stale reference to a deleted timer).
                                         if !draft().queue_blocking_timers.is_empty() {
                                             div { class: "flex flex-wrap gap-xs",
-                                                for (idx, blocker) in draft().queue_blocking_timers.iter().cloned().enumerate() {
+                                                for (idx, blocker_id) in draft().queue_blocking_timers.iter().cloned().enumerate() {
                                                     {
+                                                        let label = all_timers
+                                                            .iter()
+                                                            .find(|t| t.id == blocker_id)
+                                                            .map(|t| t.name.clone())
+                                                            .unwrap_or_else(|| blocker_id.clone());
                                                         rsx! {
                                                             span { class: "chip",
-                                                                "{blocker}"
+                                                                "{label}"
                                                                 button {
                                                                     class: "chip-remove",
                                                                     onclick: move |_| {
@@ -1592,7 +1587,8 @@ fn TimerEditForm(
                                             }
                                         }
                                         // Dropdown to add a blocker — lists same-encounter timers
-                                        // excluding self and already-selected blockers.
+                                        // excluding self and already-selected blockers. Values are
+                                        // definition IDs; labels show display names.
                                         select {
                                             class: "select",
                                             style: "width: 220px;",
@@ -1609,13 +1605,13 @@ fn TimerEditForm(
                                             option { value: "", "(add blocker...)" }
                                             for t in all_timers.iter() {
                                                 {
-                                                    let self_name = draft().name.clone();
-                                                    let already = draft().queue_blocking_timers.contains(&t.name);
-                                                    let is_self = t.name == self_name;
+                                                    let self_id = draft().id.clone();
+                                                    let already = draft().queue_blocking_timers.contains(&t.id);
+                                                    let is_self = t.id == self_id;
                                                     rsx! {
                                                         if !is_self {
                                                             option {
-                                                                value: "{t.name}",
+                                                                value: "{t.id}",
                                                                 disabled: already,
                                                                 "{t.name}"
                                                                 if already { " ✓" }
@@ -1623,6 +1619,113 @@ fn TimerEditForm(
                                                         }
                                                     }
                                                 }
+                                            }
+                                        }
+                                    }
+                                }
+                                div { class: "form-row-hz", style: "align-items: flex-start;",
+                                    label { class: "flex items-center", style: "padding-top: 6px;",
+                                        "Blocked By Condition"
+                                        span { class: "help-icon", title: "State condition that blocks this entry from appearing as 'next cast' when satisfied. OR'd with the Blocked By timer list — either signal blocks the entry. Multiple conditions are AND'd implicitly (use 'Any Of' to OR).", "?" }
+                                    }
+                                    div { class: "flex-col gap-xs",
+                                        ConditionsEditor {
+                                            conditions: match draft().queue_blocking_condition.clone() {
+                                                None => Vec::new(),
+                                                Some(Condition::AllOf { conditions }) => conditions,
+                                                Some(c) => vec![c],
+                                            },
+                                            encounter_data: encounter_data.clone(),
+                                            on_change: move |v: Vec<Condition>| {
+                                                let mut d = draft();
+                                                d.queue_blocking_condition = match v.len() {
+                                                    0 => None,
+                                                    1 => v.into_iter().next(),
+                                                    _ => Some(Condition::AllOf { conditions: v }),
+                                                };
+                                                draft.set(d);
+                                            }
+                                        }
+                                    }
+                                }
+                                div { class: "form-row-hz", style: "align-items: flex-start;",
+                                    label { class: "flex items-center", style: "padding-top: 6px;",
+                                        "Next-Cast Audio"
+                                        span { class: "help-icon", title: "Plays once when this timer becomes the unique highest-priority 'next cast'. Suppressed during ties and rate-limited to avoid jitter near the GCD edge.", "?" }
+                                    }
+                                    div { class: "flex-col gap-xs",
+                                        label { class: "flex items-center gap-xs text-sm",
+                                            input {
+                                                r#type: "checkbox",
+                                                checked: draft().queue_next_audio.as_ref().is_some_and(|a| a.enabled),
+                                                onchange: move |e| {
+                                                    let mut d = draft();
+                                                    if e.checked() {
+                                                        let mut a = d.queue_next_audio.clone().unwrap_or_default();
+                                                        a.enabled = true;
+                                                        d.queue_next_audio = Some(a);
+                                                    } else if let Some(mut a) = d.queue_next_audio.clone() {
+                                                        a.enabled = false;
+                                                        // Drop entirely if no other config remains so saved TOML
+                                                        // stays clean (skip_serializing_if = "Option::is_none").
+                                                        if a.file.is_none() {
+                                                            d.queue_next_audio = None;
+                                                        } else {
+                                                            d.queue_next_audio = Some(a);
+                                                        }
+                                                    }
+                                                    draft.set(d);
+                                                }
+                                            }
+                                            "Enable"
+                                        }
+                                        if draft().queue_next_audio.as_ref().is_some_and(|a| a.enabled) {
+                                            SoundPicker {
+                                                value: draft().queue_next_audio.as_ref().and_then(|a| a.file.clone()),
+                                                on_change: move |v| {
+                                                    let mut d = draft();
+                                                    let mut a = d.queue_next_audio.clone().unwrap_or_default();
+                                                    a.enabled = true;
+                                                    a.file = v;
+                                                    d.queue_next_audio = Some(a);
+                                                    draft.set(d);
+                                                },
+                                            }
+                                            div { class: "flex items-center gap-xs text-sm",
+                                                label {
+                                                    class: "flex items-center gap-xs",
+                                                    "GCD Remaining"
+                                                    span { class: "help-icon", title: "Defer the cue until this many seconds remain on the GCD. Leave blank (or 0) to play immediately when the timer becomes the next cast.", "?" }
+                                                }
+                                                input {
+                                                    r#type: "number",
+                                                    class: "input input-sm",
+                                                    style: "width: 80px;",
+                                                    step: "0.1",
+                                                    min: "0",
+                                                    placeholder: "immediate",
+                                                    value: draft()
+                                                        .queue_next_audio
+                                                        .as_ref()
+                                                        .and_then(|a| a.at_gcd_remaining)
+                                                        .map(|v| format!("{v}"))
+                                                        .unwrap_or_default(),
+                                                    onchange: move |e| {
+                                                        let mut d = draft();
+                                                        let mut a = d.queue_next_audio.clone().unwrap_or_default();
+                                                        a.enabled = true;
+                                                        let trimmed = e.value();
+                                                        let trimmed = trimmed.trim();
+                                                        a.at_gcd_remaining = if trimmed.is_empty() {
+                                                            None
+                                                        } else {
+                                                            trimmed.parse::<f32>().ok().filter(|v| *v > 0.0)
+                                                        };
+                                                        d.queue_next_audio = Some(a);
+                                                        draft.set(d);
+                                                    }
+                                                }
+                                                span { class: "text-muted text-xs", "seconds" }
                                             }
                                         }
                                     }

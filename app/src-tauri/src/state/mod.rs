@@ -138,6 +138,10 @@ pub struct SharedState {
     pub raid_registry: Mutex<RaidSlotRegistry>,
     /// Current area ID for lazy loading timers (0 = unknown)
     pub current_area_id: AtomicI64,
+    /// Last known local player entity ID (survives handler recreation across start_tailing calls)
+    pub last_player_id: AtomicI64,
+    /// Last known local player role as u8 (0=unknown, 1=Tank, 2=Healer, 3=Dps)
+    pub last_player_role: std::sync::atomic::AtomicU8,
 
     // ─── Overlay status flags (for skipping work when not needed) ───
     /// Whether raid overlay is currently running
@@ -186,6 +190,8 @@ impl SharedState {
             is_live_tailing: AtomicBool::new(true), // Start in live tailing mode
             raid_registry: Mutex::new(RaidSlotRegistry::new(raid_slots)),
             current_area_id: AtomicI64::new(0),
+            last_player_id: AtomicI64::new(0),
+            last_player_role: std::sync::atomic::AtomicU8::new(0),
             // Overlay status flags - updated by OverlayManager
             raid_overlay_active: AtomicBool::new(false),
             boss_health_overlay_active: AtomicBool::new(false),

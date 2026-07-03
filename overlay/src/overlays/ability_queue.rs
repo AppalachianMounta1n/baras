@@ -307,7 +307,7 @@ impl AbilityQueueOverlay {
                 .filter(|e| {
                     !e.is_blocked
                         && !e.hide_from_next
-                        && (e.is_queued || e.remaining_secs < gcd_remaining)
+                        && (e.is_queued || e.remaining_secs <= gcd_remaining)
                 })
                 .map(|e| e.queue_priority)
                 .max();
@@ -348,7 +348,7 @@ impl AbilityQueueOverlay {
                 };
                 let eligible = !e.is_blocked
                     && !e.hide_from_next
-                    && (e.is_queued || e.remaining_secs < gcd_remaining);
+                    && (e.is_queued || e.remaining_secs <= gcd_remaining);
                 let highlighted =
                     eligible && max_eligible_priority == Some(e.queue_priority);
                 rows.push(RenderRow {

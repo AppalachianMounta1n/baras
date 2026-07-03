@@ -472,6 +472,20 @@ impl TimeRange {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Sound Picker
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A grouped set of available sound files for the audio picker UI.
+/// `folder` is the bundled subdirectory under `core/definitions/`, also used
+/// as the persisted prefix (e.g. `"sounds/Alert.mp3"`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SoundCategory {
+    pub name: String,
+    pub folder: String,
+    pub files: Vec<String>,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Color Type
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -555,6 +569,32 @@ impl AbilitySelector {
     }
 }
 
+/// Scoping for effect refresh/dedup logic.
+///
+/// Controls which axis of the (source, target) pair is used to identify
+/// "the same effect instance" for refresh and `ignore_refreshes` checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefreshScope {
+    /// Per-(source, target) pair (default — preserves existing behavior).
+    #[default]
+    Both,
+    /// Per-source only — collapses across targets. Useful when a single
+    /// caster shouldn't trigger multiple instances when retargeting
+    /// (e.g., HealingTaken triggers on different raid members).
+    Source,
+    /// Per-target only — collapses across sources. Useful for global
+    /// debuffs that get overwritten when any caster reapplies the ability.
+    Target,
+}
+
+impl RefreshScope {
+    /// Returns all variants for UI dropdowns.
+    pub fn all() -> &'static [RefreshScope] {
+        &[Self::Both, Self::Source, Self::Target]
+    }
+}
+
 /// When an ability can trigger a refresh
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -564,6 +604,8 @@ pub enum RefreshTrigger {
     Activation,
     /// Refresh on heal completion (for abilities with cast time)
     Heal,
+    /// Refresh on any damage dealt by the ability
+    Damage,
 }
 
 /// An ability that can refresh an effect, with optional conditions.
@@ -583,6 +625,17 @@ pub enum RefreshAbility {
         /// When the refresh triggers
         #[serde(default)]
         trigger: RefreshTrigger,
+        /// For the `Damage` trigger: ignore immune/resist damage events
+        /// (they do not refresh the effect). No effect for other triggers.
+        #[serde(default, skip_serializing_if = "is_false_ref")]
+        ignore_immune_resist: bool,
+        /// For the `Activation` trigger: wait for the first damage event from
+        /// this ability (after the cast) before refreshing, instead of
+        /// refreshing immediately on cast. `None` (unspecified) uses the
+        /// per-effect default — DoT-tracker effects defer to first damage,
+        /// all others refresh on cast — preserving legacy behavior.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        on_first_damage: Option<bool>,
     },
 }
 
@@ -611,10 +664,91 @@ impl RefreshAbility {
         }
     }
 
+    /// Whether immune/resist damage events should be ignored (Damage trigger only)
+    pub fn ignore_immune_resist(&self) -> bool {
+        match self {
+            Self::Simple(_) => false,
+            Self::Conditional { ignore_immune_resist, .. } => *ignore_immune_resist,
+        }
+    }
+
+    /// Explicit first-damage override, if set (None = use the per-effect default)
+    pub fn on_first_damage(&self) -> Option<bool> {
+        match self {
+            Self::Simple(_) => None,
+            Self::Conditional { on_first_damage, .. } => *on_first_damage,
+        }
+    }
+
+    /// Whether this refresh should wait for the first damage event from the
+    /// ability instead of firing on cast. `is_dot_tracker` supplies the default
+    /// when no explicit `on_first_damage` override is set, so DoT-tracker
+    /// effects keep deferring to first damage while everything else fires on cast.
+    pub fn refresh_on_first_damage(&self, is_dot_tracker: bool) -> bool {
+        self.on_first_damage().unwrap_or(is_dot_tracker)
+    }
+
     /// Check if this ability matches the given ID or name
     pub fn matches(&self, id: u64, name: Option<&str>) -> bool {
         self.ability().matches(id, name)
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Charge Direction (for modifier triggers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Direction filter for charge/stack change triggers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargeDirection {
+    Increased,
+    Decreased,
+    #[serde(alias = "refreshed")]
+    Neutral,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Effect Modifiers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A reactive modifier that adjusts an active effect when a trigger fires.
+///
+/// Modifiers live on an `EffectDefinition` and are evaluated against incoming
+/// signals while the effect is active. They can adjust duration, sync charges,
+/// and are rate-limited by an optional internal cooldown.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EffectModifier {
+    /// What event triggers this modifier
+    pub trigger: Trigger,
+
+    /// Duration adjustment in seconds (positive = extend, negative = reduce)
+    #[serde(default, skip_serializing_if = "is_zero_f32_ref")]
+    pub adjust_duration_secs: f32,
+
+    /// Only activate on critical hits (applies to DamageTaken/HealingTaken triggers)
+    #[serde(default, skip_serializing_if = "is_false_ref")]
+    pub requires_crit: bool,
+
+    /// Reset remaining duration to the effect's base duration_secs on each proc
+    #[serde(default, skip_serializing_if = "is_false_ref")]
+    pub refill_duration: bool,
+
+    /// Internal cooldown — minimum seconds between activations
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icd_secs: Option<f32>,
+
+    /// Maximum duration this effect can reach (ceiling)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_duration_secs: Option<f32>,
+}
+
+fn is_zero_f32_ref(v: &f32) -> bool {
+    *v == 0.0
+}
+
+fn is_false_ref(v: &bool) -> bool {
+    !v
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -626,6 +760,10 @@ impl RefreshAbility {
 /// Used by both the effect and timer systems to control when alert text
 /// is displayed. For effects: OnApply = effect starts, OnExpire = effect ends.
 /// For timers: OnApply = timer starts, OnExpire = timer expires.
+/// `Countdown` (timers and effects) fires repeatedly during the last N
+/// seconds (N configured via `alert_countdown_secs`) with live-updating
+/// remaining-time text. The alerts overlay dedupes by id and auto-suppresses
+/// when the carried `remaining_secs` reaches zero — no fade tail.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AlertTrigger {
@@ -636,12 +774,14 @@ pub enum AlertTrigger {
     OnApply,
     /// Alert on end (effect expired / timer expired)
     OnExpire,
+    /// Live-updating alert during the last N seconds before expiry.
+    Countdown,
 }
 
 impl AlertTrigger {
     /// Returns all variants for UI dropdowns.
     pub fn all() -> &'static [AlertTrigger] {
-        &[Self::None, Self::OnApply, Self::OnExpire]
+        &[Self::None, Self::OnApply, Self::OnExpire, Self::Countdown]
     }
 }
 
@@ -865,6 +1005,18 @@ pub enum Trigger {
         mitigation: Vec<MitigationType>,
     },
 
+    /// Damage is dealt to a target. [TPC]
+    DamageDealt {
+        #[serde(default)]
+        abilities: Vec<AbilitySelector>,
+        #[serde(default)]
+        source: EntityFilter,
+        #[serde(default)]
+        target: EntityFilter,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        mitigation: Vec<MitigationType>,
+    },
+
     /// Healing is received from an ability. [TPC]
     HealingTaken {
         #[serde(default)]
@@ -873,6 +1025,20 @@ pub enum Trigger {
         source: EntityFilter,
         #[serde(default)]
         target: EntityFilter,
+    },
+
+    /// Another effect's charges/stacks change. [M only]
+    ChargesChanged {
+        #[serde(default)]
+        effects: Vec<EffectSelector>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<ChargeDirection>,
+    },
+
+    /// This effect's own charges/stacks change. [M only]
+    SelfChargesChanged {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        direction: Option<ChargeDirection>,
     },
 
     /// Threat is modified by an ability (MODIFYTHREAT or TAUNT). [TPC]
@@ -977,7 +1143,10 @@ impl Trigger {
             Self::EffectApplied { .. } => "Effect Applied",
             Self::EffectRemoved { .. } => "Effect Removed",
             Self::DamageTaken { .. } => "Damage Taken",
+            Self::DamageDealt { .. } => "Damage Dealt",
             Self::HealingTaken { .. } => "Healing Taken",
+            Self::ChargesChanged { .. } => "Charges Changed",
+            Self::SelfChargesChanged { .. } => "Self Charges Changed",
             Self::ThreatModified { .. } => "Threat Modified",
             Self::BossHpBelow { .. } => "Boss HP Below",
             Self::BossHpAbove { .. } => "Boss HP Above",
@@ -1008,7 +1177,10 @@ impl Trigger {
             Self::EffectApplied { .. } => "effect_applied",
             Self::EffectRemoved { .. } => "effect_removed",
             Self::DamageTaken { .. } => "damage_taken",
+            Self::DamageDealt { .. } => "damage_dealt",
             Self::HealingTaken { .. } => "healing_taken",
+            Self::ChargesChanged { .. } => "charges_changed",
+            Self::SelfChargesChanged { .. } => "self_charges_changed",
             Self::ThreatModified { .. } => "threat_modified",
             Self::BossHpBelow { .. } => "boss_hp_below",
             Self::BossHpAbove { .. } => "boss_hp_above",
@@ -1045,6 +1217,7 @@ pub mod overlay_colors {
     pub const TPS: Color = [50, 100, 180, 255]; // Blue
     pub const DTPS: Color = [180, 80, 80, 255]; // Dark red
     pub const ABS: Color = [100, 150, 200, 255]; // Light blue
+    pub const APM: Color = [140, 140, 140, 255]; // Grey
     pub const BOSS_BAR: Color = [200, 50, 50, 255]; // Boss health red
     pub const FRAME_BG: Color = [40, 40, 40, 200]; // Raid frame background
 
@@ -1056,6 +1229,7 @@ pub mod overlay_colors {
             "tps" => TPS,
             "dtps" | "edtps" => DTPS,
             "abs" => HPS,
+            "apm" => APM,
             _ => DPS,
         }
     }
@@ -1200,6 +1374,19 @@ pub struct OverlayAppearanceConfig {
     /// Falls back to `bar_color` when class is unknown.
     #[serde(default)]
     pub use_class_color: bool,
+    /// Fade each bar's fill from its base color (left) to a darkened version
+    /// (right), spanning the filled portion. Details-style single-color gradient.
+    /// Enabled by default for metric overlays.
+    #[serde(default = "default_true")]
+    pub bar_gradient: bool,
+    /// Vertical gap between bars as a fraction of bar height. 0.0 = connected
+    /// (no gap), ~0.2 = default. Keeps spacing consistent across resolutions.
+    #[serde(default = "default_bar_spacing_ratio")]
+    pub bar_spacing_ratio: f32,
+}
+
+fn default_bar_spacing_ratio() -> f32 {
+    0.2
 }
 
 fn default_font_color() -> Color {
@@ -1226,6 +1413,8 @@ impl Default for OverlayAppearanceConfig {
             show_percent: true,
             show_duration: true,
             use_class_color: false,
+            bar_gradient: true,
+            bar_spacing_ratio: 0.2,
         }
     }
 }
@@ -1656,6 +1845,9 @@ pub struct BossHealthConfig {
     pub show_percent: bool,
     #[serde(default = "default_true")]
     pub show_target: bool,
+    /// When true, show the current HP value (e.g. "1.90M") inline on the bar
+    #[serde(default = "default_true")]
+    pub show_hp_value: bool,
     /// Font scale multiplier (1.0 - 2.0, default 1.0)
     #[serde(default = "default_scaling_factor")]
     pub font_scale: f32,
@@ -1665,6 +1857,15 @@ pub struct BossHealthConfig {
     /// When true (default), boss health clears after combat ends
     #[serde(default = "default_true")]
     pub clear_after_combat: bool,
+    /// When true, draw an outline around each boss HP bar
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-HP-bar border outline
+    #[serde(default = "default_overlay_border_color")]
+    pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_boss_bar_color() -> Color {
@@ -1678,9 +1879,13 @@ impl Default for BossHealthConfig {
             font_color: overlay_colors::WHITE,
             show_percent: true,
             show_target: true,
+            show_hp_value: true,
             font_scale: 1.0,
             dynamic_background: false,
             clear_after_combat: true,
+            show_border: true,
+            border_color: default_overlay_border_color(),
+            bar_gradient: false,
         }
     }
 }
@@ -1710,6 +1915,18 @@ pub struct TimerOverlayConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
+    /// When true, draw an outline around each timer entry
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-entry border outline
+    #[serde(default = "default_timer_border_color")]
+    pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_timer_bar_color() -> Color {
@@ -1717,6 +1934,13 @@ fn default_timer_bar_color() -> Color {
 }
 fn default_max_timers() -> u8 {
     10
+}
+fn default_timer_border_color() -> Color {
+    default_overlay_border_color()
+}
+
+fn default_overlay_border_color() -> Color {
+    [128, 128, 128, 255]
 }
 
 impl Default for TimerOverlayConfig {
@@ -1728,6 +1952,10 @@ impl Default for TimerOverlayConfig {
             sort_by_remaining: true,
             font_scale: 1.0,
             dynamic_background: false,
+            stack_from_bottom: false,
+            show_border: true,
+            border_color: default_timer_border_color(),
+            bar_gradient: false,
         }
     }
 }
@@ -1845,6 +2073,14 @@ pub struct ChallengeOverlayConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    /// Enabled by default for the challenges overlay.
+    #[serde(default = "default_true")]
+    pub bar_gradient: bool,
+    /// Vertical gap between player bars as a fraction of bar height. 0.0 =
+    /// connected, ~0.2 = default. Keeps spacing consistent across resolutions.
+    #[serde(default = "default_bar_spacing_ratio")]
+    pub bar_spacing_ratio: f32,
 }
 
 fn default_challenge_bar_color() -> Color {
@@ -1866,6 +2102,8 @@ impl Default for ChallengeOverlayConfig {
             show_background_bar: false,
             font_scale: 1.0,
             dynamic_background: false,
+            bar_gradient: true,
+            bar_spacing_ratio: 0.2,
         }
     }
 }
@@ -1907,6 +2145,19 @@ pub struct EffectsAConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
+    /// When true (and in bar layout), draw an outline around each entry
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-entry border outline (bar layout only)
+    #[serde(default = "default_overlay_border_color")]
+    pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    /// Bar layout only.
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_icon_size() -> u8 {
@@ -1929,6 +2180,10 @@ impl Default for EffectsAConfig {
             show_header: false,
             font_scale: 1.0,
             dynamic_background: false,
+            stack_from_bottom: false,
+            show_border: true,
+            border_color: default_overlay_border_color(),
+            bar_gradient: false,
         }
     }
 }
@@ -1966,6 +2221,19 @@ pub struct EffectsBConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
+    /// When true (and in bar layout), draw an outline around each entry
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-entry border outline (bar layout only)
+    #[serde(default = "default_overlay_border_color")]
+    pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    /// Bar layout only.
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 impl Default for EffectsBConfig {
@@ -1981,6 +2249,10 @@ impl Default for EffectsBConfig {
             show_header: false,
             font_scale: 1.0,
             dynamic_background: false,
+            stack_from_bottom: false,
+            show_border: true,
+            border_color: default_overlay_border_color(),
+            bar_gradient: false,
         }
     }
 }
@@ -2026,6 +2298,19 @@ pub struct CooldownTrackerConfig {
     /// Render cooldowns as stacked progress bars instead of icons
     #[serde(default)]
     pub layout_bar: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
+    /// When true (and in bar layout), draw an outline around each entry
+    #[serde(default = "default_true")]
+    pub show_border: bool,
+    /// Color of the per-entry border outline (bar layout only)
+    #[serde(default = "default_overlay_border_color")]
+    pub border_color: Color,
+    /// Fade each bar's fill from its color (left) to a darkened version (right).
+    /// Bar layout only.
+    #[serde(default)]
+    pub bar_gradient: bool,
 }
 
 fn default_max_cooldowns() -> u8 {
@@ -2045,6 +2330,10 @@ impl Default for CooldownTrackerConfig {
             font_scale: 1.0,
             dynamic_background: false,
             layout_bar: false,
+            stack_from_bottom: false,
+            show_border: true,
+            border_color: default_overlay_border_color(),
+            bar_gradient: false,
         }
     }
 }
@@ -2086,6 +2375,9 @@ pub struct DotTrackerConfig {
     /// When true, background shrinks to fit content instead of filling the window
     #[serde(default)]
     pub dynamic_background: bool,
+    /// When true, entries stack from the bottom of the overlay window
+    #[serde(default)]
+    pub stack_from_bottom: bool,
 }
 
 fn default_max_targets() -> u8 {
@@ -2111,6 +2403,7 @@ impl Default for DotTrackerConfig {
             show_countdown: true,
             font_scale: 1.0,
             dynamic_background: false,
+            stack_from_bottom: false,
         }
     }
 }
@@ -2306,6 +2599,9 @@ pub struct OverlaySettings {
     pub enabled: HashMap<String, bool>,
     #[serde(default = "default_true")]
     pub overlays_visible: bool,
+    /// Global font family for all overlay text. Empty = bundled default (Inter).
+    #[serde(default = "default_overlay_font_family")]
+    pub overlay_font_family: String,
     #[serde(default)]
     pub personal_overlay: PersonalOverlayConfig,
     #[serde(default = "default_opacity")]
@@ -2319,6 +2615,11 @@ pub struct OverlaySettings {
     /// Font scale multiplier for metric overlays (1.0 - 2.0, default 1.0)
     #[serde(default = "default_scaling_factor")]
     pub metric_font_scale: f32,
+    /// How strongly metric bar fills darken toward their trailing edge when the
+    /// single-color gradient is enabled. 0.0 = flat color, ~0.32 = default,
+    /// higher = more aggressive dark→light fade.
+    #[serde(default = "default_gradient_intensity")]
+    pub metric_gradient_intensity: f32,
     /// When true, metric overlay backgrounds shrink to fit content
     #[serde(default)]
     pub metric_dynamic_background: bool,
@@ -2402,6 +2703,19 @@ pub struct OverlaySettings {
     pub class_colors: ClassColorConfig,
 }
 
+/// Default overlay font family. Must match `baras_overlay::DEFAULT_FONT_FAMILY`
+/// (the bundled Inter face); kept as a literal here since `baras-types` is the
+/// lowest crate and cannot depend on `baras-overlay`.
+fn default_overlay_font_family() -> String {
+    "Inter".to_string()
+}
+
+/// Default metric bar gradient intensity. Must match
+/// `baras_overlay::widgets::progress_bar::GRADIENT_DARKEN`.
+fn default_gradient_intensity() -> f32 {
+    0.32
+}
+
 impl Default for OverlaySettings {
     fn default() -> Self {
         Self {
@@ -2409,12 +2723,14 @@ impl Default for OverlaySettings {
             appearances: HashMap::new(),
             enabled: HashMap::new(),
             overlays_visible: true,
+            overlay_font_family: default_overlay_font_family(),
             personal_overlay: PersonalOverlayConfig::default(),
             metric_opacity: 180,
             metric_show_empty_bars: true,
             metric_stack_from_bottom: false,
             metric_scaling_factor: 1.0,
             metric_font_scale: 1.0,
+            metric_gradient_intensity: 0.32,
             metric_dynamic_background: false,
             metric_show_background_bar: false,
             personal_opacity: 180,
@@ -3002,6 +3318,9 @@ pub enum SortColumn {
     DamageType,
     ShldPct,
     Absorbed,
+    MaxHit,
+    AvgPerActivation,
+    AvgPerActivationEff,
 }
 
 /// Sort column for ability usage table
@@ -3345,5 +3664,60 @@ mod tests {
         ));
         assert_eq!(parsed.refresh_abilities[2].min_stacks(), Some(2));
         assert_eq!(parsed.refresh_abilities[2].trigger(), RefreshTrigger::Heal);
+    }
+
+    #[test]
+    fn test_refresh_on_first_damage_resolution() {
+        // Simple selector: no override → falls back to the per-effect default.
+        let simple = RefreshAbility::Simple(AbilitySelector::from_input("123"));
+        assert_eq!(simple.on_first_damage(), None);
+        assert!(simple.refresh_on_first_damage(true)); // DotTracker → first damage
+        assert!(!simple.refresh_on_first_damage(false)); // others → on cast
+
+        // Explicit override wins regardless of display target.
+        let toml = r#"
+            refresh_abilities = [
+                { ability = 1, on_first_damage = true },
+                { ability = 2, on_first_damage = false },
+                { ability = 3 },
+            ]
+        "#;
+        #[derive(Deserialize, Debug)]
+        struct Test {
+            refresh_abilities: Vec<RefreshAbility>,
+        }
+        let parsed: Test = toml::from_str(toml).unwrap();
+
+        // Some(true): first damage even for a non-DotTracker effect.
+        assert_eq!(parsed.refresh_abilities[0].on_first_damage(), Some(true));
+        assert!(parsed.refresh_abilities[0].refresh_on_first_damage(false));
+
+        // Some(false): on cast even for a DotTracker effect.
+        assert_eq!(parsed.refresh_abilities[1].on_first_damage(), Some(false));
+        assert!(!parsed.refresh_abilities[1].refresh_on_first_damage(true));
+
+        // Unspecified conditional: still defers to the per-effect default.
+        assert_eq!(parsed.refresh_abilities[2].on_first_damage(), None);
+        assert!(parsed.refresh_abilities[2].refresh_on_first_damage(true));
+    }
+
+    #[test]
+    fn test_refresh_ability_round_trip_omits_default_first_damage() {
+        // A conditional that only sets on_first_damage should serialize that field
+        // and nothing else; an unset override must not appear (backward compat).
+        let ability = RefreshAbility::Conditional {
+            ability: AbilitySelector::from_input("123"),
+            min_stacks: None,
+            trigger: RefreshTrigger::Activation,
+            ignore_immune_resist: false,
+            on_first_damage: None,
+        };
+        let serialized = toml::to_string(&Wrap { value: ability }).unwrap();
+        assert!(!serialized.contains("on_first_damage"));
+
+        #[derive(Serialize, Deserialize)]
+        struct Wrap {
+            value: RefreshAbility,
+        }
     }
 }

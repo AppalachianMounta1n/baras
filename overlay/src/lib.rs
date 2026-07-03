@@ -126,7 +126,7 @@ pub use platform::{
     clamp_to_virtual_screen, find_monitor_at, find_monitor_by_id, get_all_monitors,
     resolve_absolute_position,
 };
-pub use renderer::Renderer;
+pub use renderer::{DEFAULT_FONT_FAMILY, Renderer, available_font_families};
 pub use utils::{color_from_rgba, format_number, format_time, truncate_name};
 pub use widgets::{Footer, Header, LabeledValue, ProgressBar, colors};
 

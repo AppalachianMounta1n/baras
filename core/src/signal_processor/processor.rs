@@ -81,6 +81,14 @@ impl EventProcessor {
         // 1h. Battle rez tracking (must run after target tracking and entity lifecycle)
         self.handle_battle_rez_tracking(&event, cache);
 
+        // Refresh per-event evaluation caches now that the entity roster and
+        // active boss for this event are finalized. The phase/counter trigger
+        // evaluation below reads these; they rebuild only when the NPC roster
+        // grows or the active boss/difficulty changes.
+        if let Some(enc) = cache.current_encounter_mut() {
+            enc.refresh_eval_caches();
+        }
+
         // ═══════════════════════════════════════════════════════════════════════
         // PHASE 2: Signal Emission (pure transformation)
         // ═══════════════════════════════════════════════════════════════════════
@@ -1086,7 +1094,7 @@ impl EventProcessor {
             entities: &boss_def.entities,
             local_player_id,
             current_target_id,
-            boss_entity_ids: &boss_ids,
+            boss_entity_ids: boss_ids.as_ref(),
         };
 
         // Check if trigger matches (needs immutable borrow)
@@ -1391,6 +1399,7 @@ impl EventProcessor {
             timestamp: event.timestamp,
             absorbed: event.details.dmg_absorbed,
             defense_type_id: event.details.defense_type_id,
+            is_crit: event.details.is_crit,
         });
     }
 
@@ -1599,7 +1608,7 @@ fn shield_signal_matches(
             }
         }
 
-        Trigger::DamageTaken { .. } => {
+        Trigger::DamageTaken { .. } | Trigger::DamageDealt { .. } => {
             if let GameSignal::DamageTaken {
                 ability_id,
                 ability_name,
@@ -1787,5 +1796,6 @@ fn shield_signal_matches(
         Trigger::CombatStart | Trigger::TimeElapsed { .. } => false,
         Trigger::CombatEnd => matches!(signal, GameSignal::CombatEnded { .. }),
         Trigger::Manual | Trigger::Never => false,
+        Trigger::ChargesChanged { .. } | Trigger::SelfChargesChanged { .. } => false,
     }
 }

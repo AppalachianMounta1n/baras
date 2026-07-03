@@ -62,6 +62,11 @@ impl OverlayFrame {
         self.label = Some(label.into());
     }
 
+    /// Set the font family used for all text rendering on this overlay
+    pub fn set_font_family(&mut self, family: &str) {
+        self.window.set_font_family(family);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Scaling
     // ─────────────────────────────────────────────────────────────────────────
@@ -375,6 +380,25 @@ impl OverlayFrame {
         self.window.fill_rounded_rect(x, y, w, h, radius, color);
     }
 
+    /// Draw a filled rounded rectangle with a horizontal linear gradient
+    /// fading `start_color` to `end_color`. `grad_x0`/`grad_x1` set the
+    /// gradient span independently of the rect bounds.
+    pub fn fill_rounded_rect_gradient(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        grad_x0: f32,
+        grad_x1: f32,
+        start_color: Color,
+        end_color: Color,
+    ) {
+        self.window
+            .fill_rounded_rect_gradient(x, y, w, h, radius, grad_x0, grad_x1, start_color, end_color);
+    }
+
     /// Draw a rounded rectangle outline
     pub fn stroke_rounded_rect(
         &mut self,
@@ -388,6 +412,21 @@ impl OverlayFrame {
     ) {
         self.window
             .stroke_rounded_rect(x, y, w, h, radius, stroke_width, color);
+    }
+
+    /// Stroke an open folder-tab outline (rounded top + sides, open bottom)
+    pub fn stroke_tab_outline(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        stroke_width: f32,
+        color: Color,
+    ) {
+        self.window
+            .stroke_tab_outline(x, y, w, h, radius, stroke_width, color);
     }
 
     /// Draw a dashed rounded rectangle outline (useful for alignment guides)

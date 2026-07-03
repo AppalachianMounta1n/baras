@@ -433,8 +433,16 @@ impl EncounterQuery<'_> {
         // Append shield breakdown rows for healing tabs, then recalculate
         // percent_of_total so the denominator includes shield absorption.
         if tab.is_healing() && entity_name.is_some() {
-            if let Ok(shields) =
-                self.query_shield_breakdown(entity_name.unwrap(), time_range, duration).await
+            let is_incoming = tab == DataTab::HealingTaken;
+            if let Ok(shields) = self
+                .query_shield_breakdown(
+                    entity_name.unwrap(),
+                    time_range,
+                    duration,
+                    is_incoming,
+                    mode,
+                )
+                .await
             {
                 if !shields.is_empty() {
                     results.extend(shields);
@@ -452,18 +460,47 @@ impl EncounterQuery<'_> {
         Ok(results)
     }
 
-    /// Query shield absorption breakdown by ability for a healer.
-    /// Returns AbilityBreakdown rows with is_shield=true.
+    /// Query shield absorption breakdown by ability. Returns rows with is_shield=true.
+    /// Outgoing credits shields the entity cast; incoming credits shields that absorbed
+    /// damage on the entity, optionally per-source when grouping by counterparty.
     async fn query_shield_breakdown(
         &self,
         entity_name: &str,
         time_range: Option<&TimeRange>,
         duration: f64,
+        is_incoming: bool,
+        mode: BreakdownMode,
     ) -> Result<Vec<AbilityBreakdown>, String> {
         let time_filter = time_range
             .map(|tr| format!("AND {}", tr.sql_filter()))
             .unwrap_or_default();
         let escaped_name = sql_escape(entity_name);
+
+        let group_by_source = is_incoming && (mode.by_target_type || mode.by_target_instance);
+        let map_entity_col = if is_incoming { "target_name" } else { "source_name" };
+
+        let (inner_target_filter, shield_source_filter) = if is_incoming {
+            (format!("AND target_name = '{escaped_name}'"), String::new())
+        } else {
+            (
+                String::new(),
+                format!(
+                    "AND CAST(shield['source_id'] AS BIGINT) IN (\
+                        SELECT DISTINCT source_id FROM events \
+                        WHERE source_name = '{escaped_name}' {time_filter}\
+                    )"
+                ),
+            )
+        };
+
+        let (select_src, group_src) = if group_by_source {
+            (
+                ", CAST(shield['source_id'] AS BIGINT) as src_id",
+                ", shield['source_id']",
+            )
+        } else {
+            (", CAST(NULL AS BIGINT) as src_id", "")
+        };
 
         let query = format!(
             r#"
@@ -471,39 +508,62 @@ impl EncounterQuery<'_> {
                 SELECT DISTINCT effect_id as shield_eid, ability_id, ability_name
                 FROM events
                 WHERE effect_type_id = {apply_effect}
-                  AND source_name = '{name}'
+                  AND {map_entity_col} = '{escaped_name}'
                   {time_filter}
             ),
             shield_totals AS (
                 SELECT
-                    CAST(shield['effect_id'] AS BIGINT) as shield_eid,
+                    CAST(shield['effect_id'] AS BIGINT) as shield_eid
+                    {select_src},
                     SUM(CAST(dmg_absorbed AS BIGINT)) as total_absorbed,
                     COUNT(*) as hit_count
                 FROM (
                     SELECT dmg_absorbed, UNNEST(active_shields) as shield
                     FROM events
                     WHERE dmg_absorbed > 0 AND cardinality(active_shields) > 0
+                      {inner_target_filter}
                       {time_filter}
                 )
                 WHERE CAST(shield['position'] AS BIGINT) = 1
-                  AND CAST(shield['source_id'] AS BIGINT) IN (
-                      SELECT DISTINCT source_id FROM events
-                      WHERE source_name = '{name}' {time_filter}
-                  )
-                GROUP BY shield['effect_id']
+                  {shield_source_filter}
+                GROUP BY shield['effect_id']{group_src}
             )
             SELECT sm.ability_id, sm.ability_name,
                    COALESCE(st.total_absorbed, 0) as total_absorbed,
-                   COALESCE(st.hit_count, 0) as hit_count
+                   COALESCE(st.hit_count, 0) as hit_count,
+                   st.src_id
             FROM shield_totals st
             JOIN shield_map sm ON st.shield_eid = sm.shield_eid
             WHERE st.total_absorbed > 0
             ORDER BY total_absorbed DESC
             "#,
             apply_effect = effect_type_id::APPLYEFFECT,
-            name = escaped_name,
-            time_filter = time_filter,
         );
+
+        // Resolve src_id → (source_name, source_class_id) in Rust — matches the
+        // overview.rs pattern for HPS shield attribution.
+        let id_lookup: HashMap<i64, (String, i64)> = if group_by_source {
+            let lookup_batches = self
+                .sql(
+                    "SELECT DISTINCT source_id, source_name, source_class_id FROM events \
+                     WHERE source_name != ''",
+                )
+                .await
+                .unwrap_or_default();
+            let mut map = HashMap::new();
+            for batch in &lookup_batches {
+                let ids = col_i64(batch, 0)?;
+                let names = col_strings(batch, 1)?;
+                let class_ids = col_i64(batch, 2)?;
+                for i in 0..batch.num_rows() {
+                    map.entry(ids[i])
+                        .or_insert_with(|| (names[i].clone(), class_ids[i]));
+                }
+            }
+            map
+        } else {
+            HashMap::new()
+        };
 
         let batches = self.sql(&query).await?;
         let mut results = Vec::new();
@@ -513,15 +573,31 @@ impl EncounterQuery<'_> {
             let names = col_strings(batch, 1)?;
             let totals = col_f64(batch, 2)?;
             let hits = col_i64(batch, 3)?;
+            let src_id_col = batch.column(4);
 
             for i in 0..batch.num_rows() {
                 let h = hits[i] as f64;
+
+                let (tgt_name, tgt_log_id, tgt_class_id) = if group_by_source {
+                    use datafusion::arrow::array::{Array, Int64Array};
+                    let sid = src_id_col
+                        .as_any()
+                        .downcast_ref::<Int64Array>()
+                        .and_then(|a| if Array::is_null(a, i) { None } else { Some(a.value(i)) });
+                    match sid.and_then(|s| id_lookup.get(&s).map(|v| (s, v))) {
+                        Some((s, (name, class_id))) => (Some(name.clone()), Some(s), Some(*class_id)),
+                        None => (None, None, None),
+                    }
+                } else {
+                    (None, None, None)
+                };
+
                 results.push(AbilityBreakdown {
                     ability_name: names[i].clone(),
                     ability_id: ids[i],
-                    target_name: None,
-                    target_class_id: None,
-                    target_log_id: None,
+                    target_name: tgt_name,
+                    target_class_id: tgt_class_id,
+                    target_log_id: tgt_log_id,
                     target_first_hit_secs: None,
                     total_value: totals[i],
                     hit_count: hits[i],
@@ -664,6 +740,8 @@ impl EncounterQuery<'_> {
     ) -> Result<Vec<EntityBreakdown>, String> {
         let value_col = tab.value_column();
         let is_outgoing = tab.is_outgoing();
+        let is_healing_taken = tab == DataTab::HealingTaken;
+        let is_healing_outgoing = tab == DataTab::Healing;
 
         // For outgoing: group by source (who dealt)
         // For incoming: group by target (who received)
@@ -682,8 +760,91 @@ impl EncounterQuery<'_> {
         }
         let filter = format!("WHERE {}", conditions.join(" AND "));
 
-        let batches = self
-            .sql(&format!(
+        // HealingTaken adds shielding received (dmg_absorbed on the target) to heal totals,
+        // mirroring how HPS in overview.rs credits shielding to the caster.
+        let query = if is_healing_taken {
+            let time_filter = time_range
+                .map(|tr| format!("AND {}", tr.sql_filter()))
+                .unwrap_or_default();
+            format!(
+                r#"
+            WITH healing AS (
+                SELECT {name_col}, {id_col}, MIN({type_col}) as entity_type,
+                       SUM({value_col}) as heal_total,
+                       COUNT(DISTINCT ability_id) as abilities_used
+                FROM events {filter}
+                GROUP BY {name_col}, {id_col}
+            ),
+            shielding AS (
+                SELECT {name_col}, {id_col}, MIN({type_col}) as entity_type,
+                       SUM(dmg_absorbed) as shield_total
+                FROM events
+                WHERE dmg_absorbed > 0 {time_filter}
+                GROUP BY {name_col}, {id_col}
+            )
+            SELECT COALESCE(h.{name_col}, s.{name_col}) as {name_col},
+                   COALESCE(h.{id_col}, s.{id_col}) as {id_col},
+                   COALESCE(h.entity_type, s.entity_type) as entity_type,
+                   COALESCE(h.heal_total, 0) + COALESCE(s.shield_total, 0) as total_value,
+                   COALESCE(h.abilities_used, 0) as abilities_used
+            FROM healing h
+            FULL OUTER JOIN shielding s
+              ON h.{name_col} = s.{name_col} AND h.{id_col} = s.{id_col}
+            ORDER BY total_value DESC
+            "#
+            )
+        } else if is_healing_outgoing {
+            // Outgoing healing credits shielding to the shield's caster, not to the
+            // source of the absorbed-damage event. Attribute via the pre-computed
+            // `active_shields` column (FIFO: position=1 holds the full dmg_absorbed),
+            // mirroring query_shield_attribution in overview.rs.
+            let time_filter = time_range
+                .map(|tr| format!("AND {}", tr.sql_filter()))
+                .unwrap_or_default();
+            format!(
+                r#"
+            WITH healing AS (
+                SELECT {name_col}, {id_col}, MIN({type_col}) as entity_type,
+                       SUM({value_col}) as heal_total,
+                       COUNT(DISTINCT ability_id) as abilities_used
+                FROM events {filter}
+                GROUP BY {name_col}, {id_col}
+            ),
+            shield_raw AS (
+                SELECT CAST(shield['source_id'] AS BIGINT) as sid,
+                       CAST(dmg_absorbed AS BIGINT) as absorbed
+                FROM (
+                    SELECT dmg_absorbed, UNNEST(active_shields) as shield
+                    FROM events
+                    WHERE dmg_absorbed > 0 AND cardinality(active_shields) > 0 {time_filter}
+                )
+                WHERE CAST(shield['position'] AS BIGINT) = 1
+            ),
+            entities AS (
+                SELECT source_id, MIN(source_name) as source_name,
+                       MIN(source_entity_type) as entity_type
+                FROM events GROUP BY source_id
+            ),
+            shielding AS (
+                SELECT sr.sid as {id_col}, e.source_name as {name_col}, e.entity_type,
+                       SUM(sr.absorbed) as shield_total
+                FROM shield_raw sr
+                JOIN entities e ON sr.sid = e.source_id
+                GROUP BY sr.sid, e.source_name, e.entity_type
+            )
+            SELECT COALESCE(h.{name_col}, s.{name_col}) as {name_col},
+                   COALESCE(h.{id_col}, s.{id_col}) as {id_col},
+                   COALESCE(h.entity_type, s.entity_type) as entity_type,
+                   COALESCE(h.heal_total, 0) + COALESCE(s.shield_total, 0) as total_value,
+                   COALESCE(h.abilities_used, 0) as abilities_used
+            FROM healing h
+            FULL OUTER JOIN shielding s
+              ON h.{id_col} = s.{id_col}
+            ORDER BY total_value DESC
+            "#
+            )
+        } else {
+            format!(
                 r#"
             SELECT {name_col}, {id_col}, MIN({type_col}) as entity_type,
                    SUM({value_col}) as total_value,
@@ -691,9 +852,11 @@ impl EncounterQuery<'_> {
             FROM events {filter}
             GROUP BY {name_col}, {id_col}
             ORDER BY total_value DESC
-        "#
-            ))
-            .await?;
+            "#
+            )
+        };
+
+        let batches = self.sql(&query).await?;
 
         let mut results = Vec::new();
         for batch in &batches {

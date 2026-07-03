@@ -1,5 +1,5 @@
 [area]
-name = "R4"
+name = "R-4 Anomaly"
 id = 833571547775799
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -16,6 +16,31 @@ name = "IP-CPT"
 ids = [4494653210492928, 4467247024177152]
 is_boss = true
 is_kill_target = true
+
+# -- Hp markers
+[[boss.entities.hp_markers]]
+hp_percent = 75.0
+label = "Goes up"
+
+[[boss.entities.hp_markers.conditions]]
+type = "phase_active"
+phase_ids = ["ip_main"]
+
+[[boss.entities.hp_markers]]
+hp_percent = 50.0
+label = "Goes up"
+
+[[boss.entities.hp_markers.conditions]]
+type = "phase_active"
+phase_ids = ["ip_main"]
+
+[[boss.entities.hp_markers]]
+hp_percent = 25.0
+label = "Goes up"
+
+[[boss.entities.hp_markers.conditions]]
+type = "phase_active"
+phase_ids = ["ip_main"]
 
 [[boss.entities]]
 name = "Intrusion ID Unit"
@@ -69,19 +94,12 @@ phase_ids = ["burn"]
 [[boss.counters]]
 id = "ip_cpt_stacks"
 name = "Stacks"
-initial_value = 0
-decrement = false
 
 [boss.counters.increment_on]
 type = "effect_applied"
-effects = [4472005847941376]
-source = "any"
-target = "local_player"
 
-[boss.counters.reset_on]
-type = "effect_removed"
+[boss.counters.track_effect_stacks]
 effects = [4472005847941376]
-source = "any"
 target = "local_player"
 
 [[boss.counters]]
@@ -123,7 +141,10 @@ trigger = { type = "effect_applied", effects = [
   4471271408533778,
 ], target = "local_player" }
 duration_secs = 8.5
-color = [20, 153, 33, 255]
+alert_on = "countdown"
+alert_text = "Grenade explosion"
+alert_countdown_secs = 3.0
+color = [200, 0, 0, 255]
 icon_ability_id = 4471271408533778
 difficulties = ["veteran"]
 
@@ -206,6 +227,7 @@ duration_secs = 30.0
 is_alert = true
 alert_text = "At 4 stacks!"
 color = [255, 0, 136, 255]
+icon_ability_id = 4472005847941376
 difficulties = ["veteran"]
 
 [boss.timer.trigger]
@@ -300,6 +322,8 @@ timer_id = "ip_cpt_4th_intrusion_units"
 id = "ip_cpt_bomb_explosion"
 name = "Bomb explosion"
 duration_secs = 31.0
+alert_on = "countdown"
+alert_countdown_secs = 3.0
 color = [200, 0, 0, 255]
 icon_ability_id = 4470747422523392
 difficulties = ["story", "veteran"]
@@ -338,6 +362,7 @@ name = "Leave consoles"
 duration_secs = 30.0
 is_alert = true
 color = [200, 0, 0, 255]
+icon_ability_id = 4470747422523392
 difficulties = ["story", "veteran"]
 
 [boss.timer.trigger]
@@ -398,6 +423,10 @@ name = "Watchdog"
 ids = [4466177577320448, 4494700455133184]
 is_boss = true
 is_kill_target = true
+
+[[boss.entities.hp_markers]]
+hp_percent = 13.5
+label = "Burn"
 
 [[boss.phases]]
 id = "wd_main"
@@ -494,6 +523,9 @@ name = "Degauss 1st"
 display_text = "Degauss"
 trigger = { type = "combat_start" }
 duration_secs = 63.0
+alert_on = "countdown"
+alert_text = "Degauss"
+alert_countdown_secs = 3.0
 color = [29, 224, 218, 255]
 icon_ability_id = 4472216301338624
 difficulties = ["veteran"]
@@ -584,6 +616,9 @@ value = 2
 id = "watchdog_degauss"
 name = "Degauss"
 display_text = "Degauss"
+alert_on = "countdown"
+alert_text = "Degauss"
+alert_countdown_secs = 3.0
 trigger = { type = "counter_reaches", counter_id = "wd_beam_counter", value = 4 }
 duration_secs = 10.0
 color = [29, 221, 224, 255]
@@ -761,6 +796,16 @@ enabled = true
 [boss.phases.start_trigger]
 type = "timer_expires"
 timer_id = "kanoth_p3"
+
+[[boss.challenges]]
+id = "kanoth_grenades_thrown"
+name = "Grenades thrown"
+metric = "ability_count"
+columns = "total_only"
+
+[[boss.challenges.conditions]]
+type = "ability"
+ability_ids = [4482674546704384]
 
 [[boss.counters]]
 id = "kanoth_p3_f_b"
@@ -1577,6 +1622,20 @@ id = "dom_attractor_appearance"
 name = "Attractor Spawns"
 increment_on = { type = "npc_appears", selector = ["Attractors"] }
 
+[[boss.counters]]
+id = "dominique_p2_stacks"
+name = "p2 stacks"
+enabled = true
+initial_value = 0
+decrement = false
+
+[boss.counters.increment_on]
+type = "ability_cast"
+
+[boss.counters.track_effect_stacks]
+effects = [4606133381628162]
+target = "local_player"
+
 # -- Challenges
 [[boss.challenges]]
 id = "dominique_burn"
@@ -1591,10 +1650,12 @@ phase_ids = ["dominique_burn"]
 # -- Timers
 [[boss.timer]]
 id = "dominique_orange_circle"
-name = "Orange Circle Local Player"
-is_alert = true
-alert_text = "Orange. Drop down!"
+name = "Orange Circle dropping"
+duration_secs = 8.0
+alert_on = "on_apply"
+alert_text = "Orange on you"
 color = [224, 112, 0, 255]
+icon_ability_id = 4574715695857998
 difficulties = ["story", "veteran"]
 display_target = "timers_a"
 
@@ -1606,10 +1667,12 @@ target = "local_player"
 
 [[boss.timer]]
 id = "dominique_yellow_circle"
-name = "Yellow Circle Local Player"
-is_alert = true
-alert_text = "Yellow. Knockback Incoming!"
+name = "Yellow Circle knockback"
+duration_secs = 8.0
+alert_on = "on_apply"
+alert_text = "Yellow on you"
 color = [255, 234, 0, 255]
+icon_ability_id = 4574698515988786
 difficulties = ["story", "veteran"]
 display_target = "timers_a"
 
@@ -1625,6 +1688,7 @@ name = "ARIA spawned"
 duration_secs = 30.0
 is_alert = true
 color = [38, 162, 105, 255]
+icon_ability_id = 4594657229012992
 difficulties = ["story", "veteran"]
 
 [boss.timer.trigger]
@@ -1692,6 +1756,19 @@ target = "boss"
 [boss.timer.cancel_trigger]
 type = "phase_ended"
 phase_id = "dominique_dom_generators"
+
+[[boss.timer]]
+id = "dominique_tank_swap"
+name = "Tank swap"
+is_alert = true
+color = [150, 0, 255, 255]
+icon_ability_id = 4606133381628162
+difficulties = ["veteran"]
+
+[boss.timer.trigger]
+type = "counter_reaches"
+counter_id = "dominique_p2_stacks"
+value = 5
 
 [[boss.timer]]
 id = "dominique_watchdog_appears"
